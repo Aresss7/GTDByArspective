@@ -54,7 +54,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         <img 
           src={appLogo} 
           alt="Arspective Logo" 
-          className="w-8 h-8 rounded-full object-contain shrink-0 ring-1 ring-zinc-200 dark:ring-zinc-800" 
+          className="w-8 h-8 rounded-xl object-contain shrink-0" 
         />
         <div className="min-w-0">
           <h1 className="font-extrabold text-base tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
