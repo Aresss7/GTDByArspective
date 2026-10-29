@@ -10,6 +10,13 @@ export class TaskRepository {
     return stmt.all() as Task[];
   }
 
+  getTrash(): Task[] {
+    const stmt = this.db.prepare(
+      "SELECT * FROM tasks WHERE destination = 'trash' OR deleted_at IS NOT NULL ORDER BY updated_at DESC"
+    );
+    return stmt.all() as Task[];
+  }
+
   getByDestination(destination: TaskDestination): Task[] {
     const stmt = this.db.prepare(
       'SELECT * FROM tasks WHERE destination = ? AND deleted_at IS NULL ORDER BY created_at DESC'

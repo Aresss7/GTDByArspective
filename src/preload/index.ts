@@ -7,6 +7,8 @@ const api: GtdApi = {
     ipcRenderer.invoke('tasks:getByDestination', destination),
   getAllTasks: () =>
     ipcRenderer.invoke('tasks:getAll'),
+  getTrashTasks: () =>
+    ipcRenderer.invoke('tasks:getTrash'),
   getTaskById: (id: string) =>
     ipcRenderer.invoke('tasks:getById', id),
   createTask: (data: Partial<Task> & { title: string }) =>

@@ -97,6 +97,10 @@ describe('SQLite Database & Storage Layer', () => {
       // Не отображается в обычном списке активных
       const allActive = taskRepo.getAll();
       expect(allActive.find((t) => t.id === task.id)).toBeUndefined();
+
+      // Отображается в getTrash()
+      const trash = taskRepo.getTrash();
+      expect(trash.find((t) => t.id === task.id)).toBeDefined();
     });
   });
 

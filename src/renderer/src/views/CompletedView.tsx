@@ -13,7 +13,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   projects,
   onTaskUpdated,
 }) => {
-  const completedTasks = tasks.filter((t) => t.status === 'completed');
+  const completedTasks = tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash');
   const completedProjects = projects.filter((p) => p.status === 'completed');
 
   const handleReopenTask = async (task: Task) => {

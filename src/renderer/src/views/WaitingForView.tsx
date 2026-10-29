@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserCheck, Calendar, CheckCircle2, ArrowRight, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 interface WaitingForViewProps {
   tasks: Task[];
@@ -19,7 +20,8 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
   onTaskContextMenu,
   onEditTask,
 }) => {
-  const waitingTasks = tasks.filter((t) => t.destination === 'waiting_for' && t.status === 'active');
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const waitingTasks = tasks.filter((t) => t.destination === 'waiting_for' && t.status === 'active' && !t.deleted_at);
   const todayStr = new Date().toISOString().split('T')[0];
 
   const handleMarkDone = async (task: Task) => {
@@ -42,11 +44,11 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
     }
   };
 
-  const handleDelete = async (task: Task) => {
-    if (!window.gtdApi) return;
-    if (!confirm(`Удалить задачу «${task.title}»?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!window.gtdApi || !taskToDelete) return;
     try {
-      await window.gtdApi.deleteTask(task.id, true);
+      await window.gtdApi.deleteTask(taskToDelete.id, false);
+      setTaskToDelete(null);
       await onTaskUpdated();
     } catch (e) {
       console.error(e);
@@ -151,7 +153,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                     </button>
                   )}
                   <button
-                    onClick={() => handleDelete(task)}
+                    onClick={() => setTaskToDelete(task)}
                     className="p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 cursor-pointer"
                     title="Удалить (или нажмите ПКМ)"
                   >
@@ -163,6 +165,15 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
           })}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={Boolean(taskToDelete)}
+        title={taskToDelete?.title || ''}
+        description="Задача будет перемещена в раздел «Мусор»."
+        confirmText="Удалить в корзину"
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };

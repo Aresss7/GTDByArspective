@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Plus, Trash2, Search } from 'lucide-react';
 import { Task } from '@shared/types';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 interface NotesViewProps {
   tasks: Task[];
@@ -14,7 +15,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
   onOpenAddTask,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active');
+  const [noteToDelete, setNoteToDelete] = useState<Task | null>(null);
+  const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
 
   const filteredNotes = noteItems.filter(
     (n) =>
@@ -22,10 +24,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
       (n.notes && n.notes.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleDeleteNote = async (id: string) => {
-    if (!window.gtdApi) return;
+  const handleConfirmDelete = async () => {
+    if (!window.gtdApi || !noteToDelete) return;
     try {
-      await window.gtdApi.deleteTask(id, false);
+      await window.gtdApi.deleteTask(noteToDelete.id, false);
+      setNoteToDelete(null);
       await onTaskUpdated();
     } catch (e) {
       console.error(e);
@@ -86,7 +89,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
                 <span>{new Date(note.created_at).toLocaleDateString('ru-RU')}</span>
                 <button
-                  onClick={() => handleDeleteNote(note.id)}
+                  onClick={() => setNoteToDelete(note)}
                   className="p-1.5 rounded-full text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                   title="Удалить заметку"
                 >
@@ -97,6 +100,15 @@ export const NotesView: React.FC<NotesViewProps> = ({
           ))}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={Boolean(noteToDelete)}
+        title={noteToDelete?.title || ''}
+        description="Заметка будет перемещена в раздел «Мусор»."
+        confirmText="Удалить в корзину"
+        onClose={() => setNoteToDelete(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };

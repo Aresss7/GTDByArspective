@@ -43,6 +43,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const todayStr = formatDateKey(new Date());
+  const activeCalendarTasks = tasks.filter((t) => !t.deleted_at && t.destination !== 'trash');
   const selectedDateStr = formatDateKey(selectedDate);
 
   // Навигация по датам
@@ -98,7 +99,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
-  const tasksForSelectedDay = tasks.filter((t) => t.scheduled_date === selectedDateStr);
+  const tasksForSelectedDay = activeCalendarTasks.filter((t) => t.scheduled_date === selectedDateStr);
 
   // Проверка на просроченность
   const isOverdue = (task: Task): boolean => {
@@ -149,7 +150,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             const dateStr = formatDateKey(date);
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedDateStr;
-            const dayTasks = tasks.filter((t) => t.scheduled_date === dateStr);
+            const dayTasks = activeCalendarTasks.filter((t) => t.scheduled_date === dateStr);
             const activeDayTasks = dayTasks.filter((t) => t.status === 'active');
 
             return (
@@ -232,7 +233,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           const dateStr = formatDateKey(d);
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDateStr;
-          const dayTasks = tasks.filter((t) => t.scheduled_date === dateStr);
+          const dayTasks = activeCalendarTasks.filter((t) => t.scheduled_date === dateStr);
 
           return (
             <div

@@ -84,6 +84,7 @@ export interface GtdApi {
   // Tasks
   getTasksByDestination: (destination: TaskDestination) => Promise<Task[]>;
   getAllTasks: () => Promise<Task[]>;
+  getTrashTasks: () => Promise<Task[]>;
   getTaskById: (id: string) => Promise<Task | null>;
   createTask: (data: Partial<Task> & { title: string }) => Promise<Task>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<Task>;

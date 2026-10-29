@@ -62,9 +62,12 @@ export const App: React.FC = () => {
   const refreshData = async () => {
     if (window.gtdApi) {
       try {
-        const allTasks = await window.gtdApi.getAllTasks();
-        const allProjects = await window.gtdApi.getProjects();
-        setTasks(allTasks || []);
+        const [allTasks, trashTasks, allProjects] = await Promise.all([
+          window.gtdApi.getAllTasks(),
+          window.gtdApi.getTrashTasks(),
+          window.gtdApi.getProjects(),
+        ]);
+        setTasks([...(allTasks || []), ...(trashTasks || [])]);
         setProjects(allProjects || []);
       } catch (e) {
         console.warn('API error during refresh:', e);
@@ -95,7 +98,8 @@ export const App: React.FC = () => {
   // Горячая клавиша Ctrl+N для быстрого непрерывного добавления задач в Корзину
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+      const isNKey = e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т';
+      if ((e.ctrlKey || e.metaKey) && isNKey) {
         e.preventDefault();
         setIsRapidCaptureOpen(true);
       }
@@ -290,12 +294,13 @@ export const App: React.FC = () => {
 
   // Фильтрация текущего списка задач
   const currentViewTasks = tasks.filter((t) => {
-    if (activeTab === 'completed') return t.status === 'completed';
+    if (activeTab === 'completed') return t.status === 'completed' && !t.deleted_at && t.destination !== 'trash';
     if (activeTab === 'projects') return false;
-    return t.destination === activeTab && t.status === 'active';
+    if (activeTab === 'trash') return t.destination === 'trash' || t.deleted_at != null;
+    return t.destination === activeTab && t.status === 'active' && !t.deleted_at;
   });
 
-  const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active');
+  const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active' && !t.deleted_at);
 
   const getTabTitle = () => {
     switch (activeTab) {

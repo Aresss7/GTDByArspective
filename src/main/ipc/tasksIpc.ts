@@ -10,6 +10,10 @@ export function registerTasksIpc(): void {
     return getRepo().getAll();
   });
 
+  ipcMain.handle('tasks:getTrash', async () => {
+    return getRepo().getTrash();
+  });
+
   ipcMain.handle('tasks:getByDestination', async (_, destination: TaskDestination) => {
     return getRepo().getByDestination(destination);
   });
