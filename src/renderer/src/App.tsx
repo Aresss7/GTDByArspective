@@ -2,14 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Sparkles, AlertCircle } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
 import { QuickAddTaskModal } from './components/QuickAddTaskModal';
+import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProcessingWizardModal } from './views/ProcessingWizard/ProcessingWizardModal';
-import { Task, Project, TaskDestination } from '@shared/types';
+import { ProjectsView } from './views/ProjectsView';
+import { Task, Project } from '@shared/types';
 
 export const App: React.FC = () => {
   // Стартовый экран по умолчанию — «Текущие действия»
   const [activeTab, setActiveTab] = useState<NavigationTab>('next_actions');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [projectSourceTask, setProjectSourceTask] = useState<Task | null>(null);
+
+  // Для передачи первого шага проекта на специальную обработку
+  const [wizardInitialTask, setWizardInitialTask] = useState<Task | null>(null);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
 
@@ -108,6 +116,24 @@ export const App: React.FC = () => {
     );
   };
 
+  // Обработка запроса на создание проекта из мастера корзины (ответ «Нет» на «Одношаговая?»)
+  const handleCreateProjectFromWizard = (sourceTask: Task) => {
+    setProjectSourceTask(sourceTask);
+    setIsProcessingOpen(false);
+    setIsCreateProjectOpen(true);
+  };
+
+  // Завершение создания проекта -> запуск специальной обработки 1-го шага
+  const handleProjectCreated = async (result: { project: Project; firstStep: Task }) => {
+    await refreshData();
+    setIsCreateProjectOpen(false);
+    setProjectSourceTask(null);
+
+    // Первый шаг проекта начинает обработку напрямую с вопроса «Мне?»
+    setWizardInitialTask(result.firstStep);
+    setIsProcessingOpen(true);
+  };
+
   const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active');
   const currentViewTasks = tasks.filter((t) => {
     if (activeTab === 'projects') return false;
@@ -137,7 +163,10 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         inboxCount={inboxTasks.length}
-        onStartProcessing={() => setIsProcessingOpen(true)}
+        onStartProcessing={() => {
+          setWizardInitialTask(null);
+          setIsProcessingOpen(true);
+        }}
       />
 
       {/* Основная рабочая область */}
@@ -155,7 +184,10 @@ export const App: React.FC = () => {
             {/* Кнопка быстрого разбора корзины в шапке */}
             {inboxTasks.length > 0 && activeTab !== 'inbox' && (
               <button
-                onClick={() => setIsProcessingOpen(true)}
+                onClick={() => {
+                  setWizardInitialTask(null);
+                  setIsProcessingOpen(true);
+                }}
                 className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -177,7 +209,17 @@ export const App: React.FC = () => {
 
         {/* Тело раздела */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-          {currentViewTasks.length === 0 ? (
+          {activeTab === 'projects' ? (
+            <ProjectsView
+              projects={projects}
+              tasks={tasks}
+              onOpenCreateProject={() => {
+                setProjectSourceTask(null);
+                setIsCreateProjectOpen(true);
+              }}
+              onRefreshData={refreshData}
+            />
+          ) : currentViewTasks.length === 0 ? (
             <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white/60">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
                 <AlertCircle className="w-6 h-6" />
@@ -200,57 +242,70 @@ export const App: React.FC = () => {
             </div>
           ) : (
             <div className="max-w-4xl space-y-2.5">
-              {currentViewTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow transition-shadow flex items-start justify-between group"
-                >
-                  <div className="flex items-start space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={task.status === 'completed'}
-                      onChange={() => handleToggleTaskStatus(task)}
-                      className="mt-1 w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                    />
-                    <div>
-                      <h4
-                        className={`text-sm font-medium ${
-                          task.status === 'completed'
-                            ? 'line-through text-slate-400'
-                            : 'text-slate-800'
-                        }`}
-                      >
-                        {task.title}
-                      </h4>
-                      {task.notes && (
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.notes}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-500">
-                        {task.scheduled_date && (
-                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                            📅 {task.scheduled_date} {task.scheduled_time || ''}
-                          </span>
+              {currentViewTasks.map((task) => {
+                const parentProject = task.project_id
+                  ? projects.find((p) => p.id === task.project_id)
+                  : null;
+
+                return (
+                  <div
+                    key={task.id}
+                    className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow transition-shadow flex items-start justify-between group"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={task.status === 'completed'}
+                        onChange={() => handleToggleTaskStatus(task)}
+                        className="mt-1 w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                      />
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4
+                            className={`text-sm font-medium ${
+                              task.status === 'completed'
+                                ? 'line-through text-slate-400'
+                                : 'text-slate-800'
+                            }`}
+                          >
+                            {task.title}
+                          </h4>
+                          {parentProject && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                              📂 {parentProject.title}
+                            </span>
+                          )}
+                        </div>
+                        {task.notes && (
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.notes}</p>
                         )}
-                        {task.delegated_to && (
-                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                            👤 {task.delegated_to}
-                          </span>
-                        )}
-                        {task.waiting_for && (
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                            Ожидается: {task.waiting_for}
-                          </span>
-                        )}
-                        {task.due_date && (
-                          <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                            ⏱ дедлайн: {task.due_date}
-                          </span>
-                        )}
+                        <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-500">
+                          {task.scheduled_date && (
+                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              📅 {task.scheduled_date} {task.scheduled_time || ''}
+                            </span>
+                          )}
+                          {task.delegated_to && (
+                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                              👤 {task.delegated_to}
+                            </span>
+                          )}
+                          {task.waiting_for && (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                              Ожидается: {task.waiting_for}
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                              ⏱ дедлайн: {task.due_date}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -264,13 +319,30 @@ export const App: React.FC = () => {
         projects={projects}
       />
 
+      {/* Модальное окно создания проекта */}
+      <CreateProjectModal
+        isOpen={isCreateProjectOpen}
+        onClose={() => {
+          setIsCreateProjectOpen(false);
+          setProjectSourceTask(null);
+        }}
+        sourceTask={projectSourceTask}
+        onProjectCreated={handleProjectCreated}
+      />
+
       {/* Полноэкранный мастер обработки корзины ГТД */}
       <ProcessingWizardModal
         isOpen={isProcessingOpen}
-        onClose={() => setIsProcessingOpen(false)}
+        onClose={() => {
+          setIsProcessingOpen(false);
+          setWizardInitialTask(null);
+        }}
         inboxTasks={inboxTasks}
         projects={projects}
+        initialTask={wizardInitialTask}
+        initialQuestion={wizardInitialTask ? 'FOR_ME' : 'ACTIONABLE'}
         onTaskUpdated={refreshData}
+        onCreateProjectRequested={handleCreateProjectFromWizard}
       />
     </div>
   );

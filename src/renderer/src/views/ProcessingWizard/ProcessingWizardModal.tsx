@@ -10,8 +10,6 @@ import {
   UserCheck, 
   Zap, 
   Sparkles,
-  Layers,
-  HelpCircle
 } from 'lucide-react';
 import { Task, GTDQuestionId, Project } from '@shared/types';
 import { GTDStateMachine } from '@domain/gtd/stateMachine';
@@ -22,6 +20,8 @@ interface ProcessingWizardModalProps {
   onClose: () => void;
   inboxTasks: Task[];
   projects: Project[];
+  initialTask?: Task | null;
+  initialQuestion?: GTDQuestionId;
   onTaskUpdated: () => Promise<void>;
   onCreateProjectRequested?: (sourceTask: Task) => void;
 }
@@ -31,6 +31,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   onClose,
   inboxTasks,
   projects,
+  initialTask,
+  initialQuestion,
   onTaskUpdated,
   onCreateProjectRequested,
 }) => {
@@ -52,13 +54,29 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     if (!isOpen) return;
 
     const initWizard = async () => {
-      // Пытаемся восстановить сессию из IPC если доступно
+      // Если передан конкретный initialTask (например, специальный первый шаг проекта)
+      if (initialTask) {
+        setCurrentTask(initialTask);
+        setCurrentQuestion(initialQuestion || 'FOR_ME');
+        setHistoryStack([]);
+        if (window.gtdApi) {
+          try {
+            const sess = await window.gtdApi.startSession(initialTask.id);
+            if (sess) setSessionId(sess.id);
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+        return;
+      }
+
+      // Пытаемся восстановить активную сессию из IPC если доступно
       if (window.gtdApi) {
         try {
           const activeSession = await window.gtdApi.getActiveSession();
           if (activeSession) {
             const task = await window.gtdApi.getTaskById(activeSession.current_task_id);
-            if (task && task.destination === 'inbox' && task.status === 'active') {
+            if (task && task.status === 'active') {
               setCurrentTask(task);
               setCurrentQuestion(activeSession.current_question);
               setSessionId(activeSession.id);
@@ -89,7 +107,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     };
 
     initWizard();
-  }, [isOpen, inboxTasks]);
+  }, [isOpen, initialTask, initialQuestion, inboxTasks]);
 
   if (!isOpen) return null;
 
@@ -105,7 +123,15 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     }
 
     try {
-      const result = GTDStateMachine.transition(currentQuestion, answer, payload);
+      // Для первого шага проекта: если он на шаге IS_NOW отвечает YES,
+      // мы пропускаем IS_SINGLE_STEP (так как он заведомо одношаговый)
+      // и переходим сразу к IS_TWO_MINUTES!
+      let result;
+      if (currentTask.project_id && currentQuestion === 'IS_NOW' && answer === 'YES') {
+        result = { nextQuestion: 'IS_TWO_MINUTES' as GTDQuestionId };
+      } else {
+        result = GTDStateMachine.transition(currentQuestion, answer, payload);
+      }
 
       if (result.isCompletedItem && result.taskUpdates) {
         // Сохраняем изменения задачи в базе данных
@@ -115,7 +141,6 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
             await window.gtdApi.completeSession(sessionId);
           }
         } else {
-          // Локальный режим для dev-тестов
           Object.assign(currentTask, result.taskUpdates);
         }
 
@@ -127,6 +152,12 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         setCheckDate('');
         setScheduledDate('');
         setScheduledTime('');
+
+        // Если это была обработка 1-го шага проекта вне общего разбора, закрываем визард
+        if (initialTask && currentTask.id === initialTask.id) {
+          onClose();
+          return;
+        }
 
         // Переходим к следующей задаче из корзины
         const remaining = inboxTasks.filter((t) => t.id !== currentTask.id);
@@ -189,7 +220,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
             {historyStack.length > 0 && (
               <button
                 onClick={handleStepBack}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors"
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
                 title="Вернуться к предыдущему вопросу"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -197,19 +228,19 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
               </button>
             )}
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Обработка корзины • Шаг {progress.step} из {progress.total}
+              {currentTask?.project_id ? 'Обработка 1-го шага проекта' : 'Обработка корзины'} • Шаг {progress.step} из {progress.total}
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
-            {currentTask && (
+            {currentTask && !currentTask.project_id && (
               <span className="text-xs font-medium text-slate-400">
                 Осталось задач: {inboxTasks.length}
               </span>
             )}
             <button
               onClick={handlePause}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors cursor-pointer"
             >
               <Pause className="w-3.5 h-3.5" />
               <span>Приостановить</span>
@@ -235,11 +266,11 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-2">Корзина полностью разобрана!</h3>
               <p className="text-sm text-slate-500 max-w-md mb-6">
-                Отличная работа! Все задачи распределены по соответствующим разделам и готовы к выполнению.
+                Все задачи распределены по соответствующим разделам и готовы к выполнению.
               </p>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm shadow-sm transition-all"
+                className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm shadow-sm transition-all cursor-pointer"
               >
                 Вернуться к делам
               </button>
@@ -250,7 +281,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
               <div className="p-6 bg-slate-50 border border-slate-200/80 rounded-xl mb-6 shadow-sm">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-sky-600 mb-1 flex items-center space-x-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Текущая задача для обработки</span>
+                  <span>
+                    {currentTask.project_id ? 'Первый шаг проекта (одношаговое действие)' : 'Текущая задача для обработки'}
+                  </span>
                 </div>
                 <h2 className="text-lg font-bold text-slate-800 leading-snug">{currentTask.title}</h2>
                 {currentTask.notes && (
@@ -271,13 +304,13 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
                       onClick={() => handleStepAnswer('YES')}
-                      className="py-5 px-6 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 hover:bg-emerald-500 text-emerald-800 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98]"
+                      className="py-5 px-6 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 hover:bg-emerald-500 text-emerald-800 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer"
                     >
                       Да
                     </button>
                     <button
                       onClick={() => handleStepAnswer('NO')}
-                      className="py-5 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-700 text-slate-700 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98]"
+                      className="py-5 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-700 text-slate-700 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer"
                     >
                       Нет
                     </button>
@@ -289,7 +322,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
                       onClick={() => handleStepAnswer('CHOOSE_TRASH')}
-                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-rose-400 bg-white hover:bg-rose-50/50 text-left transition-all group"
+                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-rose-400 bg-white hover:bg-rose-50/50 text-left transition-all group cursor-pointer"
                     >
                       <Trash2 className="w-8 h-8 text-rose-500 mb-3 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-slate-800 text-base mb-1">Мусор</h4>
@@ -300,7 +333,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('CHOOSE_NOTES')}
-                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-sky-400 bg-white hover:bg-sky-50/50 text-left transition-all group"
+                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-sky-400 bg-white hover:bg-sky-50/50 text-left transition-all group cursor-pointer"
                     >
                       <FileText className="w-8 h-8 text-sky-500 mb-3 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-slate-800 text-base mb-1">Заметки</h4>
@@ -359,7 +392,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         })
                       }
                       disabled={!delegatedTo.trim()}
-                      className="w-full py-3 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 text-white font-semibold text-sm transition-all"
+                      className="w-full py-3 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 text-white font-semibold text-sm transition-all cursor-pointer"
                     >
                       Поместить в «Делегирование и ожидание»
                     </button>
@@ -371,7 +404,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
                       onClick={() => handleStepAnswer('CHOOSE_CALENDAR')}
-                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-blue-500 bg-white hover:bg-blue-50/50 text-left transition-all group"
+                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-blue-500 bg-white hover:bg-blue-50/50 text-left transition-all group cursor-pointer"
                     >
                       <Calendar className="w-8 h-8 text-blue-500 mb-3 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-slate-800 text-base mb-1">Календарь</h4>
@@ -382,7 +415,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('CHOOSE_SOMEDAY')}
-                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-purple-500 bg-white hover:bg-purple-50/50 text-left transition-all group"
+                      className="p-6 rounded-xl border-2 border-slate-200 hover:border-purple-500 bg-white hover:bg-purple-50/50 text-left transition-all group cursor-pointer"
                     >
                       <Clock className="w-8 h-8 text-purple-500 mb-3 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-slate-800 text-base mb-1">Когда-нибудь потом</h4>
@@ -429,7 +462,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         })
                       }
                       disabled={!scheduledDate}
-                      className="w-full py-3 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 text-white font-semibold text-sm transition-all"
+                      className="w-full py-3 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 text-white font-semibold text-sm transition-all cursor-pointer"
                     >
                       Запланировать в Календарь
                     </button>
@@ -441,7 +474,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   <div className="space-y-3 w-full">
                     <button
                       onClick={() => handleStepAnswer('DO_NOW')}
-                      className="w-full py-4 px-6 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-500 text-emerald-800 hover:text-white font-bold text-base flex items-center justify-center space-x-2 transition-all shadow-sm"
+                      className="w-full py-4 px-6 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-500 text-emerald-800 hover:text-white font-bold text-base flex items-center justify-center space-x-2 transition-all shadow-sm cursor-pointer"
                     >
                       <Zap className="w-5 h-5" />
                       <span>Да, выполнить сейчас</span>
@@ -449,7 +482,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('DEFER_TO_NEXT_ACTIONS')}
-                      className="w-full py-4 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-base flex items-center justify-center space-x-2 transition-all"
+                      className="w-full py-4 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-base flex items-center justify-center space-x-2 transition-all cursor-pointer"
                     >
                       <span>Добавить в текущие действия</span>
                     </button>
@@ -468,7 +501,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('COMPLETE_ACTION')}
-                      className="w-full py-5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.98]"
+                      className="w-full py-5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
                     >
                       <CheckCircle2 className="w-6 h-6" />
                       <span>Выполнено</span>
@@ -476,7 +509,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('DEFER_TO_NEXT_ACTIONS')}
-                      className="w-full py-3 px-4 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium text-sm transition-colors"
+                      className="w-full py-3 px-4 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium text-sm transition-colors cursor-pointer"
                     >
                       Не удалось сделать сейчас — перенести в текущие действия
                     </button>
