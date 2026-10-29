@@ -1,5 +1,10 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import { initDatabase, closeDatabase } from '../storage/database';
+import { registerTasksIpc } from './ipc/tasksIpc';
+import { registerProjectsIpc } from './ipc/projectsIpc';
+import { registerProcessingIpc } from './ipc/processingIpc';
+import { registerSystemIpc } from './ipc/systemIpc';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -31,10 +36,16 @@ function createWindow() {
   });
 }
 
-// System handlers
-ipcMain.handle('system:getAppVersion', () => app.getVersion());
-
 app.whenReady().then(() => {
+  // Инициализация базы данных и запуск миграций
+  initDatabase();
+
+  // Регистрация защищенных IPC обработчиков
+  registerTasksIpc();
+  registerProjectsIpc();
+  registerProcessingIpc();
+  registerSystemIpc();
+
   createWindow();
 
   app.on('activate', () => {
@@ -42,6 +53,10 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  closeDatabase();
 });
 
 app.on('window-all-closed', () => {
