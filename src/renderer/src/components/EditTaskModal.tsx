@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox, FileText, Trash2 } from 'lucide-react';
 import { Task, TaskDestination, Project } from '@shared/types';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { CustomDatePicker } from './CustomDatePicker';
 
 interface EditTaskModalProps {
   task: Task | null;
@@ -144,16 +145,26 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             />
           </div>
 
-          {/* Заметки */}
+          {/* Заметки / Описание в стиле "Примерный план действий" */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-              Описание или заметка
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                {destination === 'notes' ? 'Текст заметки' : 'Описание / Контекст'}
+              </label>
+              <span className="text-[11px] text-zinc-400">
+                {destination === 'notes' ? 'Справочный материал' : 'План, детали или ссылки'}
+              </span>
+            </div>
             <textarea
-              rows={2}
+              rows={destination === 'notes' ? 6 : 4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none text-zinc-900 dark:text-zinc-100 resize-none"
+              placeholder={
+                destination === 'notes'
+                  ? 'Введите текст заметки, мысли, полезные ссылки...'
+                  : '1. Детали или примерный план действий...\n2. Ссылки, критерии, контекст...'
+              }
+              className="w-full px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 dark:focus:border-zinc-500 text-zinc-900 dark:text-zinc-100 resize-y min-h-[90px] leading-relaxed font-sans"
             />
           </div>
 
@@ -193,13 +204,12 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                     Дата выполнения <span className="text-zinc-400">*</span>
                   </label>
-                  <input
-                    type="date"
-                    required
-                    min={todayStr}
+                  <CustomDatePicker
                     value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                    onChange={setScheduledDate}
+                    minDate={todayStr}
+                    placeholder="Выберите дату"
+                    required
                   />
                 </div>
                 <div>
@@ -250,12 +260,11 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                     Дата проверки
                   </label>
-                  <input
-                    type="date"
-                    min={todayStr}
+                  <CustomDatePicker
                     value={checkDate}
-                    onChange={(e) => setCheckDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                    onChange={setCheckDate}
+                    minDate={todayStr}
+                    placeholder="Дата проверки"
                   />
                 </div>
               </div>

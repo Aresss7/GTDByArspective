@@ -43,7 +43,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full max-w-6xl mx-auto">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Архив успешно выполненных задач и реализованных проектов.
       </p>

@@ -14,6 +14,7 @@ import {
 import { Task, GTDQuestionId, Project } from '@shared/types';
 import { GTDStateMachine } from '@domain/gtd/stateMachine';
 import { GTDAnswer } from '@domain/gtd/types';
+import { CustomDatePicker } from '../../components/CustomDatePicker';
 
 interface ProcessingWizardModalProps {
   isOpen: boolean;
@@ -377,12 +378,11 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                       <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
                         Дата проверки выполнения
                       </label>
-                      <input
-                        type="date"
-                        min={todayStr}
+                      <CustomDatePicker
                         value={checkDate}
-                        onChange={(e) => setCheckDate(e.target.value)}
-                        className="w-full px-4 py-2 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        onChange={setCheckDate}
+                        minDate={todayStr}
+                        placeholder="Выберите дату проверки"
                       />
                     </div>
                     <button
@@ -440,13 +440,12 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
                           Дата выполнения <span className="text-rose-500">*</span>
                         </label>
-                        <input
-                          type="date"
-                          required
-                          min={todayStr}
+                        <CustomDatePicker
                           value={scheduledDate}
-                          onChange={(e) => setScheduledDate(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          onChange={setScheduledDate}
+                          minDate={todayStr}
+                          placeholder="Выберите дату выполнения"
+                          required
                         />
                       </div>
                       <div>

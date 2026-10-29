@@ -350,16 +350,18 @@ export const App: React.FC = () => {
       {/* Основная рабочая область */}
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#191919] transition-colors relative">
         {/* Верхняя шапка: чистая, свободная, просторная */}
-        <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 px-8 flex items-center justify-between shrink-0 bg-white dark:bg-[#191919]">
-          <div className="flex items-center space-x-3.5">
-            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{getTabTitle()}</h2>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#252525] text-zinc-600 dark:text-zinc-400">
-              {getTabCount()}
-            </span>
-          </div>
+        <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 px-8 shrink-0 bg-white dark:bg-[#191919]">
+          <div className="w-full max-w-6xl mx-auto h-full flex items-center justify-between">
+            <div className="flex items-center space-x-3.5">
+              <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{getTabTitle()}</h2>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#252525] text-zinc-600 dark:text-zinc-400">
+                {getTabCount()}
+              </span>
+            </div>
 
-          <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:block">
-            Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">ПКМ</kbd> по любой задаче для редактирования • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">Ctrl+N</kbd> в корзину
+            <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:block">
+              Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">ПКМ</kbd> по любой задаче для редактирования • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">Ctrl+N</kbd> в корзину
+            </div>
           </div>
         </header>
 
@@ -435,7 +437,7 @@ export const App: React.FC = () => {
           {/* Специальное представление для «Корзина ГТД»: разбор по выбору или по очереди */}
           {activeTab === 'inbox' && (
             inboxTasks.length === 0 ? (
-              <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+              <div className="w-full max-w-6xl mx-auto h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                 <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
                   <InboxIcon className="w-7 h-7" />
                 </div>
@@ -452,7 +454,7 @@ export const App: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4 max-w-4xl">
+              <div className="space-y-4 w-full max-w-6xl mx-auto">
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     Вы можете разобрать задачи по порядку, кликнуть <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> по задаче для меню или нажать кнопки действий:
@@ -522,7 +524,7 @@ export const App: React.FC = () => {
 
           {/* Представление «Текущие действия» */}
           {activeTab === 'next_actions' && (
-            <div className="space-y-4 max-w-4xl">
+            <div className="space-y-4 w-full max-w-6xl mx-auto">
               <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Список конкретных ближайших действий • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.

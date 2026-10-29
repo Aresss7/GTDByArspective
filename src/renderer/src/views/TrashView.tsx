@@ -54,7 +54,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, onTaskUpdated }) =>
 
   return (
     <>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6 w-full max-w-6xl mx-auto">
         <div className="flex items-center justify-between">
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Удалённые задачи и отклонённые мысли • Вы можете восстановить их или стереть навсегда.

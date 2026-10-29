@@ -56,7 +56,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Задачи, порученные другим людям • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.

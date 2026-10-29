@@ -26,7 +26,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   });
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 w-full max-w-6xl mx-auto">
       {/* Панель фильтров и действий */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-[#222222] p-1 rounded-2xl text-xs font-bold border border-zinc-200 dark:border-zinc-800">
