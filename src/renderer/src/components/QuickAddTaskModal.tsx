@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox, FileText } from 'lucide-react';
 import { TaskDestination, Task, Project } from '@shared/types';
 
 interface QuickAddTaskModalProps {
@@ -7,6 +7,7 @@ interface QuickAddTaskModalProps {
   onClose: () => void;
   onSave: (taskData: Partial<Task> & { title: string }) => Promise<void>;
   projects: Project[];
+  defaultDestination?: TaskDestination;
 }
 
 export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
@@ -14,10 +15,11 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
   onClose,
   onSave,
   projects,
+  defaultDestination = 'inbox',
 }) => {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [destination, setDestination] = useState<TaskDestination>('inbox');
+  const [destination, setDestination] = useState<TaskDestination>(defaultDestination);
   const [projectId, setProjectId] = useState<string>('');
   
   // Календарь
@@ -33,6 +35,16 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
   const [checkDate, setCheckDate] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Обновляем место назначения при открытии на основе контекста активной вкладки
+  useEffect(() => {
+    if (isOpen) {
+      setDestination(defaultDestination);
+      if (defaultDestination === 'calendar' && !scheduledDate) {
+        setScheduledDate(new Date().toISOString().split('T')[0]);
+      }
+    }
+  }, [isOpen, defaultDestination]);
 
   if (!isOpen) return null;
 
@@ -59,7 +71,6 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
       // Сброс формы
       setTitle('');
       setNotes('');
-      setDestination('inbox');
       setProjectId('');
       setScheduledDate('');
       setScheduledTime('');
@@ -73,29 +84,47 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
     }
   };
 
+  const destinationOptions = [
+    { id: 'next_actions', label: 'Текущие действия', icon: CheckSquare, color: 'text-emerald-500' },
+    { id: 'inbox', label: 'Корзина ГТД', icon: Inbox, color: 'text-indigo-500' },
+    { id: 'calendar', label: 'Календарь', icon: Calendar, color: 'text-blue-500' },
+    { id: 'waiting_for', label: 'Делегирование / Ожидание', icon: UserCheck, color: 'text-amber-500' },
+    { id: 'someday', label: 'Когда-нибудь потом', icon: Clock, color: 'text-purple-500' },
+    { id: 'notes', label: 'Заметки', icon: FileText, color: 'text-teal-500' },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200"
+        className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-zinc-200/80 dark:border-zinc-800"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Заголовок */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-base font-semibold text-slate-800">Добавить новую задачу</h2>
+        {/* Заголовок Material 3 */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Новая задача</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {destination === 'next_actions' ? 'Добавление в «Текущие действия»' : 
+               destination === 'calendar' ? 'Запланировать событие в Календарь' :
+               destination === 'waiting_for' ? 'Делегированное поручение' :
+               destination === 'someday' ? 'Идея в «Когда-нибудь потом»' :
+               destination === 'notes' ? 'Новая заметка' : 'Быстрая запись во входящие'}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Форма */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-4">
           {/* Название задачи */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Название задачи <span className="text-rose-500">*</span>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+              Название <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -103,104 +132,59 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Что нужно сделать?"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+              placeholder="Что необходимо сделать?"
+              className="w-full px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
 
           {/* Заметки */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-              Заметки или описание
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+              Описание или заметка
             </label>
             <textarea
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Дополнительные детали (необязательно)..."
-              className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all resize-none"
+              placeholder="Детали, контекст, ссылки (необязательно)..."
+              className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500 resize-none"
             />
           </div>
 
-          {/* Место назначения */}
+          {/* Место назначения - Material 3 Expressive Chips */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-              Куда поместить задачу?
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+              Место назначения
             </label>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setDestination('inbox')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                  destination === 'inbox'
-                    ? 'border-sky-500 bg-sky-50 text-sky-800 font-medium ring-1 ring-sky-500'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <Inbox className="w-4 h-4 text-sky-600" />
-                <span>Корзина ГТД (по умолч.)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDestination('next_actions')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                  destination === 'next_actions'
-                    ? 'border-sky-500 bg-sky-50 text-sky-800 font-medium ring-1 ring-sky-500'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <CheckSquare className="w-4 h-4 text-emerald-600" />
-                <span>Текущие действия</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDestination('calendar')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                  destination === 'calendar'
-                    ? 'border-sky-500 bg-sky-50 text-sky-800 font-medium ring-1 ring-sky-500'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <Calendar className="w-4 h-4 text-blue-600" />
-                <span>Календарь</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDestination('waiting_for')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                  destination === 'waiting_for'
-                    ? 'border-sky-500 bg-sky-50 text-sky-800 font-medium ring-1 ring-sky-500'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <UserCheck className="w-4 h-4 text-amber-600" />
-                <span>Делегирование / Ожидание</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDestination('someday')}
-                className={`col-span-2 flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                  destination === 'someday'
-                    ? 'border-sky-500 bg-sky-50 text-sky-800 font-medium ring-1 ring-sky-500'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <Clock className="w-4 h-4 text-purple-600" />
-                <span>Когда-нибудь потом</span>
-              </button>
+              {destinationOptions.map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = destination === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setDestination(opt.id as TaskDestination)}
+                    className={`flex items-center space-x-2 px-3 py-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                      isSelected
+                        ? 'border-indigo-500 dark:border-purple-400 bg-indigo-50 dark:bg-purple-950/40 text-indigo-900 dark:text-purple-200 font-semibold shadow-sm'
+                        : 'border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600 dark:text-purple-400' : opt.color}`} />
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Дополнительные поля в зависимости от назначения */}
+          {/* Поля календаря */}
           {destination === 'calendar' && (
-            <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100 space-y-3">
+            <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/50 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                     Дата выполнения <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -208,73 +192,77 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
                     required
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 text-xs focus:ring-1 focus:ring-sky-500"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                     Время (необязательно)
                   </label>
                   <input
                     type="time"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 text-xs focus:ring-1 focus:ring-sky-500"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
             </div>
           )}
 
+          {/* Поля делегирования */}
           {destination === 'waiting_for' && (
-            <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-100 space-y-3 text-xs">
+            <div className="p-4 bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-900/50 space-y-3 text-xs">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Кому поручено дело?</label>
+                <label className="block font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Кому поручено дело? <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   value={delegatedTo}
                   onChange={(e) => setDelegatedTo(e.target.value)}
-                  placeholder="Имя или контакт..."
-                  className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 text-xs focus:ring-1 focus:ring-sky-500"
+                  placeholder="Имя, должность или контакт..."
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-amber-500"
                 />
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Ожидаемый результат</label>
+                <label className="block font-medium text-zinc-700 dark:text-zinc-300 mb-1">Ожидаемый результат</label>
                 <input
                   type="text"
                   value={waitingFor}
                   onChange={(e) => setWaitingFor(e.target.value)}
                   placeholder="Что конкретно ожидается..."
-                  className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 text-xs focus:ring-1 focus:ring-sky-500"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-amber-500"
                 />
               </div>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Дата проверки выполнения</label>
+                <label className="block font-medium text-zinc-700 dark:text-zinc-300 mb-1">Дата проверки</label>
                 <input
                   type="date"
                   value={checkDate}
                   onChange={(e) => setCheckDate(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 text-xs focus:ring-1 focus:ring-sky-500"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-amber-500"
                 />
               </div>
             </div>
           )}
 
-          {/* Привязка к существующему проекту */}
+          {/* Привязка к проекту */}
           {projects.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                 Привязать к проекту (необязательно)
               </label>
               <select
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent text-xs text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
               >
-                <option value="">Без проекта (самостоятельная задача)</option>
+                <option value="">Без проекта (самостоятельное действие)</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title}
+                    📂 {p.title}
                   </option>
                 ))}
               </select>
@@ -282,20 +270,20 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
           )}
 
           {/* Кнопки действий */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-3">
+          <div className="pt-3 flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+              className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={!title.trim() || isSubmitting}
-              className="px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 text-white text-xs font-semibold shadow-sm transition-all active:scale-[0.98]"
+              className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
             >
-              {isSubmitting ? 'Сохранение...' : 'Добавить задачу'}
+              {isSubmitting ? 'Сохранение...' : 'Добавить'}
             </button>
           </div>
         </form>

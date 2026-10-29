@@ -44,34 +44,34 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Архив успешно выполненных задач и реализованных проектов.
       </p>
 
       {/* Завершенные проекты */}
       {completedProjects.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Завершённые проекты ({completedProjects.length})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {completedProjects.map((p) => (
               <div
                 key={p.id}
-                className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200 flex items-center justify-between"
+                className="p-5 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-3xl border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between"
               >
                 <div>
-                  <h4 className="text-sm font-bold text-emerald-900">{p.title}</h4>
-                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                  <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">{p.title}</h4>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
                     Завершён: {p.completed_at ? new Date(p.completed_at).toLocaleDateString('ru-RU') : 'Ранее'}
                   </p>
                 </div>
                 <button
                   onClick={() => handleReopenProject(p)}
-                  className="px-2.5 py-1 rounded-lg border border-emerald-300 text-xs font-medium text-emerald-800 hover:bg-emerald-100 flex items-center space-x-1 cursor-pointer"
+                  className="px-3 py-1.5 rounded-full border border-emerald-300 dark:border-emerald-700 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 flex items-center space-x-1 cursor-pointer transition-colors"
                   title="Вернуть в активные проекты"
                 >
-                  <RotateCcw className="w-3 h-3" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                   <span>Вернуть</span>
                 </button>
               </div>
@@ -81,31 +81,31 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
       )}
 
       {/* Завершенные задачи */}
-      <div className="space-y-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Выполненные действия ({completedTasks.length})
         </h3>
 
         {completedTasks.length === 0 ? (
-          <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white/60">
-            <CheckCircle2 className="w-8 h-8 text-slate-300 mb-2" />
-            <p className="text-xs text-slate-400">Выполненных задач пока нет.</p>
+          <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-zinc-900/60">
+            <CheckCircle2 className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mb-2" />
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Выполненных задач пока нет.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {completedTasks.map((task) => (
               <div
                 key={task.id}
-                className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group"
+                className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
               >
-                <div className="flex items-center space-x-3">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-slate-500 line-through">{task.title}</h4>
+                    <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through">{task.title}</h4>
                     {task.completed_at && (
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
                         {new Date(task.completed_at).toLocaleString('ru-RU')}
                       </span>
                     )}
@@ -114,10 +114,10 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
 
                 <button
                   onClick={() => handleReopenTask(task)}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-100 font-medium flex items-center space-x-1 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
                   title="Вернуть задачу в активные"
                 >
-                  <RotateCcw className="w-3 h-3" />
+                  <RotateCcw className="w-3 h-3 text-indigo-600 dark:text-purple-400" />
                   <span>Вернуть</span>
                 </button>
               </div>
