@@ -5,6 +5,12 @@ import { QuickAddTaskModal } from './components/QuickAddTaskModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProcessingWizardModal } from './views/ProcessingWizard/ProcessingWizardModal';
 import { ProjectsView } from './views/ProjectsView';
+import { CalendarView } from './views/CalendarView';
+import { WaitingForView } from './views/WaitingForView';
+import { SomedayView } from './views/SomedayView';
+import { NotesView } from './views/NotesView';
+import { TrashView } from './views/TrashView';
+import { CompletedView } from './views/CompletedView';
 import { Task, Project } from '@shared/types';
 
 export const App: React.FC = () => {
@@ -77,7 +83,6 @@ export const App: React.FC = () => {
       }
     }
 
-    // Резервный локальный режим
     const mockTask: Task = {
       id: 'task_' + Date.now(),
       title: taskData.title,
@@ -116,14 +121,12 @@ export const App: React.FC = () => {
     );
   };
 
-  // Обработка запроса на создание проекта из мастера корзины (ответ «Нет» на «Одношаговая?»)
   const handleCreateProjectFromWizard = (sourceTask: Task) => {
     setProjectSourceTask(sourceTask);
     setIsProcessingOpen(false);
     setIsCreateProjectOpen(true);
   };
 
-  // Завершение создания проекта -> запуск специальной обработки 1-го шага
   const handleProjectCreated = async (result: { project: Project; firstStep: Task }) => {
     await refreshData();
     setIsCreateProjectOpen(false);
@@ -150,10 +153,17 @@ export const App: React.FC = () => {
       case 'waiting_for': return 'Делегирование и ожидание';
       case 'someday': return 'Когда-нибудь потом';
       case 'notes': return 'Заметки';
-      case 'completed': return 'Завершённые задачи';
+      case 'completed': return 'Завершённые';
       case 'trash': return 'Мусор';
       default: return 'ГТД';
     }
+  };
+
+  const getTabCount = () => {
+    if (activeTab === 'projects') return projects.filter(p => p.status === 'active').length;
+    if (activeTab === 'completed') return tasks.filter(t => t.status === 'completed').length + projects.filter(p => p.status === 'completed').length;
+    if (activeTab === 'trash') return tasks.filter(t => t.destination === 'trash' || t.deleted_at != null).length;
+    return currentViewTasks.length;
   };
 
   return (
@@ -176,7 +186,7 @@ export const App: React.FC = () => {
           <div className="flex items-center space-x-3">
             <h2 className="text-xl font-bold text-slate-800">{getTabTitle()}</h2>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              {activeTab === 'projects' ? projects.length : currentViewTasks.length}
+              {getTabCount()}
             </span>
           </div>
 
@@ -209,7 +219,7 @@ export const App: React.FC = () => {
 
         {/* Тело раздела */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-          {activeTab === 'projects' ? (
+          {activeTab === 'projects' && (
             <ProjectsView
               projects={projects}
               tasks={tasks}
@@ -219,94 +229,146 @@ export const App: React.FC = () => {
               }}
               onRefreshData={refreshData}
             />
-          ) : currentViewTasks.length === 0 ? (
-            <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white/60">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-1">Здесь пока ничего нет</h3>
-              <p className="text-xs text-slate-500 max-w-sm mb-4">
-                {activeTab === 'inbox'
-                  ? 'Все входящие задачи разобраны. Нажмите «+ Добавить», чтобы записать новую мысль.'
-                  : activeTab === 'next_actions'
-                  ? 'Список текущих действий чист. Разобрав корзину, вы наполните этот список.'
-                  : 'Задачи для этого раздела отсутствуют.'}
-              </p>
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Создать задачу</span>
-              </button>
-            </div>
-          ) : (
-            <div className="max-w-4xl space-y-2.5">
-              {currentViewTasks.map((task) => {
-                const parentProject = task.project_id
-                  ? projects.find((p) => p.id === task.project_id)
-                  : null;
+          )}
 
-                return (
-                  <div
-                    key={task.id}
-                    className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow transition-shadow flex items-start justify-between group"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={task.status === 'completed'}
-                        onChange={() => handleToggleTaskStatus(task)}
-                        className="mt-1 w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                      />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4
-                            className={`text-sm font-medium ${
-                              task.status === 'completed'
-                                ? 'line-through text-slate-400'
-                                : 'text-slate-800'
-                            }`}
-                          >
-                            {task.title}
-                          </h4>
-                          {parentProject && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                              📂 {parentProject.title}
-                            </span>
+          {activeTab === 'calendar' && (
+            <CalendarView
+              tasks={tasks}
+              projects={projects}
+              onTaskUpdated={refreshData}
+              onOpenAddTask={() => setIsAddModalOpen(true)}
+            />
+          )}
+
+          {activeTab === 'waiting_for' && (
+            <WaitingForView
+              tasks={tasks}
+              projects={projects}
+              onTaskUpdated={refreshData}
+              onOpenAddTask={() => setIsAddModalOpen(true)}
+            />
+          )}
+
+          {activeTab === 'someday' && (
+            <SomedayView
+              tasks={tasks}
+              projects={projects}
+              onTaskUpdated={refreshData}
+              onOpenAddTask={() => setIsAddModalOpen(true)}
+            />
+          )}
+
+          {activeTab === 'notes' && (
+            <NotesView
+              tasks={tasks}
+              onTaskUpdated={refreshData}
+              onOpenAddTask={() => setIsAddModalOpen(true)}
+            />
+          )}
+
+          {activeTab === 'trash' && (
+            <TrashView
+              tasks={tasks}
+              onTaskUpdated={refreshData}
+            />
+          )}
+
+          {activeTab === 'completed' && (
+            <CompletedView
+              tasks={tasks}
+              projects={projects}
+              onTaskUpdated={refreshData}
+            />
+          )}
+
+          {(activeTab === 'next_actions' || activeTab === 'inbox') && (
+            currentViewTasks.length === 0 ? (
+              <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white/60">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-1">Здесь пока ничего нет</h3>
+                <p className="text-xs text-slate-500 max-w-sm mb-4">
+                  {activeTab === 'inbox'
+                    ? 'Все входящие задачи разобраны. Нажмите «+ Добавить», чтобы записать новую мысль.'
+                    : 'Список текущих действий чист. Разобрав корзину, вы наполните этот список.'}
+                </p>
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Создать задачу</span>
+                </button>
+              </div>
+            ) : (
+              <div className="max-w-4xl space-y-2.5">
+                {currentViewTasks.map((task) => {
+                  const parentProject = task.project_id
+                    ? projects.find((p) => p.id === task.project_id)
+                    : null;
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow transition-shadow flex items-start justify-between group"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={task.status === 'completed'}
+                          onChange={() => handleToggleTaskStatus(task)}
+                          className="mt-1 w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                        />
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h4
+                              className={`text-sm font-medium ${
+                                task.status === 'completed'
+                                  ? 'line-through text-slate-400'
+                                  : 'text-slate-800'
+                              }`}
+                            >
+                              {task.title}
+                            </h4>
+                            {parentProject && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                📂 {parentProject.title}
+                              </span>
+                            )}
+                          </div>
+                          {task.notes && (
+                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.notes}</p>
                           )}
-                        </div>
-                        {task.notes && (
-                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.notes}</p>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-500">
-                          {task.scheduled_date && (
-                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              📅 {task.scheduled_date} {task.scheduled_time || ''}
-                            </span>
-                          )}
-                          {task.delegated_to && (
-                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                              👤 {task.delegated_to}
-                            </span>
-                          )}
-                          {task.waiting_for && (
-                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                              Ожидается: {task.waiting_for}
-                            </span>
-                          )}
-                          {task.due_date && (
-                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                              ⏱ дедлайн: {task.due_date}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-500">
+                            {task.scheduled_date && (
+                              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                📅 {task.scheduled_date} {task.scheduled_time || ''}
+                              </span>
+                            )}
+                            {task.delegated_to && (
+                              <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                👤 {task.delegated_to}
+                              </span>
+                            )}
+                            {task.waiting_for && (
+                              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                Ожидается: {task.waiting_for}
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                ⏱ дедлайн: {task.due_date}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       </main>
