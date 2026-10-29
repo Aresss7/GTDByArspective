@@ -2,17 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Sparkles, AlertCircle } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
 import { QuickAddTaskModal } from './components/QuickAddTaskModal';
+import { ProcessingWizardModal } from './views/ProcessingWizard/ProcessingWizardModal';
 import { Task, Project, TaskDestination } from '@shared/types';
 
 export const App: React.FC = () => {
   // Стартовый экран по умолчанию — «Текущие действия»
   const [activeTab, setActiveTab] = useState<NavigationTab>('next_actions');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isProcessingOpen, setIsProcessingOpen] = useState(false);
 
-  // Горячая клавиша Ctrl+N / Cmd+N для быстрого добавления
+  // Загрузка актуальных данных
+  const refreshData = async () => {
+    if (window.gtdApi) {
+      try {
+        const allTasks = await window.gtdApi.getAllTasks();
+        const allProjects = await window.gtdApi.getProjects();
+        setTasks(allTasks || []);
+        setProjects(allProjects || []);
+      } catch (e) {
+        console.warn('API error during refresh:', e);
+      }
+    }
+  };
+
+  // Горячая клавиша Ctrl+N для быстрого добавления
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
@@ -24,21 +39,20 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Первоначальная загрузка данных через IPC или локальное состояние
+  // Первоначальная загрузка данных и проверка активной сессии
   useEffect(() => {
-    const loadInitialData = async () => {
+    refreshData().then(async () => {
       if (window.gtdApi) {
         try {
-          const allTasks = await window.gtdApi.getAllTasks();
-          const allProjects = await window.gtdApi.getProjects();
-          setTasks(allTasks || []);
-          setProjects(allProjects || []);
+          const session = await window.gtdApi.getActiveSession();
+          if (session && session.status === 'in_progress') {
+            setIsProcessingOpen(true);
+          }
         } catch (e) {
-          console.warn('API call failed or not yet initialized in main process:', e);
+          console.warn('Session check failed:', e);
         }
       }
-    };
-    loadInitialData();
+    });
   }, []);
 
   const handleSaveTask = async (taskData: Partial<Task> & { title: string }) => {
@@ -46,7 +60,6 @@ export const App: React.FC = () => {
       try {
         const newTask = await window.gtdApi.createTask(taskData);
         setTasks((prev) => [newTask, ...prev]);
-        // Если задача добавлена не в корзину, переключаем на соответствующий раздел
         if (taskData.destination && taskData.destination !== 'inbox') {
           setActiveTab(taskData.destination);
         }
@@ -56,7 +69,7 @@ export const App: React.FC = () => {
       }
     }
 
-    // Резервное локальное добавление (для dev-режима без IPC)
+    // Резервный локальный режим
     const mockTask: Task = {
       id: 'task_' + Date.now(),
       title: taskData.title,
@@ -77,6 +90,22 @@ export const App: React.FC = () => {
     if (taskData.destination && taskData.destination !== 'inbox') {
       setActiveTab(taskData.destination);
     }
+  };
+
+  const handleToggleTaskStatus = async (task: Task) => {
+    const newStatus = task.status === 'completed' ? 'active' : 'completed';
+    if (window.gtdApi) {
+      try {
+        await window.gtdApi.updateTask(task.id, { status: newStatus });
+        await refreshData();
+        return;
+      } catch (e) {
+        console.error('Failed to toggle status:', e);
+      }
+    }
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+    );
   };
 
   const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active');
@@ -127,7 +156,7 @@ export const App: React.FC = () => {
             {inboxTasks.length > 0 && activeTab !== 'inbox' && (
               <button
                 onClick={() => setIsProcessingOpen(true)}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors"
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Разобрать корзину ({inboxTasks.length})</span>
@@ -137,7 +166,7 @@ export const App: React.FC = () => {
             {/* Единая кнопка «+ Добавить» */}
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-semibold shadow-sm transition-all active:scale-95"
+              className="flex items-center space-x-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-semibold shadow-sm transition-all active:scale-95 cursor-pointer"
               title="Горячая клавиша: Ctrl+N"
             >
               <Plus className="w-4 h-4" />
@@ -163,10 +192,10 @@ export const App: React.FC = () => {
               </p>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors"
+                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Создать первую задачу</span>
+                <span>Создать задачу</span>
               </button>
             </div>
           ) : (
@@ -180,12 +209,7 @@ export const App: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={task.status === 'completed'}
-                      onChange={() => {
-                        const newStatus = task.status === 'completed' ? 'active' : 'completed';
-                        setTasks((prev) =>
-                          prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
-                        );
-                      }}
+                      onChange={() => handleToggleTaskStatus(task)}
                       className="mt-1 w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                     />
                     <div>
@@ -212,6 +236,11 @@ export const App: React.FC = () => {
                             👤 {task.delegated_to}
                           </span>
                         )}
+                        {task.waiting_for && (
+                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            Ожидается: {task.waiting_for}
+                          </span>
+                        )}
                         {task.due_date && (
                           <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
                             ⏱ дедлайн: {task.due_date}
@@ -233,6 +262,15 @@ export const App: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveTask}
         projects={projects}
+      />
+
+      {/* Полноэкранный мастер обработки корзины ГТД */}
+      <ProcessingWizardModal
+        isOpen={isProcessingOpen}
+        onClose={() => setIsProcessingOpen(false)}
+        inboxTasks={inboxTasks}
+        projects={projects}
+        onTaskUpdated={refreshData}
       />
     </div>
   );
