@@ -10,11 +10,13 @@ let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    title: 'Arspective GTD',
+    icon: path.join(__dirname, '../../build/icon.ico'),
     width: 1200,
     height: 800,
     minWidth: 980,
     minHeight: 640,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#191919',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

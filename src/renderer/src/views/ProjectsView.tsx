@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, FolderKanban, CheckCircle2, ListTodo, AlertCircle } from 'lucide-react';
+import { Plus, FolderKanban } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { ProjectDetailModal } from './ProjectDetailModal';
 
@@ -27,14 +27,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Панель фильтров и действий Material 3 */}
+      {/* Панель фильтров и действий */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl text-xs font-bold">
+        <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-[#222222] p-1 rounded-2xl text-xs font-bold border border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => setFilter('active')}
             className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
               filter === 'active' 
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' 
+                ? 'bg-white dark:bg-[#303030] text-zinc-900 dark:text-white shadow-xs' 
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
@@ -44,7 +44,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             onClick={() => setFilter('completed')}
             className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
               filter === 'completed' 
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' 
+                ? 'bg-white dark:bg-[#303030] text-zinc-900 dark:text-white shadow-xs' 
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
@@ -54,7 +54,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             onClick={() => setFilter('all')}
             className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
               filter === 'all' 
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' 
+                ? 'bg-white dark:bg-[#303030] text-zinc-900 dark:text-white shadow-xs' 
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
@@ -64,7 +64,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
         <button
           onClick={onOpenCreateProject}
-          className="flex items-center space-x-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-full text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+          className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Новый проект</span>
@@ -73,8 +73,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
       {/* Сетка проектов */}
       {filteredProjects.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-zinc-900/60">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-3 shadow-sm">
+        <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+          <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
             <FolderKanban className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
@@ -85,7 +85,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           </p>
           <button
             onClick={onOpenCreateProject}
-            className="inline-flex items-center space-x-2 px-5 py-2 rounded-full text-xs font-bold text-indigo-700 dark:text-purple-300 bg-indigo-50 dark:bg-purple-950/60 hover:bg-indigo-100 border border-indigo-200 dark:border-purple-800 transition-colors cursor-pointer"
+            className="inline-flex items-center space-x-2 px-5 py-2 rounded-full text-xs font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-[#282828] hover:bg-zinc-200 dark:hover:bg-[#303030] border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Создать проект</span>
@@ -104,18 +104,18 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               <div
                 key={project.id}
                 onClick={() => setSelectedProjectId(project.id)}
-                className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-purple-700 transition-all cursor-pointer flex flex-col justify-between group"
+                className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer flex flex-col justify-between group"
               >
                 <div>
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-purple-400 transition-colors">
+                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 transition-colors">
                       {project.title}
                     </h4>
                     <span
                       className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                         project.status === 'completed'
-                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
-                          : 'bg-indigo-100 dark:bg-purple-950/60 text-indigo-800 dark:text-purple-300'
+                          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                          : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
                       }`}
                     >
                       {project.status === 'completed' ? 'Завершен' : 'В работе'}
@@ -127,17 +127,17 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   )}
 
                   {project.completion_criteria && (
-                    <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50/70 dark:bg-amber-950/40 p-2.5 rounded-2xl border border-amber-200/50 dark:border-amber-900/50 mb-3">
+                    <div className="text-[11px] text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-[#191919] p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 mb-3">
                       <strong>Критерий:</strong> {project.completion_criteria}
                     </div>
                   )}
 
                   {firstStep && (
-                    <div className="text-xs bg-zinc-50 dark:bg-zinc-800/60 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 mb-3">
+                    <div className="text-xs bg-zinc-50 dark:bg-[#191919] p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 mb-3">
                       <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-zinc-500 block mb-0.5">
                         1-й шаг:
                       </span>
-                      <span className={firstStep.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200 font-semibold'}>
+                      <span className={firstStep.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200 font-semibold'}>
                         {firstStep.title}
                       </span>
                     </div>
@@ -152,10 +152,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                       {completedCount} / {projectSteps.length} ({progressPercent}%)
                     </span>
                   </div>
-                  <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-zinc-100 dark:bg-[#191919] h-2 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
-                        project.status === 'completed' ? 'bg-emerald-500' : 'bg-indigo-600 dark:bg-purple-500'
+                        project.status === 'completed' ? 'bg-zinc-400 dark:bg-zinc-600' : 'bg-zinc-900 dark:bg-white'
                       }`}
                       style={{ width: `${progressPercent}%` }}
                     />

@@ -45,7 +45,7 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
         </p>
         <button
           onClick={onOpenAddTask}
-          className="flex items-center space-x-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-full text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+          className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Добавить идею</span>
@@ -53,8 +53,8 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
       </div>
 
       {somedayTasks.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-zinc-900/60">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 mb-3 shadow-sm">
+        <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+          <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-sm">
             <Clock className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Список пуст</h3>
@@ -67,7 +67,7 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
           {somedayTasks.map((task) => (
             <div
               key={task.id}
-              className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between group hover:border-purple-300 dark:hover:border-purple-800 transition-all"
+              className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group hover:border-zinc-400 dark:hover:border-zinc-600 transition-all"
             >
               <div>
                 <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{task.title}</h4>

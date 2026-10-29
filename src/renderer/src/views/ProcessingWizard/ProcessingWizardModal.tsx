@@ -48,6 +48,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // Инициализация задачи и сессии при открытии
   useEffect(() => {
@@ -378,19 +379,24 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                       </label>
                       <input
                         type="date"
+                        min={todayStr}
                         value={checkDate}
                         onChange={(e) => setCheckDate(e.target.value)}
                         className="w-full px-4 py-2 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       />
                     </div>
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        if (checkDate && checkDate < todayStr) {
+                          alert('Дата проверки не может быть раньше сегодняшнего дня.');
+                          return;
+                        }
                         handleStepAnswer('SUBMIT_DELEGATION', {
                           delegatedTo: delegatedTo.trim(),
                           waitingFor: waitingFor.trim(),
                           checkDate: checkDate || undefined,
-                        })
-                      }
+                        });
+                      }}
                       disabled={!delegatedTo.trim()}
                       className="w-full py-3 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                     >
@@ -437,6 +443,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         <input
                           type="date"
                           required
+                          min={todayStr}
                           value={scheduledDate}
                           onChange={(e) => setScheduledDate(e.target.value)}
                           className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -455,12 +462,16 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                       </div>
                     </div>
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        if (scheduledDate && scheduledDate < todayStr) {
+                          alert('Дата выполнения не может быть раньше сегодняшнего дня.');
+                          return;
+                        }
                         handleStepAnswer('SUBMIT_CALENDAR', {
                           scheduledDate,
                           scheduledTime: scheduledTime || undefined,
-                        })
-                      }
+                        });
+                      }}
                       disabled={!scheduledDate}
                       className="w-full py-3 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                     >

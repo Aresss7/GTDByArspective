@@ -1,5 +1,5 @@
 appId: com.arspective.gtd
-productName: ГТД
+productName: Arspective GTD
 directories:
   output: release
   buildResources: build
@@ -8,6 +8,7 @@ files:
   - package.json
   - node_modules/better-sqlite3/**/*
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -20,6 +21,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: ГТД
+  shortcutName: Arspective GTD
+  artifactName: Arspective GTD Setup ${version}.${ext}
 portable:
-  artifactName: ${productName}-Portable-${version}.${ext}
+  artifactName: Arspective-GTD-Portable-${version}.${ext}

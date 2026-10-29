@@ -67,6 +67,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Перенос задачи на новую дату
   const handleSaveReschedule = async () => {
     if (!rescheduleTask || !newDateInput || !window.gtdApi) return;
+    if (newDateInput < todayStr) {
+      alert('Нельзя переносить задачу на прошедшую дату.');
+      return;
+    }
     try {
       await window.gtdApi.updateTask(rescheduleTask.id, {
         destination: 'calendar',
@@ -123,11 +127,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
     return (
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
         {/* Шапка дней недели */}
-        <div className="grid grid-cols-7 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 text-center text-xs font-bold text-zinc-500 dark:text-zinc-400 py-3">
+        <div className="grid grid-cols-7 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#1e1e1e] text-center text-xs font-bold text-zinc-500 dark:text-zinc-400 py-3">
           {weekDays.map((w, idx) => (
-            <div key={idx} className={idx >= 5 ? 'text-rose-500 dark:text-rose-400' : ''}>
+            <div key={idx} className={idx >= 5 ? 'text-zinc-400 dark:text-zinc-500' : ''}>
               {w}
             </div>
           ))}
@@ -137,7 +141,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-zinc-100 dark:divide-zinc-800/80 min-h-[460px]">
           {gridCells.map((date, idx) => {
             if (!date) {
-              return <div key={idx} className="bg-zinc-50/40 dark:bg-zinc-950/30 p-2 min-h-[90px]" />;
+              return <div key={idx} className="bg-zinc-50/40 dark:bg-[#191919] p-2 min-h-[90px]" />;
             }
 
             const dateStr = formatDateKey(date);
@@ -152,17 +156,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 onClick={() => setSelectedDate(date)}
                 className={`p-2.5 min-h-[95px] cursor-pointer transition-colors flex flex-col justify-between ${
                   isSelected 
-                    ? 'bg-indigo-50/60 dark:bg-purple-950/30 ring-2 ring-indigo-500 dark:ring-purple-400 ring-inset' 
-                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'
+                    ? 'bg-zinc-100 dark:bg-[#2a2a2a] ring-2 ring-zinc-900 dark:ring-zinc-400 ring-inset' 
+                    : 'hover:bg-zinc-50 dark:hover:bg-[#252525]'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span
                     className={`text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center transition-all ${
                       isToday
-                        ? 'bg-indigo-600 dark:bg-purple-500 text-white shadow-sm'
+                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-sm'
                         : isSelected
-                        ? 'bg-indigo-100 dark:bg-purple-900/60 text-indigo-900 dark:text-purple-200'
+                        ? 'bg-zinc-200 dark:bg-[#353535] text-zinc-900 dark:text-white'
                         : 'text-zinc-700 dark:text-zinc-300'
                     }`}
                   >
@@ -438,7 +442,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           <button
             onClick={onOpenAddTask}
-            className="flex items-center space-x-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-full text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+            className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Запланировать</span>
@@ -453,7 +457,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Панель задач на выбранную дату (для режима Месяц) */}
       {mode === 'month' && (
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+        <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 mb-4">
             <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
               Задачи на {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -536,6 +540,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <input
                   type="date"
                   required
+                  min={todayStr}
                   value={newDateInput}
                   onChange={(e) => setNewDateInput(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-indigo-500"

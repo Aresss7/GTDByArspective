@@ -8,6 +8,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        darkest: '#191919',
+        zinc: {
+          950: '#191919',
+          900: '#222222',
+          850: '#282828',
+          800: '#323232',
+          700: '#424242',
+          600: '#5c5c5c',
+          500: '#767676',
+          400: '#a3a3a3',
+          300: '#d4d4d4',
+          200: '#e5e5e5',
+          100: '#f5f5f5',
+          50: '#fafafa',
+        },
         // Material 3 Expressive Tonal Palettes
         m3: {
           primary: '#6750A4',

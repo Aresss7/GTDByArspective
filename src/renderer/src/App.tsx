@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, AlertCircle, CheckSquare, Inbox as InboxIcon, Play } from 'lucide-react';
+import { Plus, CheckSquare, Inbox as InboxIcon, Play } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
 import { QuickAddTaskModal } from './components/QuickAddTaskModal';
+import { RapidCaptureModal } from './components/RapidCaptureModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProcessingWizardModal } from './views/ProcessingWizard/ProcessingWizardModal';
 import { ProjectsView } from './views/ProjectsView';
@@ -17,6 +18,7 @@ export const App: React.FC = () => {
   // Стартовый экран по умолчанию — «Текущие действия»
   const [activeTab, setActiveTab] = useState<NavigationTab>('next_actions');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isRapidCaptureOpen, setIsRapidCaptureOpen] = useState(false);
   const [modalDefaultDest, setModalDefaultDest] = useState<TaskDestination>('next_actions');
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
@@ -61,7 +63,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // Открытие модального окна добавления с контекстом текущей вкладки
+  // Открытие подробного модального окна добавления с контекстом текущей вкладки
   const openAddModal = (customDest?: TaskDestination) => {
     if (customDest) {
       setModalDefaultDest(customDest);
@@ -81,17 +83,17 @@ export const App: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  // Горячая клавиша Ctrl+N для быстрого добавления
+  // Горячая клавиша Ctrl+N для быстрого непрерывного добавления задач
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        openAddModal();
+        setIsRapidCaptureOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab]);
+  }, []);
 
   // Первоначальная загрузка данных и проверка активной сессии
   useEffect(() => {
@@ -140,81 +142,114 @@ export const App: React.FC = () => {
       updated_at: new Date().toISOString(),
     };
     setTasks((prev) => [mockTask, ...prev]);
-    if (taskData.destination && taskData.destination !== activeTab) {
-      setActiveTab(taskData.destination);
+  };
+
+  // Быстрое сохранение из RapidCaptureModal (поддерживает цикл Enter -> Enter)
+  const handleRapidSaveTask = async (title: string, destination: TaskDestination) => {
+    if (window.gtdApi) {
+      try {
+        const newTask = await window.gtdApi.createTask({
+          title,
+          destination,
+          status: 'active',
+        });
+        setTasks((prev) => [newTask, ...prev]);
+        return;
+      } catch (err) {
+        console.error('Failed to rapid save via IPC:', err);
+      }
     }
+
+    const mockTask: Task = {
+      id: 'task_' + Date.now(),
+      title,
+      destination,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setTasks((prev) => [mockTask, ...prev]);
   };
 
   const handleToggleTaskStatus = async (task: Task) => {
-    const newStatus = task.status === 'completed' ? 'active' : 'completed';
+    const nextStatus = task.status === 'completed' ? 'active' : 'completed';
     if (window.gtdApi) {
       try {
-        await window.gtdApi.updateTask(task.id, { status: newStatus });
+        await window.gtdApi.updateTask(task.id, { status: nextStatus });
         await refreshData();
         return;
       } catch (e) {
-        console.error('Failed to toggle status:', e);
+        console.error(e);
       }
     }
+
     setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+      prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t))
     );
   };
 
-  const handleCreateProjectFromWizard = (sourceTask: Task) => {
-    setProjectSourceTask(sourceTask);
-    setIsProcessingOpen(false);
-    setIsCreateProjectOpen(true);
-  };
-
+  // Обработка создания проекта (с переходом к первому шагу в визарде)
   const handleProjectCreated = async (result: { project: Project; firstStep: Task }) => {
     await refreshData();
-    setIsCreateProjectOpen(false);
-    setProjectSourceTask(null);
-
-    // Первый шаг проекта начинает обработку напрямую с вопроса «Мне?»
     setWizardInitialTask(result.firstStep);
     setIsProcessingOpen(true);
   };
 
-  // Разбор конкретной задачи по выбору пользователя
+  // Запуск мастера обработки для конкретной выбранной задачи
   const handleProcessSingleTask = (task: Task) => {
     setWizardInitialTask(task);
     setIsProcessingOpen(true);
   };
 
-  const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active');
+  // Обработка перехода в создание проекта из мастера обработки
+  const handleCreateProjectFromWizard = (task: Task) => {
+    setIsProcessingOpen(false);
+    setProjectSourceTask(task);
+    setIsCreateProjectOpen(true);
+  };
+
+  // Фильтрация текущего списка задач
   const currentViewTasks = tasks.filter((t) => {
-    if (activeTab === 'projects') return false;
     if (activeTab === 'completed') return t.status === 'completed';
+    if (activeTab === 'projects') return false;
     return t.destination === activeTab && t.status === 'active';
   });
 
+  const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active');
+
   const getTabTitle = () => {
     switch (activeTab) {
-      case 'next_actions': return 'Текущие действия';
-      case 'inbox': return 'Корзина ГТД';
-      case 'projects': return 'Проекты';
-      case 'calendar': return 'Календарь';
-      case 'waiting_for': return 'Делегирование и ожидание';
-      case 'someday': return 'Когда-нибудь потом';
-      case 'notes': return 'Заметки';
-      case 'completed': return 'Завершённые';
-      case 'trash': return 'Мусор';
-      default: return 'ГТД';
+      case 'next_actions':
+        return 'Текущие действия';
+      case 'inbox':
+        return 'Корзина ГТД';
+      case 'projects':
+        return 'Проекты';
+      case 'calendar':
+        return 'Календарь';
+      case 'waiting_for':
+        return 'Делегирование / Ожидание';
+      case 'someday':
+        return 'Когда-нибудь потом';
+      case 'notes':
+        return 'Заметки';
+      case 'completed':
+        return 'Завершённые';
+      case 'trash':
+        return 'Мусор';
+      default:
+        return 'Задачи';
     }
   };
 
   const getTabCount = () => {
-    if (activeTab === 'projects') return projects.filter(p => p.status === 'active').length;
-    if (activeTab === 'completed') return tasks.filter(t => t.status === 'completed').length + projects.filter(p => p.status === 'completed').length;
-    if (activeTab === 'trash') return tasks.filter(t => t.destination === 'trash' || t.deleted_at != null).length;
-    return currentViewTasks.length;
+    if (activeTab === 'projects') return `${projects.length} шт.`;
+    return `${currentViewTasks.length} шт.`;
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors">
-      {/* Левая боковая панель навигации Material 3 */}
+    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
+      {/* Боковая панель навигации Arspective GTD */}
       <Navigation
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -228,57 +263,23 @@ export const App: React.FC = () => {
       />
 
       {/* Основная рабочая область */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-zinc-900 transition-colors">
-        {/* Верхняя шапка Material 3 Expressive */}
-        <header className="h-18 border-b border-zinc-200/80 dark:border-zinc-800 px-8 flex items-center justify-between shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#191919] transition-colors relative">
+        {/* Верхняя шапка: чистая, свободная, просторная */}
+        <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 px-8 flex items-center justify-between shrink-0 bg-white dark:bg-[#191919]">
           <div className="flex items-center space-x-3.5">
-            <h2 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">{getTabTitle()}</h2>
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{getTabTitle()}</h2>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#252525] text-zinc-600 dark:text-zinc-400">
               {getTabCount()}
             </span>
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Кнопка быстрого разбора корзины в шапке */}
-            {inboxTasks.length > 0 && activeTab !== 'inbox' && (
-              <button
-                onClick={() => {
-                  setWizardInitialTask(null);
-                  setIsProcessingOpen(true);
-                }}
-                className="flex items-center space-x-2 px-4 py-2 rounded-full text-xs font-bold text-indigo-700 dark:text-purple-300 bg-indigo-50 dark:bg-purple-950/60 hover:bg-indigo-100 dark:hover:bg-purple-900/60 border border-indigo-200/60 dark:border-purple-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-purple-400" />
-                <span>Разобрать корзину ({inboxTasks.length})</span>
-              </button>
-            )}
-
-            {/* Вкладка «Текущие действия» - специальная кнопка добавления текущего действия */}
-            {activeTab === 'next_actions' && (
-              <button
-                onClick={() => openAddModal('next_actions')}
-                className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-xs font-bold shadow-md shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
-                title="Добавить действие напрямую в Текущие действия"
-              >
-                <CheckSquare className="w-4 h-4" />
-                <span>Добавить текущее действие</span>
-              </button>
-            )}
-
-            {/* Единая кнопка «+ Добавить» Material 3 Expressive FAB */}
-            <button
-              onClick={() => openAddModal()}
-              className="flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-full text-xs font-extrabold shadow-md shadow-indigo-600/20 dark:shadow-purple-600/20 transition-all active:scale-95 cursor-pointer"
-              title="Горячая клавиша: Ctrl+N"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Добавить</span>
-            </button>
+          <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:block">
+            Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">Ctrl+N</kbd> для быстрой записи
           </div>
         </header>
 
         {/* Тело раздела */}
-        <div className="flex-1 overflow-y-auto p-8 bg-zinc-50 dark:bg-zinc-950/60 transition-colors">
+        <div className="flex-1 overflow-y-auto p-8 bg-zinc-50 dark:bg-[#191919] transition-colors pb-24">
           {activeTab === 'projects' && (
             <ProjectsView
               projects={projects}
@@ -344,17 +345,17 @@ export const App: React.FC = () => {
           {/* Специальное представление для «Корзина ГТД»: разбор по выбору или по очереди */}
           {activeTab === 'inbox' && (
             inboxTasks.length === 0 ? (
-              <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-zinc-900/60">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-purple-950/50 text-indigo-600 dark:text-purple-400 flex items-center justify-center mb-3.5 shadow-sm">
+              <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
                   <InboxIcon className="w-7 h-7" />
                 </div>
                 <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">Корзина пуста</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-                  Все входящие мысли и задачи обработаны. Нажмите «+ Добавить», чтобы записать новую мысль.
+                  Все входящие мысли и задачи обработаны. Нажмите кнопку «+» внизу, чтобы записать новую мысль.
                 </p>
                 <button
-                  onClick={() => openAddModal('inbox')}
-                  className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-indigo-700 dark:text-purple-300 bg-indigo-50 dark:bg-purple-950/60 hover:bg-indigo-100 border border-indigo-200 dark:border-purple-800 transition-all cursor-pointer"
+                  onClick={() => setIsRapidCaptureOpen(true)}
+                  className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-[#282828] hover:bg-zinc-200 dark:hover:bg-[#323232] border border-zinc-200 dark:border-zinc-700 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Записать мысль в корзину</span>
@@ -371,7 +372,7 @@ export const App: React.FC = () => {
                       setWizardInitialTask(null);
                       setIsProcessingOpen(true);
                     }}
-                    className="flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 shadow-md cursor-pointer transition-all active:scale-95"
+                    className="flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 shadow-sm cursor-pointer transition-all active:scale-95"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Разобрать по порядку</span>
@@ -382,7 +383,7 @@ export const App: React.FC = () => {
                   {inboxTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all flex items-center justify-between group"
+                      className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group"
                     >
                       <div>
                         <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{task.title}</h4>
@@ -397,10 +398,9 @@ export const App: React.FC = () => {
                       {/* Кнопка выборочного разбора этой конкретной задачи */}
                       <button
                         onClick={() => handleProcessSingleTask(task)}
-                        className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-indigo-50 dark:bg-purple-950/60 hover:bg-indigo-100 dark:hover:bg-purple-900/60 text-indigo-700 dark:text-purple-300 border border-indigo-200/70 dark:border-purple-800/60 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ml-4"
-                        title="Разобрать именно эту задачу по правилам ГТД"
+                        className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-[#2c2c2c] dark:hover:bg-[#353535] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 ml-4"
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Play className="w-3 h-3 fill-current" />
                         <span>Разобрать</span>
                       </button>
                     </div>
@@ -412,96 +412,129 @@ export const App: React.FC = () => {
 
           {/* Представление «Текущие действия» */}
           {activeTab === 'next_actions' && (
-            currentViewTasks.length === 0 ? (
-              <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-zinc-900/60">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3.5 shadow-sm">
-                  <CheckSquare className="w-7 h-7" />
-                </div>
-                <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">Список текущих действий чист</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-                  Здесь находятся конкретные действия, готовые к выполнению. Нажмите кнопку ниже, чтобы добавить действие.
+            <div className="space-y-4 max-w-4xl">
+              {/* Позиция кнопки добавления текущего действия на той же позиции, что и в других разделах */}
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Список конкретных ближайших действий, готовых к выполнению.
                 </p>
                 <button
                   onClick={() => openAddModal('next_actions')}
-                  className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all cursor-pointer shadow-md"
+                  className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Добавить текущее действие</span>
                 </button>
               </div>
-            ) : (
-              <div className="max-w-4xl space-y-2.5">
-                {currentViewTasks.map((task) => {
-                  const parentProject = task.project_id
-                    ? projects.find((p) => p.id === task.project_id)
-                    : null;
 
-                  return (
-                    <div
-                      key={task.id}
-                      className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all flex items-start justify-between group"
-                    >
-                      <div className="flex items-start space-x-3.5">
-                        <input
-                          type="checkbox"
-                          checked={task.status === 'completed'}
-                          onChange={() => handleToggleTaskStatus(task)}
-                          className="mt-1 w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-indigo-600 dark:text-purple-500 focus:ring-indigo-500 cursor-pointer"
-                        />
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h4
-                              className={`text-sm font-semibold ${
-                                task.status === 'completed'
-                                  ? 'line-through text-zinc-400 dark:text-zinc-500'
-                                  : 'text-zinc-900 dark:text-zinc-100'
-                              }`}
-                            >
-                              {task.title}
-                            </h4>
-                            {parentProject && (
-                              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                                📂 {parentProject.title}
-                              </span>
+              {currentViewTasks.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
+                    <CheckSquare className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">Список текущих действий чист</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
+                    Здесь находятся конкретные действия, готовые к выполнению.
+                  </p>
+                  <button
+                    onClick={() => openAddModal('next_actions')}
+                    className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 transition-all cursor-pointer shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Добавить действие</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {currentViewTasks.map((task) => {
+                    const parentProject = task.project_id
+                      ? projects.find((p) => p.id === task.project_id)
+                      : null;
+
+                    return (
+                      <div
+                        key={task.id}
+                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-start justify-between group"
+                      >
+                        <div className="flex items-start space-x-3.5">
+                          <input
+                            type="checkbox"
+                            checked={task.status === 'completed'}
+                            onChange={() => handleToggleTaskStatus(task)}
+                            className="mt-1 w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-0 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <h4
+                                className={`text-sm font-semibold ${
+                                  task.status === 'completed'
+                                    ? 'line-through text-zinc-400 dark:text-zinc-500'
+                                    : 'text-zinc-900 dark:text-zinc-100'
+                                }`}
+                              >
+                                {task.title}
+                              </h4>
+                              {parentProject && (
+                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                                  📂 {parentProject.title}
+                                </span>
+                              )}
+                            </div>
+                            {task.notes && (
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
                             )}
-                          </div>
-                          {task.notes && (
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                            {task.scheduled_date && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                📅 {task.scheduled_date} {task.scheduled_time || ''}
-                              </span>
-                            )}
-                            {task.delegated_to && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                                👤 {task.delegated_to}
-                              </span>
-                            )}
-                            {task.waiting_for && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                Ожидается: {task.waiting_for}
-                              </span>
-                            )}
-                            {task.due_date && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                                ⏱ дедлайн: {task.due_date}
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              {task.scheduled_date && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                                  📅 {task.scheduled_date} {task.scheduled_time || ''}
+                                </span>
+                              )}
+                              {task.delegated_to && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                                  👤 {task.delegated_to}
+                                </span>
+                              )}
+                              {task.waiting_for && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300">
+                                  Ожидается: {task.waiting_for}
+                                </span>
+                              )}
+                              {task.due_date && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 font-semibold">
+                                  ⏱ дедлайн: {task.due_date}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
+
+        {/* Самая нижняя кнопка добавления просто плюсиком (Floating Action Button) */}
+        <button
+          onClick={() => setIsRapidCaptureOpen(true)}
+          className="fixed bottom-6 right-8 w-14 h-14 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer z-40 border border-zinc-700/20 dark:border-zinc-300/20"
+          title="Быстрое добавление задач (Ctrl+N)"
+        >
+          <Plus className="w-7 h-7 stroke-[2.5]" />
+        </button>
       </main>
 
-      {/* Модальное окно быстрого добавления задачи с контекстным назначением */}
+      {/* Быстрое непрерывное добавление задач (Enter -> сохранить и следующая, Esc -> закрыть, всплывающее уведомление) */}
+      <RapidCaptureModal
+        isOpen={isRapidCaptureOpen}
+        onClose={() => setIsRapidCaptureOpen(false)}
+        onSaveTask={handleRapidSaveTask}
+        currentTab={activeTab}
+      />
+
+      {/* Модальное окно подробного добавления задачи с контекстным назначением */}
       <QuickAddTaskModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
