@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { TaskContextMenu } from '../components/TaskContextMenu';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 interface ProjectDetailModalProps {
   projectId: string | null;
@@ -44,6 +45,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   // Контекстное меню ПКМ для задач
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuTask, setContextMenuTask] = useState<Task | null>(null);
+  const [deleteStepTarget, setDeleteStepTarget] = useState<Task | null>(null);
+  const [isDeleteProjectOpen, setIsDeleteProjectOpen] = useState(false);
 
   // Редактирование данных проекта (заголовок, описание, критерии)
   const [isEditingProject, setIsEditingProject] = useState(false);
@@ -133,17 +136,22 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   };
 
   // Удаление шага
-  const handleDeleteStep = async (step: Task) => {
-    if (!window.gtdApi) return;
-    if (!confirm(`Удалить задачу «${step.title}»?`)) return;
+  const handleDeleteStep = (step: Task) => {
+    setDeleteStepTarget(step);
+  };
+
+  const handleConfirmDeleteStep = async () => {
+    if (!window.gtdApi || !deleteStepTarget) return;
+    const step = deleteStepTarget;
 
     try {
-      await window.gtdApi.deleteTask(step.id, true);
+      await window.gtdApi.deleteTask(step.id, false);
       if (project.first_step_task_id === step.id) {
         const remainingSteps = steps.filter((s) => s.id !== step.id);
         const nextFirstStep = remainingSteps.length > 0 ? remainingSteps[0].id : null;
         await window.gtdApi.updateProject(project.id, { first_step_task_id: nextFirstStep });
       }
+      setDeleteStepTarget(null);
       await loadProjectData();
       await onProjectUpdated();
     } catch (err) {
@@ -194,12 +202,15 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   };
 
   // Удаление проекта
-  const handleDeleteProject = async () => {
-    if (!window.gtdApi) return;
-    if (!confirm(`Удалить весь проект «${project.title}» и отвязать его задачи?`)) return;
+  const handleDeleteProject = () => {
+    setIsDeleteProjectOpen(true);
+  };
 
+  const handleConfirmDeleteProject = async () => {
+    if (!window.gtdApi) return;
     try {
       await window.gtdApi.deleteProject(project.id);
+      setIsDeleteProjectOpen(false);
       onClose();
       await onProjectUpdated();
     } catch (err) {
@@ -541,6 +552,24 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
       onEdit={(t) => handleStartEditStep(t)}
       onDelete={(t) => handleDeleteStep(t)}
       onToggleStatus={(t) => handleToggleStep(t)}
+    />
+
+    {/* Красивое окно подтверждения удаления шага проекта */}
+    <ConfirmDeleteModal
+      isOpen={Boolean(deleteStepTarget)}
+      title={deleteStepTarget?.title || ''}
+      isPermanent={false}
+      onClose={() => setDeleteStepTarget(null)}
+      onConfirm={handleConfirmDeleteStep}
+    />
+
+    {/* Красивое окно подтверждения удаления проекта */}
+    <ConfirmDeleteModal
+      isOpen={isDeleteProjectOpen}
+      title={project.title}
+      isPermanent={true}
+      onClose={() => setIsDeleteProjectOpen(false)}
+      onConfirm={handleConfirmDeleteProject}
     />
   </>
   );

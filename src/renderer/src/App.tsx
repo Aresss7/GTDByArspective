@@ -14,6 +14,7 @@ import { SomedayView } from './views/SomedayView';
 import { NotesView } from './views/NotesView';
 import { TrashView } from './views/TrashView';
 import { CompletedView } from './views/CompletedView';
+import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { Task, Project, TaskDestination } from '@shared/types';
 
 export const App: React.FC = () => {
@@ -33,6 +34,7 @@ export const App: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuTask, setContextMenuTask] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -219,25 +221,45 @@ export const App: React.FC = () => {
     );
   };
 
-  // Удаление задачи
-  const handleDeleteTask = async (taskId: string) => {
+  // Запрос на удаление задачи (открывает красивое окно подтверждения)
+  const handleDeleteTask = (taskOrId: Task | string) => {
+    if (typeof taskOrId === 'string') {
+      const found = tasks.find((t) => t.id === taskOrId);
+      if (found) {
+        setTaskToDelete(found);
+      }
+    } else {
+      setTaskToDelete(taskOrId);
+    }
+  };
+
+  // Подтверждение перемещения в Мусор
+  const handleConfirmSoftDelete = async () => {
+    if (!taskToDelete) return;
     if (window.gtdApi) {
       try {
-        await window.gtdApi.deleteTask(taskId, true);
+        await window.gtdApi.deleteTask(taskToDelete.id, false);
         await refreshData();
-        return;
       } catch (e) {
-        console.error('Failed to delete task:', e);
+        console.error('Failed to move task to trash:', e);
       }
+    } else {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskToDelete.id ? { ...t, destination: 'trash' } : t))
+      );
     }
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setTaskToDelete(null);
   };
 
   // Перемещение задачи в другое место назначения
   const handleMoveTaskDestination = async (task: Task, destination: TaskDestination) => {
     if (window.gtdApi) {
       try {
-        await window.gtdApi.updateTask(task.id, { destination });
+        const updates: Partial<Task> = { destination };
+        if (destination === 'calendar' && !task.scheduled_date) {
+          updates.scheduled_date = new Date().toISOString().split('T')[0];
+        }
+        await window.gtdApi.updateTask(task.id, updates);
         await refreshData();
         return;
       } catch (e) {
@@ -479,11 +501,7 @@ export const App: React.FC = () => {
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Удалить задачу «${task.title}»?`)) {
-                              handleDeleteTask(task.id);
-                            }
-                          }}
+                          onClick={() => setTaskToDelete(task)}
                           className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                           title="Удалить задачу (или нажмите ПКМ)"
                         >
@@ -605,11 +623,7 @@ export const App: React.FC = () => {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Удалить задачу «${task.title}»?`)) {
-                                handleDeleteTask(task.id);
-                              }
-                            }}
+                            onClick={() => setTaskToDelete(task)}
                             className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                             title="Удалить задачу (или нажмите ПКМ)"
                           >
@@ -659,9 +673,18 @@ export const App: React.FC = () => {
         position={contextMenuPos}
         onClose={() => setContextMenuPos(null)}
         onEdit={(t) => setEditingTask(t)}
-        onDelete={(t) => handleDeleteTask(t.id)}
+        onDelete={(t) => setTaskToDelete(t)}
         onToggleStatus={(t) => handleToggleTaskStatus(t)}
         onMoveToDestination={(t, dest) => handleMoveTaskDestination(t, dest)}
+      />
+
+      {/* Красивое всплывающее окно подтверждения удаления задачи */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(taskToDelete)}
+        title={taskToDelete?.title || ''}
+        isPermanent={false}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={handleConfirmSoftDelete}
       />
 
       {/* Модальное окно подробного создания задачи с контекстным назначением */}

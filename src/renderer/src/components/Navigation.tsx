@@ -14,7 +14,6 @@ import {
   Moon
 } from 'lucide-react';
 import { TaskDestination } from '@shared/types';
-import appIconUrl from '../assets/icon.png';
 
 export type NavigationTab = TaskDestination | 'projects' | 'completed';
 
@@ -51,16 +50,11 @@ export const Navigation: React.FC<NavigationProps> = ({
     <aside className="w-64 bg-zinc-50 dark:bg-[#191919] text-zinc-800 dark:text-zinc-200 flex flex-col h-full border-r border-zinc-200 dark:border-zinc-800 shrink-0 select-none transition-colors">
       {/* Логотип и брендинг Arspective GTD */}
       <div className="p-5 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <img 
-            src={appIconUrl} 
-            alt="Arspective GTD" 
-            className="w-10 h-10 rounded-2xl shadow-sm bg-[#191919] p-1 border border-zinc-300 dark:border-zinc-700" 
-          />
-          <div>
-            <h1 className="font-bold text-sm tracking-tight text-zinc-900 dark:text-white leading-tight">Arspective GTD</h1>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Система дел</p>
-          </div>
+        <div>
+          <h1 className="font-extrabold text-base tracking-tight text-zinc-900 dark:text-white leading-tight">
+            Arspective GTD
+          </h1>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">Система управления делами</p>
         </div>
       </div>
 

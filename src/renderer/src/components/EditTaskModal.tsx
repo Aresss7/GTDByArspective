@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox, FileText, Trash2 } from 'lucide-react';
 import { Task, TaskDestination, Project } from '@shared/types';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 
 interface EditTaskModalProps {
   task: Task | null;
@@ -30,6 +31,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [waitingFor, setWaitingFor] = useState('');
   const [checkDate, setCheckDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -79,11 +81,15 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!onDelete) return;
-    if (!confirm(`Удалить задачу «${task.title}»?`)) return;
     try {
       await onDelete(task.id);
+      setIsConfirmDeleteOpen(false);
       onClose();
     } catch (e) {
       console.error(e);
@@ -309,6 +315,14 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </div>
         </form>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={isConfirmDeleteOpen}
+        title={task.title}
+        isPermanent={false}
+        onClose={() => setIsConfirmDeleteOpen(false)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };
