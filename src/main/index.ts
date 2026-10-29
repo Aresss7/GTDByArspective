@@ -11,7 +11,7 @@ let mainWindow: BrowserWindow | null = null;
 function createWindow() {
   mainWindow = new BrowserWindow({
     title: 'Arspective GTD',
-    icon: path.join(__dirname, '../../build/icon.ico'),
+    icon: path.join(__dirname, '../../build/GTD.ico'),
     width: 1200,
     height: 800,
     minWidth: 980,
