@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CheckSquare, Inbox as InboxIcon, Play } from 'lucide-react';
+import { Plus, CheckSquare, Inbox as InboxIcon, Play, Edit2, Trash2 } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
 import { QuickAddTaskModal } from './components/QuickAddTaskModal';
 import { RapidCaptureModal } from './components/RapidCaptureModal';
+import { EditTaskModal } from './components/EditTaskModal';
+import { TaskContextMenu } from './components/TaskContextMenu';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProcessingWizardModal } from './views/ProcessingWizard/ProcessingWizardModal';
 import { ProjectsView } from './views/ProjectsView';
@@ -26,6 +28,11 @@ export const App: React.FC = () => {
 
   // Для передачи конкретной задачи на обработку (по выбору пользователя)
   const [wizardInitialTask, setWizardInitialTask] = useState<Task | null>(null);
+
+  // Редактирование и контекстное меню ПКМ
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuTask, setContextMenuTask] = useState<Task | null>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -83,7 +90,7 @@ export const App: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  // Горячая клавиша Ctrl+N для быстрого непрерывного добавления задач
+  // Горячая клавиша Ctrl+N для быстрого непрерывного добавления задач в Корзину
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
@@ -144,13 +151,13 @@ export const App: React.FC = () => {
     setTasks((prev) => [mockTask, ...prev]);
   };
 
-  // Быстрое сохранение из RapidCaptureModal (поддерживает цикл Enter -> Enter)
-  const handleRapidSaveTask = async (title: string, destination: TaskDestination) => {
+  // Быстрое сохранение из плюсика (всегда строго в Корзину ГТД)
+  const handleRapidSaveTask = async (title: string) => {
     if (window.gtdApi) {
       try {
         const newTask = await window.gtdApi.createTask({
           title,
-          destination,
+          destination: 'inbox',
           status: 'active',
         });
         setTasks((prev) => [newTask, ...prev]);
@@ -163,7 +170,7 @@ export const App: React.FC = () => {
     const mockTask: Task = {
       id: 'task_' + Date.now(),
       title,
-      destination,
+      destination: 'inbox',
       status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -186,6 +193,57 @@ export const App: React.FC = () => {
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t))
     );
+  };
+
+  // Контекстное меню ПКМ
+  const handleTaskContextMenu = (e: React.MouseEvent, task: Task) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setContextMenuTask(task);
+  };
+
+  // Сохранение изменений отредактированной задачи
+  const handleSaveEditedTask = async (taskId: string, updates: Partial<Task>) => {
+    if (window.gtdApi) {
+      try {
+        await window.gtdApi.updateTask(taskId, updates);
+        await refreshData();
+        return;
+      } catch (e) {
+        console.error('Failed to update task:', e);
+      }
+    }
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+    );
+  };
+
+  // Удаление задачи
+  const handleDeleteTask = async (taskId: string) => {
+    if (window.gtdApi) {
+      try {
+        await window.gtdApi.deleteTask(taskId, true);
+        await refreshData();
+        return;
+      } catch (e) {
+        console.error('Failed to delete task:', e);
+      }
+    }
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  };
+
+  // Перемещение задачи в другое место назначения
+  const handleMoveTaskDestination = async (task: Task, destination: TaskDestination) => {
+    if (window.gtdApi) {
+      try {
+        await window.gtdApi.updateTask(task.id, { destination });
+        await refreshData();
+        return;
+      } catch (e) {
+        console.error('Failed to move task:', e);
+      }
+    }
   };
 
   // Обработка создания проекта (с переходом к первому шагу в визарде)
@@ -274,7 +332,7 @@ export const App: React.FC = () => {
           </div>
 
           <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:block">
-            Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">Ctrl+N</kbd> для быстрой записи
+            Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">ПКМ</kbd> по любой задаче для редактирования • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">Ctrl+N</kbd> в корзину
           </div>
         </header>
 
@@ -298,6 +356,7 @@ export const App: React.FC = () => {
               projects={projects}
               onTaskUpdated={refreshData}
               onOpenAddTask={() => openAddModal('calendar')}
+              onTaskContextMenu={handleTaskContextMenu}
             />
           )}
 
@@ -307,6 +366,8 @@ export const App: React.FC = () => {
               projects={projects}
               onTaskUpdated={refreshData}
               onOpenAddTask={() => openAddModal('waiting_for')}
+              onTaskContextMenu={handleTaskContextMenu}
+              onEditTask={setEditingTask}
             />
           )}
 
@@ -316,6 +377,8 @@ export const App: React.FC = () => {
               projects={projects}
               onTaskUpdated={refreshData}
               onOpenAddTask={() => openAddModal('someday')}
+              onTaskContextMenu={handleTaskContextMenu}
+              onEditTask={setEditingTask}
             />
           )}
 
@@ -351,7 +414,7 @@ export const App: React.FC = () => {
                 </div>
                 <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">Корзина пуста</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-                  Все входящие мысли и задачи обработаны. Нажмите кнопку «+» внизу, чтобы записать новую мысль.
+                  Все входящие мысли и задачи обработаны. Нажмите кнопку «+» внизу или нажмите Ctrl+N для добавления.
                 </p>
                 <button
                   onClick={() => setIsRapidCaptureOpen(true)}
@@ -365,7 +428,7 @@ export const App: React.FC = () => {
               <div className="space-y-4 max-w-4xl">
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Вы можете разобрать все задачи подряд либо выбрать конкретную задачу для обработки:
+                    Вы можете разобрать задачи по порядку, кликнуть <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> по задаче для меню или нажать кнопки действий:
                   </p>
                   <button
                     onClick={() => {
@@ -383,9 +446,10 @@ export const App: React.FC = () => {
                   {inboxTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group"
+                      onContextMenu={(e) => handleTaskContextMenu(e, task)}
+                      className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group cursor-context-menu"
                     >
-                      <div>
+                      <div className="flex-1 min-w-0 pr-4">
                         <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{task.title}</h4>
                         {task.notes && (
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
@@ -395,14 +459,37 @@ export const App: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Кнопка выборочного разбора этой конкретной задачи */}
-                      <button
-                        onClick={() => handleProcessSingleTask(task)}
-                        className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-[#2c2c2c] dark:hover:bg-[#353535] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 ml-4"
-                      >
-                        <Play className="w-3 h-3 fill-current" />
-                        <span>Разобрать</span>
-                      </button>
+                      <div className="flex items-center space-x-2 shrink-0">
+                        {/* Кнопка выборочного разбора */}
+                        <button
+                          onClick={() => handleProcessSingleTask(task)}
+                          className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                          title="Разобрать по алгоритму ГТД"
+                        >
+                          <Play className="w-3 h-3 fill-current" />
+                          <span>Разобрать</span>
+                        </button>
+
+                        {/* Кнопки редактирования и удаления */}
+                        <button
+                          onClick={() => setEditingTask(task)}
+                          className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                          title="Редактировать задачу (или нажмите ПКМ)"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Удалить задачу «${task.title}»?`)) {
+                              handleDeleteTask(task.id);
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                          title="Удалить задачу (или нажмите ПКМ)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -413,10 +500,9 @@ export const App: React.FC = () => {
           {/* Представление «Текущие действия» */}
           {activeTab === 'next_actions' && (
             <div className="space-y-4 max-w-4xl">
-              {/* Позиция кнопки добавления текущего действия на той же позиции, что и в других разделах */}
               <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Список конкретных ближайших действий, готовых к выполнению.
+                  Список конкретных ближайших действий • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
                 </p>
                 <button
                   onClick={() => openAddModal('next_actions')}
@@ -454,19 +540,20 @@ export const App: React.FC = () => {
                     return (
                       <div
                         key={task.id}
-                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-start justify-between group"
+                        onContextMenu={(e) => handleTaskContextMenu(e, task)}
+                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-start justify-between group cursor-context-menu"
                       >
-                        <div className="flex items-start space-x-3.5">
+                        <div className="flex items-start space-x-3.5 flex-1 min-w-0 mr-4">
                           <input
                             type="checkbox"
                             checked={task.status === 'completed'}
                             onChange={() => handleToggleTaskStatus(task)}
-                            className="mt-1 w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-0 cursor-pointer"
+                            className="mt-1 w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-0 cursor-pointer shrink-0"
                           />
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <h4
-                                className={`text-sm font-semibold ${
+                                className={`text-sm font-semibold truncate ${
                                   task.status === 'completed'
                                     ? 'line-through text-zinc-400 dark:text-zinc-500'
                                     : 'text-zinc-900 dark:text-zinc-100'
@@ -475,7 +562,7 @@ export const App: React.FC = () => {
                                 {task.title}
                               </h4>
                               {parentProject && (
-                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0">
                                   📂 {parentProject.title}
                                 </span>
                               )}
@@ -507,6 +594,28 @@ export const App: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {/* Явные кнопки редактирования и удаления на карточке */}
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <button
+                            onClick={() => setEditingTask(task)}
+                            className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                            title="Редактировать задачу (или нажмите ПКМ)"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Удалить задачу «${task.title}»?`)) {
+                                handleDeleteTask(task.id);
+                              }
+                            }}
+                            className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Удалить задачу (или нажмите ПКМ)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -516,17 +625,17 @@ export const App: React.FC = () => {
           )}
         </div>
 
-        {/* Самая нижняя кнопка добавления просто плюсиком (Floating Action Button) */}
+        {/* Самая нижняя кнопка добавления просто плюсиком (добавляет строго в Корзину) */}
         <button
           onClick={() => setIsRapidCaptureOpen(true)}
           className="fixed bottom-6 right-8 w-14 h-14 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer z-40 border border-zinc-700/20 dark:border-zinc-300/20"
-          title="Быстрое добавление задач (Ctrl+N)"
+          title="Быстро добавить в корзину (Ctrl+N)"
         >
           <Plus className="w-7 h-7 stroke-[2.5]" />
         </button>
       </main>
 
-      {/* Быстрое непрерывное добавление задач (Enter -> сохранить и следующая, Esc -> закрыть, всплывающее уведомление) */}
+      {/* Быстрое непрерывное добавление задач строго в Корзину */}
       <RapidCaptureModal
         isOpen={isRapidCaptureOpen}
         onClose={() => setIsRapidCaptureOpen(false)}
@@ -534,7 +643,28 @@ export const App: React.FC = () => {
         currentTab={activeTab}
       />
 
-      {/* Модальное окно подробного добавления задачи с контекстным назначением */}
+      {/* Модальное окно редактирования задачи (по клику на карандаш или через ПКМ) */}
+      <EditTaskModal
+        task={editingTask}
+        isOpen={Boolean(editingTask)}
+        onClose={() => setEditingTask(null)}
+        onSave={handleSaveEditedTask}
+        onDelete={handleDeleteTask}
+        projects={projects}
+      />
+
+      {/* Контекстное меню ПКМ (правый клик мыши) */}
+      <TaskContextMenu
+        task={contextMenuTask}
+        position={contextMenuPos}
+        onClose={() => setContextMenuPos(null)}
+        onEdit={(t) => setEditingTask(t)}
+        onDelete={(t) => handleDeleteTask(t.id)}
+        onToggleStatus={(t) => handleToggleTaskStatus(t)}
+        onMoveToDestination={(t, dest) => handleMoveTaskDestination(t, dest)}
+      />
+
+      {/* Модальное окно подробного создания задачи с контекстным назначением */}
       <QuickAddTaskModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

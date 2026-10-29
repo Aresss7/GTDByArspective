@@ -14,6 +14,7 @@ import {
   Check
 } from 'lucide-react';
 import { Project, Task } from '@shared/types';
+import { TaskContextMenu } from '../components/TaskContextMenu';
 
 interface ProjectDetailModalProps {
   projectId: string | null;
@@ -39,6 +40,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   // Редактирование конкретного шага
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
   const [editingStepTitle, setEditingStepTitle] = useState('');
+
+  // Контекстное меню ПКМ для задач
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuTask, setContextMenuTask] = useState<Task | null>(null);
 
   // Редактирование данных проекта (заголовок, описание, критерии)
   const [isEditingProject, setIsEditingProject] = useState(false);
@@ -69,6 +74,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
       setIsEditingPlan(false);
       setIsEditingProject(false);
       setEditingStepId(null);
+      setContextMenuPos(null);
     }
   }, [isOpen, projectId]);
 
@@ -133,7 +139,6 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
     try {
       await window.gtdApi.deleteTask(step.id, true);
-      // Если удаленный шаг был первым шагом проекта, сбрасываем или обновляем
       if (project.first_step_task_id === step.id) {
         const remainingSteps = steps.filter((s) => s.id !== step.id);
         const nextFirstStep = remainingSteps.length > 0 ? remainingSteps[0].id : null;
@@ -205,168 +210,169 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   const completedStepsCount = steps.filter((s) => s.status === 'completed').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-fadeIn select-none p-4">
-      <div 
-        className="bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800 transition-colors"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Шапка проекта */}
-        <header className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-[#222222]">
-          <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-4">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-              project.status === 'completed' 
-                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200' 
-                : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-            }`}>
-              <FolderKanban className="w-5 h-5" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold tracking-tight truncate">{project.title}</h2>
-                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
-                  project.status === 'completed' 
-                    ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300' 
-                    : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                }`}>
-                  {project.status === 'completed' ? 'Завершен' : 'В работе'}
-                </span>
-                <button
-                  onClick={() => setIsEditingProject(!isEditingProject)}
-                  className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 transition-colors cursor-pointer"
-                  title="Редактировать проект"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-fadeIn select-none p-4">
+        <div 
+          className="bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Шапка проекта */}
+          <header className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-[#222222]">
+            <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-4">
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                project.status === 'completed' 
+                  ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200' 
+                  : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+              }`}>
+                <FolderKanban className="w-5 h-5" />
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Шагов выполнено: {completedStepsCount} из {steps.length}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center space-x-2 shrink-0">
-            <button
-              onClick={handleToggleProjectStatus}
-              className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                project.status === 'completed'
-                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  : 'bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 shadow-sm'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{project.status === 'completed' ? 'Вернуть в работу' : 'Завершить проект'}</span>
-            </button>
-
-            <button
-              onClick={handleDeleteProject}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-              title="Удалить проект"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </header>
-
-        {/* Тело карточки проекта */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Режим редактирования метаданных проекта */}
-          {isEditingProject ? (
-            <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-                Редактирование проекта
-              </h4>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-500 mb-1">Название проекта</label>
-                <input
-                  type="text"
-                  value={projectTitleDraft}
-                  onChange={(e) => setProjectTitleDraft(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-500 mb-1">Описание</label>
-                <textarea
-                  rows={2}
-                  value={projectDescDraft}
-                  onChange={(e) => setProjectDescDraft(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-500 mb-1">Критерии завершения</label>
-                <input
-                  type="text"
-                  value={projectCriteriaDraft}
-                  onChange={(e) => setProjectCriteriaDraft(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs"
-                />
-              </div>
-              <div className="flex justify-end space-x-2 pt-1">
-                <button
-                  onClick={() => setIsEditingProject(false)}
-                  className="px-4 py-1.5 rounded-full text-xs font-semibold text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleSaveProjectDetails}
-                  className="px-4 py-1.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold shadow-sm cursor-pointer"
-                >
-                  Сохранить изменения
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {project.description && (
-                <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">
-                    Описание
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-base font-bold tracking-tight truncate">{project.title}</h2>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                    project.status === 'completed' 
+                      ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300' 
+                      : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                  }`}>
+                    {project.status === 'completed' ? 'Завершен' : 'В работе'}
                   </span>
-                  <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{project.description}</p>
+                  <button
+                    onClick={() => setIsEditingProject(!isEditingProject)}
+                    className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 transition-colors cursor-pointer"
+                    title="Редактировать проект"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              )}
-
-              {project.completion_criteria && (
-                <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center space-x-1 mb-1">
-                    <FileCheck className="w-4 h-4" />
-                    <span>Критерии завершения</span>
-                  </span>
-                  <p className="text-xs text-zinc-800 dark:text-zinc-200 leading-relaxed font-semibold">
-                    {project.completion_criteria}
-                  </p>
-                </div>
-              )}
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Шагов выполнено: {completedStepsCount} из {steps.length}
+                </p>
+              </div>
             </div>
-          )}
 
-          {/* Примерный план */}
-          <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300 flex items-center space-x-1.5">
-                <ListTodo className="w-4 h-4" />
-                <span>Примерный план действий</span>
-              </span>
+            <div className="flex items-center space-x-2 shrink-0">
               <button
-                onClick={() => {
-                  if (isEditingPlan) handleSavePlan();
-                  else setIsEditingPlan(true);
-                }}
-                className="text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:underline cursor-pointer"
+                onClick={handleToggleProjectStatus}
+                className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  project.status === 'completed'
+                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                    : 'bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm'
+                }`}
               >
-                {isEditingPlan ? 'Сохранить план' : 'Редактировать план'}
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{project.status === 'completed' ? 'Вернуть в работу' : 'Завершить проект'}</span>
+              </button>
+
+              <button
+                onClick={handleDeleteProject}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                title="Удалить проект"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={onClose}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
+          </header>
+
+          {/* Тело карточки проекта */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Режим редактирования метаданных проекта */}
+            {isEditingProject ? (
+              <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
+                  Редактирование проекта
+                </h4>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 mb-1">Название проекта</label>
+                  <input
+                    type="text"
+                    value={projectTitleDraft}
+                    onChange={(e) => setProjectTitleDraft(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 mb-1">Описание</label>
+                  <textarea
+                    rows={2}
+                    value={projectDescDraft}
+                    onChange={(e) => setProjectDescDraft(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 mb-1">Критерии завершения</label>
+                  <input
+                    type="text"
+                    value={projectCriteriaDraft}
+                    onChange={(e) => setProjectCriteriaDraft(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2 pt-1">
+                  <button
+                    onClick={() => setIsEditingProject(false)}
+                    className="px-4 py-1.5 rounded-full text-xs font-semibold text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSaveProjectDetails}
+                    className="px-4 py-1.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold shadow-sm cursor-pointer"
+                  >
+                    Сохранить изменения
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {project.description && (
+                  <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">
+                      Описание
+                    </span>
+                    <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{project.description}</p>
+                  </div>
+                )}
+
+                {project.completion_criteria && (
+                  <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center space-x-1 mb-1">
+                      <FileCheck className="w-4 h-4" />
+                      <span>Критерии завершения</span>
+                    </span>
+                    <p className="text-xs text-zinc-800 dark:text-zinc-200 leading-relaxed font-semibold">
+                      {project.completion_criteria}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Примерный план */}
+            <div className="p-4 bg-zinc-50 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300 flex items-center space-x-1.5">
+                  <ListTodo className="w-4 h-4" />
+                  <span>Примерный план действий</span>
+                </span>
+                <button
+                  onClick={() => {
+                    if (isEditingPlan) handleSavePlan();
+                    else setIsEditingPlan(true);
+                  }}
+                  className="text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:underline cursor-pointer"
+                >
+                  {isEditingPlan ? 'Сохранить план' : 'Редактировать план'}
+                </button>
+              </div>
 
             {isEditingPlan ? (
               <textarea
@@ -386,7 +392,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Шаги и действия проекта ({steps.length})
+                Шаги и действия проекта ({steps.length}) • <span className="normal-case text-[11px] font-normal text-zinc-400">Кликните ПКМ по задаче для меню</span>
               </h3>
             </div>
 
@@ -417,10 +423,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                 return (
                   <div
                     key={step.id}
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs transition-colors group ${
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setContextMenuPos({ x: e.clientX, y: e.clientY });
+                      setContextMenuTask(step);
+                    }}
+                    className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs transition-colors group cursor-context-menu ${
                       step.status === 'completed'
                         ? 'bg-zinc-50 dark:bg-[#191919] border-zinc-200 dark:border-zinc-800/80 text-zinc-400 dark:text-zinc-500'
-                        : 'bg-white dark:bg-[#222222] border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm'
+                        : 'bg-white dark:bg-[#222222] border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600'
                     }`}
                   >
                     {isEditing ? (
@@ -492,19 +504,19 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                             </span>
                           )}
 
-                          {/* Кнопки редактирования и удаления задачи */}
-                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Явные кнопки редактирования и удаления задачи */}
+                          <div className="flex items-center space-x-1">
                             <button
                               onClick={() => handleStartEditStep(step)}
-                              className="p-1 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-                              title="Редактировать название шага"
+                              className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                              title="Редактировать название (или нажмите ПКМ)"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteStep(step)}
-                              className="p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                              title="Удалить шаг"
+                              className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                              title="Удалить шаг (или нажмите ПКМ)"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -520,5 +532,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         </div>
       </div>
     </div>
+
+    {/* Контекстное меню ПКМ */}
+    <TaskContextMenu
+      task={contextMenuTask}
+      position={contextMenuPos}
+      onClose={() => setContextMenuPos(null)}
+      onEdit={(t) => handleStartEditStep(t)}
+      onDelete={(t) => handleDeleteStep(t)}
+      onToggleStatus={(t) => handleToggleStep(t)}
+    />
+  </>
   );
 };

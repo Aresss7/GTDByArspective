@@ -16,6 +16,7 @@ interface CalendarViewProps {
   projects: Project[];
   onTaskUpdated: () => Promise<void>;
   onOpenAddTask: () => void;
+  onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void;
 }
 
 type CalendarMode = 'month' | 'week' | 'day';
@@ -25,6 +26,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   projects,
   onTaskUpdated,
   onOpenAddTask,
+  onTaskContextMenu,
 }) => {
   const [mode, setMode] = useState<CalendarMode>('month');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -263,7 +265,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <div
                     key={t.id}
                     onClick={(e) => e.stopPropagation()}
-                    className={`p-2.5 rounded-xl border text-xs transition-all flex items-start space-x-2 ${
+                    onContextMenu={(e) => onTaskContextMenu?.(e, t)}
+                    className={`p-2.5 rounded-xl border text-xs transition-all flex items-start space-x-2 cursor-context-menu ${
                       t.status === 'completed'
                         ? 'bg-zinc-50 dark:bg-zinc-900/80 border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500'
                         : 'bg-indigo-50/70 dark:bg-purple-950/40 border-indigo-200/60 dark:border-purple-800/50 text-zinc-800 dark:text-zinc-200 shadow-sm'
@@ -474,7 +477,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               {tasksForSelectedDay.map((task) => (
                 <div
                   key={task.id}
-                  className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-xs transition-colors"
+                  onContextMenu={(e) => onTaskContextMenu?.(e, task)}
+                  className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-xs transition-colors cursor-context-menu hover:border-zinc-400 dark:hover:border-zinc-600"
                 >
                   <div className="flex items-center space-x-3.5">
                     <input

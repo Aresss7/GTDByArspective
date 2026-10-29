@@ -13,7 +13,6 @@ export const RapidCaptureModal: React.FC<RapidCaptureModalProps> = ({
   isOpen,
   onClose,
   onSaveTask,
-  currentTab,
 }) => {
   const [title, setTitle] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -21,15 +20,8 @@ export const RapidCaptureModal: React.FC<RapidCaptureModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Определяем место назначения по умолчанию
-  const getDestination = (): TaskDestination => {
-    if (currentTab === 'next_actions') return 'next_actions';
-    if (currentTab === 'someday') return 'someday';
-    if (currentTab === 'notes') return 'notes';
-    return 'inbox';
-  };
-
-  const destination = getDestination();
+  // Плюсик всегда добавляет строго в Корзину
+  const destination: TaskDestination = 'inbox';
 
   // Фокусировка при открытии
   useEffect(() => {
@@ -126,9 +118,9 @@ export const RapidCaptureModal: React.FC<RapidCaptureModalProps> = ({
         >
           <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
             <div>
-              <h3 className="text-base font-bold tracking-tight">Быстрая запись задачи</h3>
+              <h3 className="text-base font-bold tracking-tight">Запись мысли в Корзину</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Назначение: <span className="font-semibold text-zinc-800 dark:text-zinc-200">{getDestinationLabel()}</span> • Нажимайте Enter для непрерывного ввода
+                Назначение: <span className="font-semibold text-zinc-800 dark:text-zinc-200">Корзина ГТД</span> • Нажимайте Enter для непрерывного ввода
               </p>
             </div>
             <button
