@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { MarkdownNoteEditor } from '../components/MarkdownEditor';
 
 interface NotesViewProps {
   tasks: Task[];
@@ -186,18 +187,13 @@ export const NotesView: React.FC<NotesViewProps> = ({
             />
           </div>
 
-          {/* Редактируемый текст заметки (свободный, удобный, просторный) */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] text-zinc-400">
-              <span className="font-bold uppercase tracking-wider">Содержание заметки</span>
-              <span>{draftContent.length} символов • {draftContent.split('\n').filter(Boolean).length} строк</span>
-            </div>
-            <textarea
-              rows={16}
+          {/* Редактируемый текст заметки с поддержкой двух режимов (Визуальный WYSIWYG / Markdown исходный код) */}
+          <div className="space-y-1.5 pt-1">
+            <MarkdownNoteEditor
               value={draftContent}
-              onChange={(e) => setDraftContent(e.target.value)}
+              onChange={(val) => setDraftContent(val)}
+              onSave={handleSaveNote}
               placeholder="Введите текст заметки, конспекты, полезные ссылки, инструкции или списки..."
-              className="w-full p-4 rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 text-sm md:text-base leading-relaxed text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all font-sans resize-y min-h-[380px]"
             />
           </div>
         </div>

@@ -6,6 +6,7 @@ import { registerProjectsIpc } from './ipc/projectsIpc';
 import { registerProcessingIpc } from './ipc/processingIpc';
 import { registerSystemIpc } from './ipc/systemIpc';
 import { registerSyncIpc } from './ipc/syncIpc';
+import { registerPreviewIpc } from './ipc/previewIpc';
 import { SyncServer } from './sync/syncServer';
 
 let mainWindow: BrowserWindow | null = null;
@@ -50,6 +51,7 @@ app.whenReady().then(() => {
   registerProcessingIpc();
   registerSystemIpc();
   registerSyncIpc();
+  registerPreviewIpc();
 
   // Запуск локального сервера синхронизации в домашней сети
   SyncServer.getInstance().start().catch((err) => {

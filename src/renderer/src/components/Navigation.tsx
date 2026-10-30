@@ -12,12 +12,14 @@ import {
   Sparkles,
   Sun,
   Moon,
-  Smartphone
+  Smartphone,
+  Settings
 } from 'lucide-react';
 import { TaskDestination } from '@shared/types';
 import appLogo from '../assets/icon.png';
+import { Language, translations } from '../i18n/translations';
 
-export type NavigationTab = TaskDestination | 'projects' | 'completed' | 'sync';
+export type NavigationTab = TaskDestination | 'projects' | 'completed' | 'sync' | 'settings';
 
 interface NavigationProps {
   activeTab: NavigationTab;
@@ -26,6 +28,7 @@ interface NavigationProps {
   onStartProcessing: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  language?: Language;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -35,18 +38,22 @@ export const Navigation: React.FC<NavigationProps> = ({
   onStartProcessing,
   isDarkMode,
   onToggleTheme,
+  language = 'ru',
 }) => {
+  const t = translations[language];
+
   const navItems = [
-    { id: 'next_actions', label: 'Текущие действия', icon: CheckSquare },
-    { id: 'inbox', label: 'Корзина ГТД', icon: Inbox, count: inboxCount },
-    { id: 'projects', label: 'Проекты', icon: FolderKanban },
-    { id: 'calendar', label: 'Календарь', icon: Calendar },
-    { id: 'waiting_for', label: 'Делегирование / Ожидание', icon: UserCheck },
-    { id: 'someday', label: 'Когда-нибудь потом', icon: Clock },
-    { id: 'notes', label: 'Заметки', icon: FileText },
-    { id: 'completed', label: 'Завершённые', icon: CheckCircle2 },
-    { id: 'trash', label: 'Мусор', icon: Trash2 },
-    { id: 'sync', label: 'Синхронизация', icon: Smartphone },
+    { id: 'next_actions', label: t.navNextActions, icon: CheckSquare },
+    { id: 'inbox', label: t.navInbox, icon: Inbox, count: inboxCount },
+    { id: 'projects', label: t.navProjects, icon: FolderKanban },
+    { id: 'calendar', label: t.navCalendar, icon: Calendar },
+    { id: 'waiting_for', label: t.navWaitingFor, icon: UserCheck },
+    { id: 'someday', label: t.navSomeday, icon: Clock },
+    { id: 'notes', label: t.navNotes, icon: FileText },
+    { id: 'completed', label: t.navCompleted, icon: CheckCircle2 },
+    { id: 'trash', label: t.navTrash, icon: Trash2 },
+    { id: 'sync', label: t.navSync, icon: Smartphone },
+    { id: 'settings', label: t.navSettings, icon: Settings },
   ];
 
   return (
@@ -78,7 +85,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>Разобрать корзину</span>
+          <span>{t.cleanInbox}</span>
           {inboxCount > 0 && (
             <span className="bg-zinc-700 dark:bg-zinc-200 text-white dark:text-zinc-900 text-[10px] px-2 py-0.5 rounded-full font-black">
               {inboxCount}

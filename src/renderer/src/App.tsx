@@ -15,8 +15,10 @@ import { NotesView } from './views/NotesView';
 import { TrashView } from './views/TrashView';
 import { CompletedView } from './views/CompletedView';
 import { SyncView } from './views/SyncView';
+import { SettingsView } from './views/SettingsView';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { Task, Project, TaskDestination } from '@shared/types';
+import { Language, getStoredLanguage, setStoredLanguage } from './i18n/translations';
 
 export const App: React.FC = () => {
   // Стартовый экран по умолчанию — «Текущие действия»
@@ -44,6 +46,16 @@ export const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('gtd-theme') === 'dark';
   });
+
+  // Язык интерфейса
+  const [language, setLanguage] = useState<Language>(() => {
+    return getStoredLanguage();
+  });
+
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    setStoredLanguage(lang);
+  };
 
   useEffect(() => {
     if (isDarkMode) {
@@ -325,6 +337,8 @@ export const App: React.FC = () => {
         return 'Мусор';
       case 'sync':
         return 'Синхронизация с телефоном';
+      case 'settings':
+        return 'Настройки';
       default:
         return 'Задачи';
     }
@@ -333,6 +347,7 @@ export const App: React.FC = () => {
   const getTabCount = () => {
     if (activeTab === 'projects') return `${projects.length} шт.`;
     if (activeTab === 'sync') return 'Wi-Fi сеть';
+    if (activeTab === 'settings') return 'Параметры';
     return `${currentViewTasks.length} шт.`;
   };
 
@@ -349,6 +364,7 @@ export const App: React.FC = () => {
         }}
         isDarkMode={isDarkMode}
         onToggleTheme={toggleTheme}
+        language={language}
       />
 
       {/* Основная рабочая область */}
@@ -440,6 +456,16 @@ export const App: React.FC = () => {
 
           {activeTab === 'sync' && (
             <SyncView onRefreshData={refreshData} />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView
+              isDarkMode={isDarkMode}
+              onToggleTheme={toggleTheme}
+              language={language}
+              onChangeLanguage={handleLanguageChange}
+              onOpenSync={() => setActiveTab('sync')}
+            />
           )}
 
           {/* Специальное представление для «Корзина ГТД»: разбор по выбору или по очереди */}
