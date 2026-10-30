@@ -151,6 +151,8 @@ export interface GtdApi {
   
   // Projects
   getProjects: (status?: ProjectStatus) => Promise<Project[]>;
+  getTrashProjects: () => Promise<Project[]>;
+  restoreProject: (id: string) => Promise<Project | null>;
   getProjectById: (id: string) => Promise<{ project: Project; steps: Task[] } | null>;
   createProject: (data: {
     title: string;
@@ -161,7 +163,7 @@ export interface GtdApi {
     sourceTaskId?: string;
   }) => Promise<{ project: Project; firstStep: Task }>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
-  deleteProject: (id: string) => Promise<boolean>;
+  deleteProject: (id: string, permanent?: boolean) => Promise<boolean>;
 
   // Processing session
   getActiveSession: () => Promise<ProcessingSession | null>;
@@ -187,6 +189,12 @@ export interface GtdApi {
   getAppVersion: () => Promise<string>;
   createBackup: () => Promise<string>;
   restoreBackup: (filePath: string) => Promise<boolean>;
+
+  // Window Controls
+  minimizeWindow: () => Promise<void>;
+  toggleMaximizeWindow: () => Promise<boolean>;
+  isWindowMaximized: () => Promise<boolean>;
+  closeWindow: () => Promise<void>;
 }
 
 declare global {
