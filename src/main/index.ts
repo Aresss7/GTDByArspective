@@ -44,6 +44,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Установка постоянного AppUserModelId для сохранения закрепления на панели задач Windows
+  app.setAppUserModelId('com.arspective.gtd');
+
   // Инициализация базы данных и запуск миграций
   initDatabase();
 

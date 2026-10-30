@@ -17,6 +17,7 @@ import { CompletedView } from './views/CompletedView';
 import { SyncView } from './views/SyncView';
 import { SettingsView } from './views/SettingsView';
 import { WindowTitleBar } from './components/WindowTitleBar';
+import { UpdateBanner } from './components/UpdateBanner';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { ToastProvider } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
@@ -45,6 +46,10 @@ export const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [availableUpdate, setAvailableUpdate] = useState<{
+    version: string;
+    releaseName?: string;
+  } | null>(null);
 
   // Тёмная тема
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -125,7 +130,7 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Первоначальная загрузка данных и проверка активной сессии
+  // Первоначальная загрузка данных, проверка активной сессии и фоновая проверка обновлений
   useEffect(() => {
     refreshData().then(async () => {
       if (window.gtdApi) {
@@ -136,6 +141,19 @@ export const App: React.FC = () => {
           }
         } catch (e) {
           console.warn('Session check failed:', e);
+        }
+
+        // Автоматическая тихая проверка обновлений при старте приложения
+        try {
+          const update = await window.gtdApi.checkUpdate();
+          if (update && update.hasUpdate) {
+            setAvailableUpdate({
+              version: update.latestVersion || '',
+              releaseName: update.releaseName,
+            });
+          }
+        } catch (e) {
+          // Игнорируем ошибки сети при старте
         }
       }
     });
@@ -387,6 +405,19 @@ export const App: React.FC = () => {
           onSearchChange={setGlobalSearch}
           showSearch={activeTab !== 'settings'}
         />
+
+        {/* Информационный баннер об обнаруженном обновлении */}
+        {availableUpdate && (
+          <UpdateBanner
+            version={availableUpdate.version}
+            releaseName={availableUpdate.releaseName}
+            onGoToSettings={() => {
+              setActiveTab('settings');
+              setAvailableUpdate(null);
+            }}
+            onDismiss={() => setAvailableUpdate(null)}
+          />
+        )}
 
         <div className="flex flex-1 overflow-hidden relative">
           {/* Боковая панель навигации Arspective GTD */}
