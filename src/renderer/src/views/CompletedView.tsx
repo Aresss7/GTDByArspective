@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { useToast } from '../components/ToastNotification';
 
 interface CompletedViewProps {
   tasks: Task[];
@@ -13,8 +14,29 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   projects,
   onTaskUpdated,
 }) => {
+  const { showToast } = useToast();
+
   const completedTasks = tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash');
-  const completedProjects = projects.filter((p) => p.status === 'completed');
+  const completedProjects = projects.filter((p) => p.status === 'completed' && !p.deleted_at);
+
+  const getDestinationName = (destination: string) => {
+    switch (destination) {
+      case 'next_actions':
+        return '«Текущие действия»';
+      case 'inbox':
+        return '«Корзина ГТД»';
+      case 'calendar':
+        return '«Календарь»';
+      case 'waiting_for':
+        return '«Делегирование / Ожидание»';
+      case 'someday':
+        return '«Когда-нибудь потом»';
+      case 'notes':
+        return '«Заметки»';
+      default:
+        return 'список задач';
+    }
+  };
 
   const handleReopenTask = async (task: Task) => {
     if (!window.gtdApi) return;
@@ -24,6 +46,10 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         completed_at: null,
       });
       await onTaskUpdated();
+      showToast(
+        `Задача «${task.title}» возвращена в ${getDestinationName(task.destination)}`,
+        'restore'
+      );
     } catch (e) {
       console.error(e);
     }
@@ -37,15 +63,16 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         completed_at: null,
       });
       await onTaskUpdated();
+      showToast(`Проект «${project.title}» возвращён в «Проекты»`, 'restore');
     } catch (e) {
       console.error(e);
     }
   };
 
   return (
-    <div className="space-y-6 w-full max-w-6xl mx-auto">
+    <div className="space-y-6 w-full max-w-6xl mx-auto animate-fadeIn">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Архив успешно выполненных задач и реализованных проектов.
+        Архив выполненных задач и проектов • Нажмите на кружок с галочкой, чтобы вернуть задачу или проект обратно в работу.
       </p>
 
       {/* Завершенные проекты */}
@@ -58,22 +85,30 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
             {completedProjects.map((p) => (
               <div
                 key={p.id}
-                className="p-5 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-3xl border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between"
+                className="p-5 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
               >
-                <div>
-                  <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">{p.title}</h4>
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
-                    Завершён: {p.completed_at ? new Date(p.completed_at).toLocaleDateString('ru-RU') : 'Ранее'}
-                  </p>
+                <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-4">
+                  <button
+                    type="button"
+                    onClick={() => handleReopenProject(p)}
+                    className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 flex items-center justify-center shrink-0 transition-all cursor-pointer group-hover:scale-105 active:scale-95"
+                    title="Нажмите, чтобы вернуть проект в активные"
+                  >
+                    <CheckCircle2 className="w-5 h-5 fill-emerald-500/20" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 line-through truncate">
+                      {p.title}
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                      Завершён: {p.completed_at ? new Date(p.completed_at).toLocaleDateString('ru-RU') : 'Ранее'}
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleReopenProject(p)}
-                  className="px-3 py-1.5 rounded-full border border-emerald-300 dark:border-emerald-700 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 flex items-center space-x-1 cursor-pointer transition-colors"
-                  title="Вернуть в активные проекты"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Вернуть</span>
-                </button>
+
+                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
+                  Завершён
+                </span>
               </div>
             ))}
           </div>
@@ -87,7 +122,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         </h3>
 
         {completedTasks.length === 0 ? (
-          <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-zinc-900/60">
+          <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
             <CheckCircle2 className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mb-2" />
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Выполненных задач пока нет.</p>
           </div>
@@ -96,14 +131,22 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
             {completedTasks.map((task) => (
               <div
                 key={task.id}
-                className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
+                className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs flex items-center justify-between group hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
               >
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through">{task.title}</h4>
+                <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-4">
+                  {/* Нажатие на кружок с галочкой возвращает задачу */}
+                  <button
+                    type="button"
+                    onClick={() => handleReopenTask(task)}
+                    className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 flex items-center justify-center shrink-0 transition-all cursor-pointer group-hover:scale-105 active:scale-95"
+                    title={`Нажмите, чтобы вернуть в ${getDestinationName(task.destination)}`}
+                  >
+                    <CheckCircle2 className="w-5 h-5 fill-emerald-500/20" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through truncate">
+                      {task.title}
+                    </h4>
                     {task.completed_at && (
                       <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
                         {new Date(task.completed_at).toLocaleString('ru-RU')}
@@ -112,14 +155,9 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleReopenTask(task)}
-                  className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
-                  title="Вернуть задачу в активные"
-                >
-                  <RotateCcw className="w-3 h-3 text-indigo-600 dark:text-purple-400" />
-                  <span>Вернуть</span>
-                </button>
+                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
+                  Выполнено
+                </span>
               </div>
             ))}
           </div>

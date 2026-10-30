@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Plus, FolderKanban } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { ProjectDetailModal } from './ProjectDetailModal';
+import { ProjectContextMenu } from '../components/ProjectContextMenu';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { useToast } from '../components/ToastNotification';
 
 interface ProjectsViewProps {
   projects: Project[];
@@ -19,11 +22,55 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
+  // Контекстное меню ПКМ
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuProject, setContextMenuProject] = useState<Project | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+
+  const { showToast } = useToast();
+
   const filteredProjects = projects.filter((p) => {
     if (filter === 'active') return p.status === 'active';
     if (filter === 'completed') return p.status === 'completed';
     return true;
   });
+
+  const handleContextMenu = (e: React.MouseEvent, project: Project) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuProject(project);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleStatus = async (project: Project) => {
+    if (!window.gtdApi) return;
+    try {
+      const isCompleted = project.status === 'completed';
+      const newStatus = isCompleted ? 'active' : 'completed';
+      await window.gtdApi.updateProject(project.id, {
+        status: newStatus,
+      });
+      await onRefreshData();
+      showToast(
+        isCompleted ? 'Проект возвращён в работу' : 'Проект успешно завершён',
+        isCompleted ? 'restore' : 'success'
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!window.gtdApi || !projectToDelete) return;
+    try {
+      await window.gtdApi.deleteProject(projectToDelete.id);
+      showToast(`Проект «${projectToDelete.title}» перемещён в корзину`, 'info');
+      setProjectToDelete(null);
+      await onRefreshData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
@@ -104,6 +151,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               <div
                 key={project.id}
                 onClick={() => setSelectedProjectId(project.id)}
+                onContextMenu={(e) => handleContextMenu(e, project)}
                 className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer flex flex-col justify-between group"
               >
                 <div>
@@ -173,6 +221,26 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         isOpen={Boolean(selectedProjectId)}
         onClose={() => setSelectedProjectId(null)}
         onProjectUpdated={onRefreshData}
+      />
+
+      {/* ПКМ меню для проектов */}
+      <ProjectContextMenu
+        project={contextMenuProject}
+        position={contextMenuPos}
+        onClose={() => setContextMenuPos(null)}
+        onEdit={(proj) => setSelectedProjectId(proj.id)}
+        onDelete={(proj) => setProjectToDelete(proj)}
+        onToggleStatus={handleToggleStatus}
+      />
+
+      {/* Модальное окно подтверждения удаления проекта */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(projectToDelete)}
+        title={projectToDelete?.title || ''}
+        description="Проект будет перемещён в раздел «Мусор». Привязанные задачи сохранятся."
+        confirmText="Удалить в корзину"
+        onClose={() => setProjectToDelete(null)}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

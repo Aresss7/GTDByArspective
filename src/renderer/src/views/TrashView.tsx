@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, RotateCcw, FolderKanban, CheckSquare } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { useToast } from '../components/ToastNotification';
 
 interface TrashViewProps {
   tasks: Task[];
@@ -10,6 +11,7 @@ interface TrashViewProps {
 }
 
 export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpdated }) => {
+  const { showToast } = useToast();
   const [trashProjects, setTrashProjects] = useState<Project[]>([]);
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
@@ -49,6 +51,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
       });
       await onTaskUpdated();
       await loadTrashProjects();
+      showToast(`Задача «${task.title}» восстановлена в «Корзина ГТД»`, 'restore');
     } catch (e) {
       console.error(e);
     }
@@ -60,6 +63,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
       await window.gtdApi.restoreProject(project.id);
       await onTaskUpdated();
       await loadTrashProjects();
+      showToast(`Проект «${project.title}» успешно восстановлен`, 'restore');
     } catch (e) {
       console.error(e);
     }
