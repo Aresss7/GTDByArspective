@@ -11,10 +11,10 @@ export class ProjectRepository {
 
   getAll(status?: ProjectStatus): Project[] {
     if (status) {
-      const stmt = this.db.prepare('SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC');
+      const stmt = this.db.prepare('SELECT * FROM projects WHERE status = ? AND deleted_at IS NULL ORDER BY created_at DESC');
       return stmt.all(status) as Project[];
     }
-    const stmt = this.db.prepare('SELECT * FROM projects ORDER BY created_at DESC');
+    const stmt = this.db.prepare('SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC');
     return stmt.all() as Project[];
   }
 
@@ -154,9 +154,25 @@ export class ProjectRepository {
     return updated;
   }
 
-  delete(id: string): boolean {
-    const stmt = this.db.prepare('DELETE FROM projects WHERE id = ?');
-    const res = stmt.run(id);
-    return res.changes > 0;
+  delete(id: string, permanent: boolean = false): boolean {
+    const now = new Date().toISOString();
+    if (permanent) {
+      const stmt = this.db.prepare('DELETE FROM projects WHERE id = ?');
+      const res = stmt.run(id);
+      if (res.changes > 0) {
+        try {
+          this.db
+            .prepare('INSERT OR REPLACE INTO sync_tombstones (entity_type, entity_id, deleted_at) VALUES (?, ?, ?)')
+            .run('project', id, now);
+        } catch {
+          // Игнорируем в изолированных тестах, если таблица не инициализирована
+        }
+      }
+      return res.changes > 0;
+    } else {
+      const stmt = this.db.prepare('UPDATE projects SET deleted_at = ?, updated_at = ? WHERE id = ?');
+      const res = stmt.run(now, now, id);
+      return res.changes > 0;
+    }
   }
 }

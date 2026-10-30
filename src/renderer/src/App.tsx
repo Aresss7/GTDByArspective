@@ -14,6 +14,7 @@ import { SomedayView } from './views/SomedayView';
 import { NotesView } from './views/NotesView';
 import { TrashView } from './views/TrashView';
 import { CompletedView } from './views/CompletedView';
+import { SyncView } from './views/SyncView';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { Task, Project, TaskDestination } from '@shared/types';
 
@@ -295,7 +296,7 @@ export const App: React.FC = () => {
   // Фильтрация текущего списка задач
   const currentViewTasks = tasks.filter((t) => {
     if (activeTab === 'completed') return t.status === 'completed' && !t.deleted_at && t.destination !== 'trash';
-    if (activeTab === 'projects') return false;
+    if (activeTab === 'projects' || activeTab === 'sync') return false;
     if (activeTab === 'trash') return t.destination === 'trash' || t.deleted_at != null;
     return t.destination === activeTab && t.status === 'active' && !t.deleted_at;
   });
@@ -322,6 +323,8 @@ export const App: React.FC = () => {
         return 'Завершённые';
       case 'trash':
         return 'Мусор';
+      case 'sync':
+        return 'Синхронизация с телефоном';
       default:
         return 'Задачи';
     }
@@ -329,6 +332,7 @@ export const App: React.FC = () => {
 
   const getTabCount = () => {
     if (activeTab === 'projects') return `${projects.length} шт.`;
+    if (activeTab === 'sync') return 'Wi-Fi сеть';
     return `${currentViewTasks.length} шт.`;
   };
 
@@ -432,6 +436,10 @@ export const App: React.FC = () => {
               projects={projects}
               onTaskUpdated={refreshData}
             />
+          )}
+
+          {activeTab === 'sync' && (
+            <SyncView onRefreshData={refreshData} />
           )}
 
           {/* Специальное представление для «Корзина ГТД»: разбор по выбору или по очереди */}

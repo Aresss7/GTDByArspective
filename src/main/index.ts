@@ -5,6 +5,8 @@ import { registerTasksIpc } from './ipc/tasksIpc';
 import { registerProjectsIpc } from './ipc/projectsIpc';
 import { registerProcessingIpc } from './ipc/processingIpc';
 import { registerSystemIpc } from './ipc/systemIpc';
+import { registerSyncIpc } from './ipc/syncIpc';
+import { SyncServer } from './sync/syncServer';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -47,6 +49,12 @@ app.whenReady().then(() => {
   registerProjectsIpc();
   registerProcessingIpc();
   registerSystemIpc();
+  registerSyncIpc();
+
+  // Запуск локального сервера синхронизации в домашней сети
+  SyncServer.getInstance().start().catch((err) => {
+    console.warn('[SyncServer] Auto-start warning:', err);
+  });
 
   createWindow();
 
@@ -57,7 +65,8 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
+  await SyncServer.getInstance().stop();
   closeDatabase();
 });
 

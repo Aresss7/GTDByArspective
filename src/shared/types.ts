@@ -45,6 +45,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export type GTDQuestionId =
@@ -79,6 +80,64 @@ export interface ProcessingHistoryStep {
   created_at: string;
 }
 
+// Sync Interfaces
+export interface SyncDevice {
+  id: string;
+  deviceName: string;
+  pairedAt: string;
+  lastSyncedAt: string | null;
+  isRevoked: boolean;
+}
+
+export interface SyncPairingSession {
+  pairingId: string;
+  pinCode: string;
+  secretToken: string;
+  qrPayload: string;
+  serverIp: string;
+  serverPort: number;
+  expiresAt: string;
+}
+
+export interface SyncStatus {
+  isRunning: boolean;
+  serverIp: string;
+  serverPort: number;
+  pairedDevicesCount: number;
+}
+
+export interface SyncTombstone {
+  entity_type: 'task' | 'project';
+  entity_id: string;
+  deleted_at: string;
+}
+
+export interface SyncPayload {
+  protocolVersion: number;
+  lastSyncedAt: string | null;
+  clientChanges: {
+    tasks: Task[];
+    projects: Project[];
+    tombstones: SyncTombstone[];
+  };
+}
+
+export interface SyncResult {
+  protocolVersion: number;
+  syncedAt: string;
+  serverChanges: {
+    tasks: Task[];
+    projects: Project[];
+    tombstones: SyncTombstone[];
+  };
+  stats: {
+    appliedTasks: number;
+    appliedProjects: number;
+    appliedTombstones: number;
+    conflictsResolved: number;
+  };
+}
+
 // IPC API definition
 export interface GtdApi {
   // Tasks
@@ -111,6 +170,14 @@ export interface GtdApi {
   stepBack: (sessionId: string) => Promise<ProcessingSession | null>;
   pauseSession: (sessionId: string) => Promise<boolean>;
   completeSession: (sessionId: string) => Promise<boolean>;
+
+  // Sync
+  getSyncStatus: () => Promise<SyncStatus>;
+  startSyncServer: () => Promise<SyncStatus>;
+  stopSyncServer: () => Promise<SyncStatus>;
+  createPairingSession: () => Promise<SyncPairingSession>;
+  getPairedDevices: () => Promise<SyncDevice[]>;
+  revokeDevice: (deviceId: string) => Promise<boolean>;
 
   // System
   getAppVersion: () => Promise<string>;

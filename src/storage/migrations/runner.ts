@@ -1,4 +1,6 @@
 import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
 
 export interface Migration {
   id: number;
@@ -91,6 +93,57 @@ export const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 2,
+    name: '002_sync_support',
+    up: (db: Database.Database) => {
+      // 1. Поле мягкого удаления для проектов (deleted_at)
+      const projectCols = db.pragma('table_info(projects)') as Array<{ name: string }>;
+      if (!projectCols.some((col) => col.name === 'deleted_at')) {
+        db.exec('ALTER TABLE projects ADD COLUMN deleted_at TEXT;');
+      }
+
+      // 2. Журнал меток окончательного удаления (tombstones) для бесконфликтной синхронизации
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS sync_tombstones (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          deleted_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_tombstones_type_time ON sync_tombstones(entity_type, deleted_at);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_tombstones_entity ON sync_tombstones(entity_type, entity_id);
+      `);
+
+      // 3. Таблица сопряжённых доверенных устройств
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS sync_devices (
+          id TEXT PRIMARY KEY,
+          device_name TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          paired_at TEXT NOT NULL,
+          last_synced_at TEXT,
+          revoked_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_devices_token ON sync_devices(token_hash);
+      `);
+
+      // 4. Временные сессии сопряжения (PIN + одноразовый секретный токен для QR-кода)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS sync_pairings (
+          id TEXT PRIMARY KEY,
+          pin_code TEXT NOT NULL,
+          secret_token TEXT NOT NULL UNIQUE,
+          expires_at TEXT NOT NULL,
+          used_at TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_pairings_pin ON sync_pairings(pin_code);
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {
@@ -108,6 +161,23 @@ export function runMigrations(db: Database.Database): void {
 
   const appliedRows = db.prepare('SELECT id FROM _migrations').all() as { id: number }[];
   const appliedIds = new Set(appliedRows.map((r) => r.id));
+
+  const hasUnapplied = migrations.some((m) => !appliedIds.has(m.id));
+
+  // Перед применением новых миграций к существующей базе создаём автоматический страховочный бэкап
+  if (hasUnapplied && appliedIds.size > 0 && db.name && db.name !== ':memory:') {
+    try {
+      const backupDir = path.join(path.dirname(db.name), 'backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(backupDir, `pre-migration-backup-${timestamp}.db`);
+      db.prepare('VACUUM INTO ?').run(backupPath);
+    } catch (e) {
+      console.warn('Could not create pre-migration backup:', e);
+    }
+  }
 
   const insertMigration = db.prepare(
     'INSERT INTO _migrations (id, name, applied_at) VALUES (?, ?, ?)'
