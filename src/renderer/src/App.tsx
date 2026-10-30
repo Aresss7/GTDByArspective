@@ -354,8 +354,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
-      {/* Собственная верхняя панель приложения (Custom Window Titlebar) */}
-      <WindowTitleBar title="Arspective GTD" />
+      {/* Единая интегрированная верхняя панель приложения */}
+      <WindowTitleBar 
+        tabTitle={getTabTitle()} 
+        tabCount={getTabCount()} 
+      />
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Боковая панель навигации Arspective GTD */}
@@ -372,24 +375,8 @@ export const App: React.FC = () => {
 
         {/* Основная рабочая область */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#191919] transition-colors relative">
-        {/* Верхняя шапка: чистая, свободная, просторная */}
-        <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 px-8 shrink-0 bg-white dark:bg-[#191919]">
-          <div className="w-full max-w-6xl mx-auto h-full flex items-center justify-between">
-            <div className="flex items-center space-x-3.5">
-              <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{getTabTitle()}</h2>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#252525] text-zinc-600 dark:text-zinc-400">
-                {getTabCount()}
-              </span>
-            </div>
-
-            <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:block">
-              Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">ПКМ</kbd> по любой задаче для редактирования • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[11px] font-mono">Ctrl+N</kbd> в корзину
-            </div>
-          </div>
-        </header>
-
-        {/* Тело раздела */}
-        <div className="flex-1 overflow-y-auto p-8 bg-zinc-50 dark:bg-[#191919] transition-colors pb-24">
+          {/* Тело раздела */}
+          <div className="flex-1 overflow-y-auto p-8 bg-zinc-50 dark:bg-[#191919] transition-colors pb-24">
           {activeTab === 'projects' && (
             <ProjectsView
               projects={projects}

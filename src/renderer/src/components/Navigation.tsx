@@ -50,23 +50,8 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   return (
     <aside className="w-64 bg-zinc-50 dark:bg-[#191919] text-zinc-800 dark:text-zinc-200 flex flex-col h-full border-r border-zinc-200 dark:border-zinc-800 shrink-0 select-none transition-colors">
-      {/* Логотип и брендинг Arspective GTD */}
-      <div className="p-5 flex items-center space-x-3">
-        <img 
-          src={appLogo} 
-          alt="Arspective Logo" 
-          className="w-8 h-8 rounded-xl object-contain shrink-0" 
-        />
-        <div className="min-w-0">
-          <h1 className="font-extrabold text-base tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
-            Arspective GTD
-          </h1>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium truncate">Система управления делами</p>
-        </div>
-      </div>
-
       {/* Быстрое действие: Разобрать корзину (Solid Button, No Gradients) */}
-      <div className="px-4 pb-3">
+      <div className="px-4 pt-4 pb-3">
         <button
           onClick={onStartProcessing}
           disabled={inboxCount === 0}
