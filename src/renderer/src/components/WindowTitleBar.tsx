@@ -60,14 +60,13 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
       {/* Левая секция: Логотип и брендинг Arspective GTD ровно над боковой панелью шириной w-64 */}
       <div 
         className="w-64 h-full px-5 flex items-center space-x-3 border-r border-zinc-200 dark:border-zinc-800 shrink-0"
-        style={{ WebkitAppRegion: 'no-drag' } as any}
       >
         <img 
           src={appLogo} 
           alt="Arspective Logo" 
-          className="w-7 h-7 rounded-lg object-contain shrink-0" 
+          className="w-7 h-7 rounded-lg object-contain shrink-0 pointer-events-none" 
         />
-        <div className="min-w-0">
+        <div className="min-w-0 pointer-events-none">
           <h1 className="font-extrabold text-sm tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
             Arspective GTD
           </h1>
@@ -80,8 +79,7 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
       {/* Центральная часть: Заголовок открытой вкладки и подсказки */}
       <div className="flex-1 flex items-center justify-between px-6 h-full min-w-0">
         <div 
-          className="flex items-center space-x-3 shrink-0"
-          style={{ WebkitAppRegion: 'no-drag' } as any}
+          className="flex items-center space-x-3 shrink-0 pointer-events-none"
         >
           {tabTitle && (
             <h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -95,7 +93,7 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
           )}
         </div>
 
-        <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden md:block truncate px-4">
+        <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden md:block truncate px-4 pointer-events-none">
           Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">ПКМ</kbd> для меню • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">Ctrl+N</kbd> в корзину
         </div>
       </div>
