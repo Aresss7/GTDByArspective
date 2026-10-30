@@ -44,6 +44,7 @@ export const App: React.FC = () => {
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [globalSearch, setGlobalSearch] = useState('');
 
   // Тёмная тема
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -308,15 +309,36 @@ export const App: React.FC = () => {
     setIsCreateProjectOpen(true);
   };
 
-  // Фильтрация текущего списка задач
+  // Фильтрация текущего списка задач (с поддержкой глобального поиска)
   const currentViewTasks = tasks.filter((t) => {
-    if (activeTab === 'completed') return t.status === 'completed' && !t.deleted_at && t.destination !== 'trash';
-    if (activeTab === 'projects' || activeTab === 'sync') return false;
-    if (activeTab === 'trash') return t.destination === 'trash' || t.deleted_at != null;
-    return t.destination === activeTab && t.status === 'active' && !t.deleted_at;
+    let matchDest = false;
+    if (activeTab === 'completed') matchDest = t.status === 'completed' && !t.deleted_at && t.destination !== 'trash';
+    else if (activeTab === 'projects' || activeTab === 'sync') matchDest = false;
+    else if (activeTab === 'trash') matchDest = t.destination === 'trash' || t.deleted_at != null;
+    else matchDest = t.destination === activeTab && t.status === 'active' && !t.deleted_at;
+
+    if (!matchDest) return false;
+
+    if (globalSearch.trim()) {
+      const q = globalSearch.toLowerCase().trim();
+      const inTitle = t.title.toLowerCase().includes(q);
+      const inNotes = Boolean(t.notes && t.notes.toLowerCase().includes(q));
+      const inPerson = Boolean(t.delegated_to && t.delegated_to.toLowerCase().includes(q));
+      return inTitle || inNotes || inPerson;
+    }
+
+    return true;
   });
 
-  const inboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active' && !t.deleted_at);
+  const inboxTasks = tasks.filter((t) => {
+    const isInbox = t.destination === 'inbox' && t.status === 'active' && !t.deleted_at;
+    if (!isInbox) return false;
+    if (globalSearch.trim()) {
+      const q = globalSearch.toLowerCase().trim();
+      return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
+    }
+    return true;
+  });
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -357,10 +379,13 @@ export const App: React.FC = () => {
   return (
     <ToastProvider>
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
-        {/* Единая интегрированная верхняя панель приложения */}
+        {/* Единая интегрированная верхняя панель приложения с поиском */}
         <WindowTitleBar 
           tabTitle={getTabTitle()} 
           tabCount={getTabCount()} 
+          searchQuery={globalSearch}
+          onSearchChange={setGlobalSearch}
+          showSearch={activeTab !== 'settings'}
         />
 
         <div className="flex flex-1 overflow-hidden relative">
@@ -389,6 +414,7 @@ export const App: React.FC = () => {
                 setIsCreateProjectOpen(true);
               }}
               onRefreshData={refreshData}
+              searchQuery={globalSearch}
             />
           )}
 
