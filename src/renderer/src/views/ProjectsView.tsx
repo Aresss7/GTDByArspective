@@ -11,6 +11,7 @@ interface ProjectsViewProps {
   tasks: Task[];
   onOpenCreateProject: () => void;
   onRefreshData: () => Promise<void>;
+  searchQuery?: string;
 }
 
 export const ProjectsView: React.FC<ProjectsViewProps> = ({
@@ -18,6 +19,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   tasks,
   onOpenCreateProject,
   onRefreshData,
+  searchQuery = '',
 }) => {
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -30,8 +32,20 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const { showToast } = useToast();
 
   const filteredProjects = projects.filter((p) => {
-    if (filter === 'active') return p.status === 'active';
-    if (filter === 'completed') return p.status === 'completed';
+    let matchFilter = true;
+    if (filter === 'active') matchFilter = p.status === 'active';
+    else if (filter === 'completed') matchFilter = p.status === 'completed';
+
+    if (!matchFilter) return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const inTitle = p.title.toLowerCase().includes(q);
+      const inDesc = Boolean(p.description && p.description.toLowerCase().includes(q));
+      const inCriteria = Boolean(p.completion_criteria && p.completion_criteria.toLowerCase().includes(q));
+      return inTitle || inDesc || inCriteria;
+    }
+
     return true;
   });
 
