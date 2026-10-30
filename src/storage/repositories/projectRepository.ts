@@ -18,6 +18,20 @@ export class ProjectRepository {
     return stmt.all() as Project[];
   }
 
+  getTrash(): Project[] {
+    const stmt = this.db.prepare('SELECT * FROM projects WHERE deleted_at IS NOT NULL ORDER BY updated_at DESC');
+    return stmt.all() as Project[];
+  }
+
+  restore(id: string): Project | null {
+    const existing = this.getById(id);
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare('UPDATE projects SET deleted_at = NULL, updated_at = ? WHERE id = ?');
+    stmt.run(now, id);
+    return this.getById(id);
+  }
+
   getById(id: string): Project | null {
     const stmt = this.db.prepare('SELECT * FROM projects WHERE id = ?');
     const row = stmt.get(id);

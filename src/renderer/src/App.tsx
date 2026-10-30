@@ -16,6 +16,7 @@ import { TrashView } from './views/TrashView';
 import { CompletedView } from './views/CompletedView';
 import { SyncView } from './views/SyncView';
 import { SettingsView } from './views/SettingsView';
+import { WindowTitleBar } from './components/WindowTitleBar';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { Language, getStoredLanguage, setStoredLanguage } from './i18n/translations';
@@ -352,23 +353,25 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
-      {/* Боковая панель навигации Arspective GTD */}
-      <Navigation
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        inboxCount={inboxTasks.length}
-        onStartProcessing={() => {
-          setWizardInitialTask(null);
-          setIsProcessingOpen(true);
-        }}
-        isDarkMode={isDarkMode}
-        onToggleTheme={toggleTheme}
-        language={language}
-      />
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
+      {/* Собственная верхняя панель приложения (Custom Window Titlebar) */}
+      <WindowTitleBar title="Arspective GTD" />
 
-      {/* Основная рабочая область */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#191919] transition-colors relative">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Боковая панель навигации Arspective GTD */}
+        <Navigation
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          inboxCount={inboxTasks.length}
+          onStartProcessing={() => {
+            setWizardInitialTask(null);
+            setIsProcessingOpen(true);
+          }}
+          language={language}
+        />
+
+        {/* Основная рабочая область */}
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#191919] transition-colors relative">
         {/* Верхняя шапка: чистая, свободная, просторная */}
         <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 px-8 shrink-0 bg-white dark:bg-[#191919]">
           <div className="w-full max-w-6xl mx-auto h-full flex items-center justify-between">
@@ -442,6 +445,7 @@ export const App: React.FC = () => {
           {activeTab === 'trash' && (
             <TrashView
               tasks={tasks}
+              projects={projects}
               onTaskUpdated={refreshData}
             />
           )}
@@ -762,6 +766,7 @@ export const App: React.FC = () => {
         onTaskUpdated={refreshData}
         onCreateProjectRequested={handleCreateProjectFromWizard}
       />
+      </div>
     </div>
   );
 };

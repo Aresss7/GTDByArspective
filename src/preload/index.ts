@@ -21,14 +21,18 @@ const api: GtdApi = {
   // Projects
   getProjects: (status?: ProjectStatus) =>
     ipcRenderer.invoke('projects:getAll', status),
+  getTrashProjects: () =>
+    ipcRenderer.invoke('projects:getTrash'),
+  restoreProject: (id: string) =>
+    ipcRenderer.invoke('projects:restore', id),
   getProjectById: (id: string) =>
     ipcRenderer.invoke('projects:getById', id),
   createProject: (data) =>
     ipcRenderer.invoke('projects:create', data),
   updateProject: (id: string, updates: Partial<Project>) =>
     ipcRenderer.invoke('projects:update', id, updates),
-  deleteProject: (id: string) =>
-    ipcRenderer.invoke('projects:delete', id),
+  deleteProject: (id: string, permanent?: boolean) =>
+    ipcRenderer.invoke('projects:delete', id, permanent),
 
   // Processing session
   getActiveSession: () =>
@@ -69,6 +73,16 @@ const api: GtdApi = {
     ipcRenderer.invoke('system:openExternalUrl', url),
   fetchLinkPreview: (url: string) =>
     ipcRenderer.invoke('system:fetchLinkPreview', url),
+
+  // Window Controls
+  minimizeWindow: () =>
+    ipcRenderer.invoke('window:minimize'),
+  toggleMaximizeWindow: () =>
+    ipcRenderer.invoke('window:toggleMaximize'),
+  isWindowMaximized: () =>
+    ipcRenderer.invoke('window:isMaximized'),
+  closeWindow: () =>
+    ipcRenderer.invoke('window:close'),
 };
 
 contextBridge.exposeInMainWorld('gtdApi', api);

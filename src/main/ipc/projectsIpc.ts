@@ -10,6 +10,14 @@ export function registerProjectsIpc(): void {
     return getRepo().getAll(status);
   });
 
+  ipcMain.handle('projects:getTrash', async () => {
+    return getRepo().getTrash();
+  });
+
+  ipcMain.handle('projects:restore', async (_, id: string) => {
+    return getRepo().restore(id);
+  });
+
   ipcMain.handle('projects:getById', async (_, id: string) => {
     return getRepo().getProjectWithSteps(id);
   });
@@ -29,7 +37,7 @@ export function registerProjectsIpc(): void {
     return getRepo().update(id, updates);
   });
 
-  ipcMain.handle('projects:delete', async (_, id: string) => {
-    return getRepo().delete(id);
+  ipcMain.handle('projects:delete', async (_, id: string, permanent?: boolean) => {
+    return getRepo().delete(id, permanent);
   });
 }

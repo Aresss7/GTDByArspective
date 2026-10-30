@@ -1,27 +1,45 @@
-import React, { useState } from 'react';
-import { Trash2, RotateCcw } from 'lucide-react';
-import { Task } from '@shared/types';
+import React, { useState, useEffect } from 'react';
+import { Trash2, RotateCcw, FolderKanban, CheckSquare } from 'lucide-react';
+import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 interface TrashViewProps {
   tasks: Task[];
+  projects: Project[];
   onTaskUpdated: () => Promise<void>;
 }
 
-export const TrashView: React.FC<TrashViewProps> = ({ tasks, onTaskUpdated }) => {
+export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpdated }) => {
+  const [trashProjects, setTrashProjects] = useState<Project[]>([]);
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
-    taskId?: string;
-    taskTitle: string;
-    isAll?: boolean;
+    type?: 'task' | 'project' | 'all';
+    targetId?: string;
+    title: string;
   }>({
     isOpen: false,
-    taskTitle: '',
+    title: '',
   });
 
-  const trashItems = tasks.filter((t) => t.destination === 'trash' || t.deleted_at != null);
+  const loadTrashProjects = async () => {
+    if (window.gtdApi?.getTrashProjects) {
+      try {
+        const deletedProjs = await window.gtdApi.getTrashProjects();
+        setTrashProjects(deletedProjs);
+      } catch (e) {
+        console.error('Failed to load trash projects:', e);
+      }
+    }
+  };
 
-  const handleRestore = async (task: Task) => {
+  useEffect(() => {
+    loadTrashProjects();
+  }, [tasks, projects]);
+
+  const trashTasks = tasks.filter((t) => t.destination === 'trash' || t.deleted_at != null);
+  const totalTrashCount = trashTasks.length + trashProjects.length;
+
+  const handleRestoreTask = async (task: Task) => {
     if (!window.gtdApi) return;
     try {
       await window.gtdApi.updateTask(task.id, {
@@ -30,6 +48,18 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, onTaskUpdated }) =>
         status: 'active',
       });
       await onTaskUpdated();
+      await loadTrashProjects();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRestoreProject = async (project: Project) => {
+    if (!window.gtdApi?.restoreProject) return;
+    try {
+      await window.gtdApi.restoreProject(project.id);
+      await onTaskUpdated();
+      await loadTrashProjects();
     } catch (e) {
       console.error(e);
     }
@@ -38,15 +68,22 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, onTaskUpdated }) =>
   const handleConfirmPermanentDelete = async () => {
     if (!window.gtdApi) return;
     try {
-      if (deleteModalState.isAll) {
-        for (const item of trashItems) {
+      if (deleteModalState.type === 'all') {
+        for (const item of trashTasks) {
           await window.gtdApi.deleteTask(item.id, true);
         }
-      } else if (deleteModalState.taskId) {
-        await window.gtdApi.deleteTask(deleteModalState.taskId, true);
+        for (const proj of trashProjects) {
+          await window.gtdApi.deleteProject(proj.id, true);
+        }
+      } else if (deleteModalState.type === 'task' && deleteModalState.targetId) {
+        await window.gtdApi.deleteTask(deleteModalState.targetId, true);
+      } else if (deleteModalState.type === 'project' && deleteModalState.targetId) {
+        await window.gtdApi.deleteProject(deleteModalState.targetId, true);
       }
-      setDeleteModalState({ isOpen: false, taskTitle: '' });
+
+      setDeleteModalState({ isOpen: false, title: '' });
       await onTaskUpdated();
+      await loadTrashProjects();
     } catch (e) {
       console.error(e);
     }
@@ -54,19 +91,19 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, onTaskUpdated }) =>
 
   return (
     <>
-      <div className="space-y-6 w-full max-w-6xl mx-auto">
+      <div className="space-y-6 w-full max-w-6xl mx-auto animate-fadeIn">
         <div className="flex items-center justify-between">
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Удалённые задачи и отклонённые мысли • Вы можете восстановить их или стереть навсегда.
+            Удалённые задачи, проекты и отклонённые мысли • Вы можете восстановить их или стереть навсегда.
           </p>
 
-          {trashItems.length > 0 && (
+          {totalTrashCount > 0 && (
             <button
               onClick={() =>
                 setDeleteModalState({
                   isOpen: true,
-                  taskTitle: `Все ${trashItems.length} удалённых элементов`,
-                  isAll: true,
+                  type: 'all',
+                  title: `Все ${totalTrashCount} удалённых элементов (задачи и проекты)`,
                 })
               }
               className="flex items-center space-x-1.5 px-4 py-2 rounded-full border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
@@ -77,67 +114,138 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, onTaskUpdated }) =>
           )}
         </div>
 
-        {trashItems.length === 0 ? (
+        {totalTrashCount === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
             <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
               <Trash2 className="w-7 h-7" />
             </div>
             <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Раздел «Мусор» пуст</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-              Здесь будут отображаться удалённые задачи.
+              Здесь будут отображаться удалённые задачи и проекты.
             </p>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {trashItems.map((task) => (
-              <div
-                key={task.id}
-                className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
-              >
-                <div className="flex-1 min-w-0 pr-4">
-                  <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through truncate">
-                    {task.title}
-                  </h4>
-                  {task.notes && <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{task.notes}</p>}
+          <div className="space-y-6">
+            {/* Удаленные Проекты */}
+            {trashProjects.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Удалённые проекты ({trashProjects.length})
                 </div>
-
-                <div className="flex items-center space-x-2 shrink-0">
-                  <button
-                    onClick={() => handleRestore(task)}
-                    className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
-                    title="Восстановить в корзину входящих"
+                {trashProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
                   >
-                    <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                    <span>Восстановить</span>
-                  </button>
+                    <div className="flex items-center space-x-3.5 flex-1 min-w-0 pr-4">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-[#282828] text-zinc-400 flex items-center justify-center shrink-0">
+                        <FolderKanban className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-zinc-600 dark:text-zinc-300 line-through truncate">
+                          {project.title}
+                        </h4>
+                        {project.description && (
+                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">
+                            {project.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-                  <button
-                    onClick={() =>
-                      setDeleteModalState({
-                        isOpen: true,
-                        taskId: task.id,
-                        taskTitle: task.title,
-                        isAll: false,
-                      })
-                    }
-                    className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                    title="Удалить навсегда"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => handleRestoreProject(project)}
+                        className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
+                        title="Восстановить проект"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                        <span>Восстановить проект</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          setDeleteModalState({
+                            isOpen: true,
+                            type: 'project',
+                            targetId: project.id,
+                            title: project.title,
+                          })
+                        }
+                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        title="Удалить навсегда"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* Удаленные Задачи */}
+            {trashTasks.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Удалённые задачи ({trashTasks.length})
+                </div>
+                {trashTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
+                  >
+                    <div className="flex items-center space-x-3.5 flex-1 min-w-0 pr-4">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-[#282828] text-zinc-400 flex items-center justify-center shrink-0">
+                        <CheckSquare className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through truncate">
+                          {task.title}
+                        </h4>
+                        {task.notes && (
+                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{task.notes}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => handleRestoreTask(task)}
+                        className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
+                        title="Восстановить задачу"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                        <span>Восстановить</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          setDeleteModalState({
+                            isOpen: true,
+                            type: 'task',
+                            targetId: task.id,
+                            title: task.title,
+                          })
+                        }
+                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        title="Удалить навсегда"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Красивое всплывающее подтверждение удаления вместо стандартного окна браузера */}
       <ConfirmDeleteModal
         isOpen={deleteModalState.isOpen}
-        title={deleteModalState.taskTitle}
+        title={deleteModalState.title}
         isPermanent={true}
-        onClose={() => setDeleteModalState({ isOpen: false, taskTitle: '' })}
+        onClose={() => setDeleteModalState({ isOpen: false, title: '' })}
         onConfirm={handleConfirmPermanentDelete}
       />
     </>

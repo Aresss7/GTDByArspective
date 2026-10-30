@@ -10,9 +10,6 @@ import {
   CheckCircle2, 
   Trash2,
   Sparkles,
-  Sun,
-  Moon,
-  Smartphone,
   Settings
 } from 'lucide-react';
 import { TaskDestination } from '@shared/types';
@@ -26,8 +23,6 @@ interface NavigationProps {
   onSelectTab: (tab: NavigationTab) => void;
   inboxCount: number;
   onStartProcessing: () => void;
-  isDarkMode: boolean;
-  onToggleTheme: () => void;
   language?: Language;
 }
 
@@ -36,8 +31,6 @@ export const Navigation: React.FC<NavigationProps> = ({
   onSelectTab,
   inboxCount,
   onStartProcessing,
-  isDarkMode,
-  onToggleTheme,
   language = 'ru',
 }) => {
   const t = translations[language];
@@ -52,7 +45,6 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'notes', label: t.navNotes, icon: FileText },
     { id: 'completed', label: t.navCompleted, icon: CheckCircle2 },
     { id: 'trash', label: t.navTrash, icon: Trash2 },
-    { id: 'sync', label: t.navSync, icon: Smartphone },
     { id: 'settings', label: t.navSettings, icon: Settings },
   ];
 
@@ -131,17 +123,9 @@ export const Navigation: React.FC<NavigationProps> = ({
         })}
       </nav>
 
-      {/* Футер: Переключатель темы и версия */}
+      {/* Футер: Версия приложения */}
       <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
-        <button
-          onClick={onToggleTheme}
-          className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-zinc-200/80 dark:bg-[#252525] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-[#303030] transition-colors cursor-pointer"
-          title="Переключить тему (Светлая / Тёмная)"
-        >
-          {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          <span className="text-[11px] font-medium">{isDarkMode ? 'Светлая' : 'Тёмная'}</span>
-        </button>
-
+        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">Arspective</span>
         <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">v1.1.0</span>
       </div>
     </aside>
