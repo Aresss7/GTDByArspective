@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { CustomDatePicker } from '../components/CustomDatePicker';
+import { Checkbox } from '../components/Checkbox';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -274,13 +275,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         : 'bg-indigo-50/70 dark:bg-purple-950/40 border-indigo-200/60 dark:border-purple-800/50 text-zinc-800 dark:text-zinc-200 shadow-sm'
                     }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={t.status === 'completed'}
-                      onChange={() => handleToggleTaskStatus(t)}
-                      className="mt-0.5 w-4 h-4 rounded-full border-zinc-300 dark:border-zinc-600 text-indigo-600 dark:text-purple-500 focus:ring-indigo-500 cursor-pointer"
-                      title="Отметить выполненным"
-                    />
+                    <div className="pt-0.5">
+                      <Checkbox
+                        checked={t.status === 'completed'}
+                        onChange={() => handleToggleTaskStatus(t)}
+                        title="Отметить выполненным"
+                      />
+                    </div>
                     <div className="flex-1 overflow-hidden">
                       {t.scheduled_time && (
                         <span className="text-[10px] text-indigo-700 dark:text-purple-300 font-bold block mb-0.5">
@@ -336,11 +337,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200/80 dark:border-zinc-700/60 flex items-center justify-between group hover:shadow-sm transition-all"
               >
                 <div className="flex items-center space-x-3.5">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleTaskStatus(task)}
-                    className="w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-indigo-600 dark:text-purple-500 focus:ring-indigo-500 cursor-pointer"
+                    title="Отметить выполненным"
                   />
                   <div>
                     <div className="flex items-center space-x-2">
@@ -483,11 +483,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-xs transition-colors cursor-context-menu hover:border-zinc-400 dark:hover:border-zinc-600"
                 >
                   <div className="flex items-center space-x-3.5">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={task.status === 'completed'}
                       onChange={() => handleToggleTaskStatus(task)}
-                      className="w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-indigo-600 dark:text-purple-500 focus:ring-indigo-500 cursor-pointer"
                       title="Выполнить задачу"
                     />
                     <div className="flex items-center space-x-2">
