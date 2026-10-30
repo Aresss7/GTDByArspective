@@ -1,5 +1,8 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+
+// Установка постоянного AppUserModelId сразу при запуске процесса для сохранения закрепления на панели задач Windows
+app.setAppUserModelId('com.arspective.gtd');
 import { initDatabase, closeDatabase } from '../storage/database';
 import { registerTasksIpc } from './ipc/tasksIpc';
 import { registerProjectsIpc } from './ipc/projectsIpc';
