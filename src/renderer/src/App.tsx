@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CheckSquare, Inbox as InboxIcon, Play, Edit2, Trash2 } from 'lucide-react';
+import { Plus, CheckSquare, Inbox as InboxIcon, Play, Edit2, Trash2, Search } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
 import { QuickAddTaskModal } from './components/QuickAddTaskModal';
 import { RapidCaptureModal } from './components/RapidCaptureModal';
@@ -45,7 +45,8 @@ export const App: React.FC = () => {
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [globalSearch, setGlobalSearch] = useState('');
+  const [nextActionsSearch, setNextActionsSearch] = useState('');
+  const [inboxSearch, setInboxSearch] = useState('');
   const [availableUpdate, setAvailableUpdate] = useState<{
     version: string;
     releaseName?: string;
@@ -327,35 +328,19 @@ export const App: React.FC = () => {
     setIsCreateProjectOpen(true);
   };
 
-  // Фильтрация текущего списка задач (с поддержкой глобального поиска)
-  const currentViewTasks = tasks.filter((t) => {
-    let matchDest = false;
-    if (activeTab === 'completed') matchDest = t.status === 'completed' && !t.deleted_at && t.destination !== 'trash';
-    else if (activeTab === 'projects' || activeTab === 'sync') matchDest = false;
-    else if (activeTab === 'trash') matchDest = t.destination === 'trash' || t.deleted_at != null;
-    else matchDest = t.destination === activeTab && t.status === 'active' && !t.deleted_at;
-
-    if (!matchDest) return false;
-
-    if (globalSearch.trim()) {
-      const q = globalSearch.toLowerCase().trim();
-      const inTitle = t.title.toLowerCase().includes(q);
-      const inNotes = Boolean(t.notes && t.notes.toLowerCase().includes(q));
-      const inPerson = Boolean(t.delegated_to && t.delegated_to.toLowerCase().includes(q));
-      return inTitle || inNotes || inPerson;
-    }
-
-    return true;
+  // Списки задач для разделов
+  const allNextActions = tasks.filter((t) => t.destination === 'next_actions' && t.status === 'active' && !t.deleted_at);
+  const nextActionsQ = nextActionsSearch.toLowerCase().trim();
+  const nextActionsTasks = allNextActions.filter((t) => {
+    if (!nextActionsQ) return true;
+    return t.title.toLowerCase().includes(nextActionsQ) || Boolean(t.notes && t.notes.toLowerCase().includes(nextActionsQ));
   });
 
-  const inboxTasks = tasks.filter((t) => {
-    const isInbox = t.destination === 'inbox' && t.status === 'active' && !t.deleted_at;
-    if (!isInbox) return false;
-    if (globalSearch.trim()) {
-      const q = globalSearch.toLowerCase().trim();
-      return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
-    }
-    return true;
+  const allInboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active' && !t.deleted_at);
+  const inboxQ = inboxSearch.toLowerCase().trim();
+  const inboxTasks = allInboxTasks.filter((t) => {
+    if (!inboxQ) return true;
+    return t.title.toLowerCase().includes(inboxQ) || Boolean(t.notes && t.notes.toLowerCase().includes(inboxQ));
   });
 
   const getTabTitle = () => {
@@ -391,19 +376,18 @@ export const App: React.FC = () => {
     if (activeTab === 'projects') return `${projects.length} шт.`;
     if (activeTab === 'sync') return 'Wi-Fi сеть';
     if (activeTab === 'settings') return 'Параметры';
-    return `${currentViewTasks.length} шт.`;
+    if (activeTab === 'inbox') return `${allInboxTasks.length} шт.`;
+    if (activeTab === 'next_actions') return `${allNextActions.length} шт.`;
+    return `${tasks.filter((t) => t.destination === activeTab && !t.deleted_at).length} шт.`;
   };
 
   return (
     <ToastProvider>
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
-        {/* Единая интегрированная верхняя панель приложения с поиском */}
+        {/* Интегрированная верхняя панель приложения без строки поиска */}
         <WindowTitleBar 
           tabTitle={getTabTitle()} 
           tabCount={getTabCount()} 
-          searchQuery={globalSearch}
-          onSearchChange={setGlobalSearch}
-          showSearch={activeTab !== 'settings'}
         />
 
         {/* Информационный баннер об обнаруженном обновлении */}
@@ -424,7 +408,7 @@ export const App: React.FC = () => {
           <Navigation
             activeTab={activeTab}
             onSelectTab={setActiveTab}
-            inboxCount={inboxTasks.length}
+            inboxCount={allInboxTasks.length}
             onStartProcessing={() => {
               setWizardInitialTask(null);
               setIsProcessingOpen(true);
@@ -445,7 +429,6 @@ export const App: React.FC = () => {
                 setIsCreateProjectOpen(true);
               }}
               onRefreshData={refreshData}
-              searchQuery={globalSearch}
             />
           )}
 
@@ -521,7 +504,7 @@ export const App: React.FC = () => {
 
           {/* Специальное представление для «Корзина ГТД»: разбор по выбору или по очереди */}
           {activeTab === 'inbox' && (
-            inboxTasks.length === 0 ? (
+            allInboxTasks.length === 0 ? (
               <div className="w-full max-w-6xl mx-auto h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                 <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
                   <InboxIcon className="w-7 h-7" />
@@ -540,69 +523,94 @@ export const App: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4 w-full max-w-6xl mx-auto">
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Вы можете разобрать задачи по порядку, кликнуть <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> по задаче для меню или нажать кнопки действий:
-                  </p>
+                {/* Панель поиска и действий в стиле NotesView */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+                    <input
+                      type="text"
+                      value={inboxSearch}
+                      onChange={(e) => setInboxSearch(e.target.value)}
+                      placeholder="Поиск по корзине входящих..."
+                      className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+                    />
+                  </div>
+
                   <button
                     onClick={() => {
                       setWizardInitialTask(null);
                       setIsProcessingOpen(true);
                     }}
-                    className="flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 shadow-sm cursor-pointer transition-all active:scale-95"
+                    className="flex items-center space-x-1.5 px-5 py-2.5 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 shadow-sm cursor-pointer transition-all active:scale-95"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Разобрать по порядку</span>
                   </button>
                 </div>
 
-                <div className="space-y-2.5">
-                  {inboxTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      onContextMenu={(e) => handleTaskContextMenu(e, task)}
-                      className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group cursor-context-menu"
-                    >
-                      <div className="flex-1 min-w-0 pr-4">
-                        <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{task.title}</h4>
-                        {task.notes && (
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
-                        )}
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 block">
-                          Добавлено: {new Date(task.created_at).toLocaleString('ru-RU')}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2 shrink-0">
-                        {/* Кнопка выборочного разбора */}
-                        <button
-                          onClick={() => handleProcessSingleTask(task)}
-                          className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
-                          title="Разобрать по алгоритму ГТД"
-                        >
-                          <Play className="w-3 h-3 fill-current" />
-                          <span>Разобрать</span>
-                        </button>
-
-                        {/* Кнопки редактирования и удаления */}
-                        <button
-                          onClick={() => setEditingTask(task)}
-                          className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                          title="Редактировать задачу (или нажмите ПКМ)"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setTaskToDelete(task)}
-                          className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                          title="Удалить задачу (или нажмите ПКМ)"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Вы можете разобрать задачи по порядку, кликнуть <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> по задаче для меню или нажать кнопки действий:
+                  </p>
                 </div>
+
+                {inboxTasks.length === 0 ? (
+                  <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                    <InboxIcon className="w-8 h-8 text-zinc-400 mb-2" />
+                    <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Ничего не найдено</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      По запросу «{inboxSearch}» ничего нет.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {inboxTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        onContextMenu={(e) => handleTaskContextMenu(e, task)}
+                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group cursor-context-menu"
+                      >
+                        <div className="flex-1 min-w-0 pr-4">
+                          <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{task.title}</h4>
+                          {task.notes && (
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
+                          )}
+                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 block">
+                            Добавлено: {new Date(task.created_at).toLocaleString('ru-RU')}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0">
+                          {/* Кнопка выборочного разбора */}
+                          <button
+                            onClick={() => handleProcessSingleTask(task)}
+                            className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                            title="Разобрать по алгоритму ГТД"
+                          >
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>Разобрать</span>
+                          </button>
+
+                          {/* Кнопки редактирования и удаления */}
+                          <button
+                            onClick={() => setEditingTask(task)}
+                            className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                            title="Редактировать задачу (или нажмите ПКМ)"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setTaskToDelete(task)}
+                            className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Удалить задачу (или нажмите ПКМ)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           )}
@@ -610,20 +618,35 @@ export const App: React.FC = () => {
           {/* Представление «Текущие действия» */}
           {activeTab === 'next_actions' && (
             <div className="space-y-4 w-full max-w-6xl mx-auto">
+              {/* Панель поиска и добавления в стиле NotesView */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+                  <input
+                    type="text"
+                    value={nextActionsSearch}
+                    onChange={(e) => setNextActionsSearch(e.target.value)}
+                    placeholder="Поиск по текущим действиям..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+                  />
+                </div>
+
+                <button
+                  onClick={() => openAddModal('next_actions')}
+                  className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Добавить действие</span>
+                </button>
+              </div>
+
               <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Список конкретных ближайших действий • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
                 </p>
-                <button
-                  onClick={() => openAddModal('next_actions')}
-                  className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Добавить текущее действие</span>
-                </button>
               </div>
 
-              {currentViewTasks.length === 0 ? (
+              {allNextActions.length === 0 ? (
                 <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                   <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
                     <CheckSquare className="w-7 h-7" />
@@ -640,9 +663,17 @@ export const App: React.FC = () => {
                     <span>Добавить действие</span>
                   </button>
                 </div>
+              ) : nextActionsTasks.length === 0 ? (
+                <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                  <CheckSquare className="w-8 h-8 text-zinc-400 mb-2" />
+                  <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Ничего не найдено</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    По запросу «{nextActionsSearch}» ничего не найдено.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2.5">
-                  {currentViewTasks.map((task) => {
+                  {nextActionsTasks.map((task) => {
                     const parentProject = task.project_id
                       ? projects.find((p) => p.id === task.project_id)
                       : null;

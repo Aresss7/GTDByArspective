@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCheck, Calendar, CheckCircle2, ArrowRight, Plus, Edit2, Trash2 } from 'lucide-react';
+import { UserCheck, Calendar, CheckCircle2, ArrowRight, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
@@ -20,8 +20,21 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
   onTaskContextMenu,
   onEditTask,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-  const waitingTasks = tasks.filter((t) => t.destination === 'waiting_for' && t.status === 'active' && !t.deleted_at);
+
+  const allWaitingTasks = tasks.filter((t) => t.destination === 'waiting_for' && t.status === 'active' && !t.deleted_at);
+
+  const q = searchQuery.toLowerCase().trim();
+  const waitingTasks = allWaitingTasks.filter((t) => {
+    if (!q) return true;
+    const inTitle = t.title.toLowerCase().includes(q);
+    const inNotes = Boolean(t.notes && t.notes.toLowerCase().includes(q));
+    const inPerson = Boolean(t.delegated_to && t.delegated_to.toLowerCase().includes(q));
+    const inWaiting = Boolean(t.waiting_for && t.waiting_for.toLowerCase().includes(q));
+    return inTitle || inNotes || inPerson || inWaiting;
+  });
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   const handleMarkDone = async (task: Task) => {
@@ -57,17 +70,32 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Задачи, порученные другим людям • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
-        </p>
+      {/* Панель поиска и добавления в стиле NotesView */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Поиск по порученным задачам и людям..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+          />
+        </div>
+
         <button
           onClick={onOpenAddTask}
-          className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+          className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Делегировать задачу</span>
         </button>
+      </div>
+
+      <div className="pb-1">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Задачи, порученные другим людям • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
+        </p>
       </div>
 
       {waitingTasks.length === 0 ? (
@@ -75,7 +103,9 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
           <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-sm">
             <UserCheck className="w-7 h-7" />
           </div>
-          <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Ожидающих дел нет</h3>
+          <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+            {searchQuery ? 'Ничего не найдено' : 'Ожидающих дел нет'}
+          </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
             Здесь будут отображаться дела, делегированные коллегам или ожидающие ответа.
           </p>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, RotateCcw } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, RotateCcw, Search, Check } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { useToast } from '../components/ToastNotification';
 
@@ -15,9 +15,22 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   onTaskUpdated,
 }) => {
   const { showToast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const completedTasks = tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash');
-  const completedProjects = projects.filter((p) => p.status === 'completed' && !p.deleted_at);
+  const q = searchQuery.toLowerCase().trim();
+
+  const allCompletedTasks = tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash');
+  const allCompletedProjects = projects.filter((p) => p.status === 'completed' && !p.deleted_at);
+
+  const completedTasks = allCompletedTasks.filter((t) => {
+    if (!q) return true;
+    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
+  });
+
+  const completedProjects = allCompletedProjects.filter((p) => {
+    if (!q) return true;
+    return p.title.toLowerCase().includes(q) || Boolean(p.description && p.description.toLowerCase().includes(q));
+  });
 
   const getDestinationName = (destination: string) => {
     switch (destination) {
@@ -71,9 +84,22 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto animate-fadeIn">
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Архив выполненных задач и проектов • Нажмите на кружок с галочкой, чтобы вернуть задачу или проект обратно в работу.
-      </p>
+      {/* Панель поиска */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Поиск по выполненным..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+          />
+        </div>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Нажмите на кружок с галочкой, чтобы вернуть в работу.
+        </p>
+      </div>
 
       {/* Завершенные проекты */}
       {completedProjects.length > 0 && (
@@ -91,10 +117,10 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleReopenProject(p)}
-                    className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 flex items-center justify-center shrink-0 transition-all cursor-pointer group-hover:scale-105 active:scale-95"
+                    className="w-6 h-6 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-80 flex items-center justify-center shrink-0 transition-all cursor-pointer group-hover:scale-105 active:scale-95 shadow-xs"
                     title="Нажмите, чтобы вернуть проект в активные"
                   >
-                    <CheckCircle2 className="w-5 h-5 fill-emerald-500/20" />
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
                   </button>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 line-through truncate">
@@ -124,7 +150,9 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         {completedTasks.length === 0 ? (
           <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
             <CheckCircle2 className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mb-2" />
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Выполненных задач пока нет.</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">
+              {searchQuery ? 'Ничего не найдено' : 'Выполненных задач пока нет.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -138,10 +166,10 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleReopenTask(task)}
-                    className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 flex items-center justify-center shrink-0 transition-all cursor-pointer group-hover:scale-105 active:scale-95"
+                    className="w-6 h-6 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-80 flex items-center justify-center shrink-0 transition-all cursor-pointer group-hover:scale-105 active:scale-95 shadow-xs"
                     title={`Нажмите, чтобы вернуть в ${getDestinationName(task.destination)}`}
                   >
-                    <CheckCircle2 className="w-5 h-5 fill-emerald-500/20" />
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
                   </button>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through truncate">
