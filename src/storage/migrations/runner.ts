@@ -144,6 +144,21 @@ export const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 3,
+    name: '003_link_preview_cache',
+    up: (db: Database.Database) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS link_preview_cache (
+          url TEXT PRIMARY KEY,
+          title TEXT,
+          description TEXT,
+          image_url TEXT,
+          fetched_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

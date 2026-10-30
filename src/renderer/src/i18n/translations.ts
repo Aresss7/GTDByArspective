@@ -1,0 +1,120 @@
+export type Language = 'ru' | 'en';
+
+export const translations = {
+  ru: {
+    // Nav
+    appName: 'Arspective GTD',
+    appSubtitle: 'Система управления делами',
+    cleanInbox: 'Разобрать корзину',
+    navNextActions: 'Текущие действия',
+    navInbox: 'Корзина ГТД',
+    navProjects: 'Проекты',
+    navCalendar: 'Календарь',
+    navWaitingFor: 'Делегирование / Ожидание',
+    navSomeday: 'Когда-нибудь потом',
+    navNotes: 'Заметки',
+    navCompleted: 'Завершённые',
+    navTrash: 'Мусор',
+    navSettings: 'Настройки',
+    navSync: 'Синхронизация',
+    
+    // Settings
+    settingsTitle: 'Настройки',
+    settingsSubtitle: 'Персонализация, язык интерфейса и синхронизация',
+    appearanceSection: 'Внешний вид',
+    themeLabel: 'Тема оформления',
+    themeLight: 'Светлая',
+    themeDark: 'Тёмная',
+    languageSection: 'Язык интерфейса',
+    languageLabel: 'Выберите язык приложения',
+    syncSection: 'Локальная синхронизация',
+    syncDescription: 'Синхронизация между устройствами в локальной Wi-Fi сети без интернета и облаков.',
+    openSyncPanel: 'Управление синхронизацией и устройствами',
+    aboutSection: 'О приложении',
+    aboutVersion: 'Версия приложения',
+    aboutDeveloper: 'Разработчик: Arspective',
+
+    // Notes
+    notesAll: 'Все заметки',
+    notesCreated: 'Создано',
+    notesCopy: 'Копировать',
+    notesCopied: 'Скопировано!',
+    notesSave: 'Сохранить',
+    notesSaved: 'Сохранено',
+    notesSaving: 'Сохранение...',
+    notesDeleteTrash: 'Удалить заметку в мусор',
+    notesTitleLabel: 'Заголовок заметки',
+    notesTitlePlaceholder: 'Название заметки...',
+    notesContentLabel: 'Содержание заметки',
+    notesContentPlaceholder: 'Введите текст заметки, конспекты, инструкции...',
+    notesSearchPlaceholder: 'Поиск по заголовку и содержанию...',
+    notesCreateBtn: 'Создать заметку',
+    notesEmpty: 'Раздел заметок пуст',
+    notesVisualMode: 'Визуальный',
+    notesMarkdownMode: 'Markdown',
+    notesLinkPreviews: 'Предпросмотр ссылок',
+  },
+  en: {
+    // Nav
+    appName: 'Arspective GTD',
+    appSubtitle: 'Getting Things Done System',
+    cleanInbox: 'Process Inbox',
+    navNextActions: 'Next Actions',
+    navInbox: 'GTD Inbox',
+    navProjects: 'Projects',
+    navCalendar: 'Calendar',
+    navWaitingFor: 'Waiting For',
+    navSomeday: 'Someday / Maybe',
+    navNotes: 'Notes',
+    navCompleted: 'Completed',
+    navTrash: 'Trash',
+    navSettings: 'Settings',
+    navSync: 'Synchronization',
+
+    // Settings
+    settingsTitle: 'Settings',
+    settingsSubtitle: 'Personalization, interface language and synchronization',
+    appearanceSection: 'Appearance',
+    themeLabel: 'Theme mode',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    languageSection: 'Language',
+    languageLabel: 'Select application language',
+    syncSection: 'Local Synchronization',
+    syncDescription: 'Direct sync between devices on your local Wi-Fi network without cloud or servers.',
+    openSyncPanel: 'Manage synchronization and devices',
+    aboutSection: 'About',
+    aboutVersion: 'Application version',
+    aboutDeveloper: 'Developer: Arspective',
+
+    // Notes
+    notesAll: 'All Notes',
+    notesCreated: 'Created',
+    notesCopy: 'Copy',
+    notesCopied: 'Copied!',
+    notesSave: 'Save',
+    notesSaved: 'Saved',
+    notesSaving: 'Saving...',
+    notesDeleteTrash: 'Move note to trash',
+    notesTitleLabel: 'Note title',
+    notesTitlePlaceholder: 'Note name...',
+    notesContentLabel: 'Note content',
+    notesContentPlaceholder: 'Enter note content, guides, markdown notes...',
+    notesSearchPlaceholder: 'Search by title and content...',
+    notesCreateBtn: 'Create note',
+    notesEmpty: 'Notes section is empty',
+    notesVisualMode: 'Visual',
+    notesMarkdownMode: 'Markdown',
+    notesLinkPreviews: 'Link Previews',
+  },
+} as const;
+
+export function getStoredLanguage(): Language {
+  const saved = localStorage.getItem('gtd-language');
+  if (saved === 'en' || saved === 'ru') return saved;
+  return 'ru';
+}
+
+export function setStoredLanguage(lang: Language): void {
+  localStorage.setItem('gtd-language', lang);
+}

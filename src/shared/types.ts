@@ -179,6 +179,10 @@ export interface GtdApi {
   getPairedDevices: () => Promise<SyncDevice[]>;
   revokeDevice: (deviceId: string) => Promise<boolean>;
 
+  // Links & Preview
+  fetchLinkPreview: (url: string) => Promise<LinkPreviewData>;
+  openExternalUrl: (url: string) => Promise<boolean>;
+
   // System
   getAppVersion: () => Promise<string>;
   createBackup: () => Promise<string>;
