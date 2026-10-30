@@ -1,25 +1,19 @@
-import React from 'react';
-import { Minus, Square, Copy, X, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Minus, Square, Copy, X } from 'lucide-react';
 import appLogo from '../assets/icon.png';
 
 interface WindowTitleBarProps {
   tabTitle?: string;
   tabCount?: string;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  showSearch?: boolean;
 }
 
 export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
   tabTitle,
   tabCount,
-  searchQuery,
-  onSearchChange,
-  showSearch = true,
 }) => {
-  const [isMaximized, setIsMaximized] = React.useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
     if (window.gtdApi?.isWindowMaximized) {
       window.gtdApi.isWindowMaximized().then((max) => {
@@ -82,8 +76,8 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
         </div>
       </div>
 
-      {/* Центральная часть: Заголовок открытой вкладки и поле глобального поиска */}
-      <div className="flex-1 flex items-center justify-between px-6 h-full min-w-0 gap-4">
+      {/* Центральная часть: Заголовок открытой вкладки и подсказка горячих клавиш */}
+      <div className="flex-1 flex items-center justify-between px-6 h-full min-w-0">
         <div 
           className="flex items-center space-x-3 shrink-0 pointer-events-none"
         >
@@ -99,35 +93,8 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
           )}
         </div>
 
-        {/* Глобальный поиск в верхней панели */}
-        {showSearch && (
-          <div 
-            className="flex-1 max-w-md relative"
-            style={{ WebkitAppRegion: 'no-drag' } as any}
-          >
-            <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Поиск по задачам, проектам и заметкам..."
-              className="w-full pl-9 pr-8 py-1.5 rounded-full bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-all shadow-xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchChange('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors p-0.5"
-                title="Очистить поиск"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden xl:block truncate pointer-events-none shrink-0">
-          <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">ПКМ</kbd> для меню • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">Ctrl+N</kbd> в корзину
+        <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden md:block truncate px-4 pointer-events-none">
+          Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">ПКМ</kbd> для меню • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">Ctrl+N</kbd> в корзину
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, FolderKanban } from 'lucide-react';
+import { Plus, FolderKanban, Search } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { ProjectDetailModal } from './ProjectDetailModal';
 import { ProjectContextMenu } from '../components/ProjectContextMenu';
@@ -22,6 +22,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   searchQuery = '',
 }) => {
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
+  const [localSearch, setLocalSearch] = useState(searchQuery);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   // Контекстное меню ПКМ
@@ -31,6 +32,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   const { showToast } = useToast();
 
+  const effectiveSearch = localSearch.trim() || searchQuery.trim();
+
   const filteredProjects = projects.filter((p) => {
     let matchFilter = true;
     if (filter === 'active') matchFilter = p.status === 'active';
@@ -38,8 +41,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
     if (!matchFilter) return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (effectiveSearch) {
+      const q = effectiveSearch.toLowerCase();
       const inTitle = p.title.toLowerCase().includes(q);
       const inDesc = Boolean(p.description && p.description.toLowerCase().includes(q));
       const inCriteria = Boolean(p.completion_criteria && p.completion_criteria.toLowerCase().includes(q));
@@ -88,7 +91,29 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
-      {/* Панель фильтров и действий */}
+      {/* Панель поиска и создания проекта в стиле NotesView */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+          <input
+            type="text"
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            placeholder="Поиск по проектам..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+          />
+        </div>
+
+        <button
+          onClick={onOpenCreateProject}
+          className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Новый проект</span>
+        </button>
+      </div>
+
+      {/* Панель фильтров статуса */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-[#222222] p-1 rounded-2xl text-xs font-bold border border-zinc-200 dark:border-zinc-800">
           <button

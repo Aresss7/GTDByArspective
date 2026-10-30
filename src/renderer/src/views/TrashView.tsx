@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RotateCcw, FolderKanban, CheckSquare } from 'lucide-react';
+import { Trash2, RotateCcw, FolderKanban, CheckSquare, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useToast } from '../components/ToastNotification';
@@ -12,6 +12,7 @@ interface TrashViewProps {
 
 export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpdated }) => {
   const { showToast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
   const [trashProjects, setTrashProjects] = useState<Project[]>([]);
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
@@ -38,8 +39,20 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
     loadTrashProjects();
   }, [tasks, projects]);
 
-  const trashTasks = tasks.filter((t) => t.destination === 'trash' || t.deleted_at != null);
-  const totalTrashCount = trashTasks.length + trashProjects.length;
+  const allTrashTasks = tasks.filter((t) => t.destination === 'trash' || t.deleted_at != null);
+
+  const q = searchQuery.toLowerCase().trim();
+  const trashTasks = allTrashTasks.filter((t) => {
+    if (!q) return true;
+    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
+  });
+
+  const filteredTrashProjects = trashProjects.filter((p) => {
+    if (!q) return true;
+    return p.title.toLowerCase().includes(q) || Boolean(p.description && p.description.toLowerCase().includes(q));
+  });
+
+  const totalTrashCount = allTrashTasks.length + trashProjects.length;
 
   const handleRestoreTask = async (task: Task) => {
     if (!window.gtdApi) return;
@@ -73,7 +86,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
     if (!window.gtdApi) return;
     try {
       if (deleteModalState.type === 'all') {
-        for (const item of trashTasks) {
+        for (const item of allTrashTasks) {
           await window.gtdApi.deleteTask(item.id, true);
         }
         for (const proj of trashProjects) {
@@ -96,10 +109,18 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
   return (
     <>
       <div className="space-y-6 w-full max-w-6xl mx-auto animate-fadeIn">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Удалённые задачи, проекты и отклонённые мысли • Вы можете восстановить их или стереть навсегда.
-          </p>
+        {/* Панель поиска и очистки в стиле NotesView */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск по удалённым задачам и проектам..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+            />
+          </div>
 
           {totalTrashCount > 0 && (
             <button
@@ -110,12 +131,18 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
                   title: `Все ${totalTrashCount} удалённых элементов (задачи и проекты)`,
                 })
               }
-              className="flex items-center space-x-1.5 px-4 py-2 rounded-full border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
+              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-full border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Очистить мусор</span>
             </button>
           )}
+        </div>
+
+        <div className="pb-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Удалённые задачи, проекты и отклонённые мысли • Вы можете восстановить их или стереть навсегда.
+          </p>
         </div>
 
         {totalTrashCount === 0 ? (
@@ -131,12 +158,12 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
         ) : (
           <div className="space-y-6">
             {/* Удаленные Проекты */}
-            {trashProjects.length > 0 && (
+            {filteredTrashProjects.length > 0 && (
               <div className="space-y-2.5">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Удалённые проекты ({trashProjects.length})
+                  Удалённые проекты ({filteredTrashProjects.length})
                 </div>
-                {trashProjects.map((project) => (
+                {filteredTrashProjects.map((project) => (
                   <div
                     key={project.id}
                     className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
