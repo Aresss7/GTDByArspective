@@ -19,6 +19,7 @@ import { SettingsView } from './views/SettingsView';
 import { WindowTitleBar } from './components/WindowTitleBar';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { ToastProvider } from './components/ToastNotification';
+import { Checkbox } from './components/Checkbox';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { Language, getStoredLanguage, setStoredLanguage } from './i18n/translations';
 
@@ -596,12 +597,13 @@ export const App: React.FC = () => {
                         className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-start justify-between group cursor-context-menu"
                       >
                         <div className="flex items-start space-x-3.5 flex-1 min-w-0 mr-4">
-                          <input
-                            type="checkbox"
-                            checked={task.status === 'completed'}
-                            onChange={() => handleToggleTaskStatus(task)}
-                            className="mt-1 w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-0 cursor-pointer shrink-0"
-                          />
+                          <div className="pt-0.5">
+                            <Checkbox
+                              checked={task.status === 'completed'}
+                              onChange={() => handleToggleTaskStatus(task)}
+                              title="Отметить выполненным"
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <h4

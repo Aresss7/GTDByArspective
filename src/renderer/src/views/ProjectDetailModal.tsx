@@ -16,6 +16,7 @@ import {
 import { Project, Task } from '@shared/types';
 import { TaskContextMenu } from '../components/TaskContextMenu';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { Checkbox } from '../components/Checkbox';
 
 interface ProjectDetailModalProps {
   projectId: string | null;
@@ -477,11 +478,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                     ) : (
                       <>
                         <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-2">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={step.status === 'completed'}
                             onChange={() => handleToggleStep(step)}
-                            className="w-5 h-5 rounded-full border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-0 cursor-pointer shrink-0"
+                            title="Отметить выполненным"
                           />
                           <div className="flex items-center space-x-2 truncate">
                             <span className={`truncate ${step.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'font-semibold'}`}>
