@@ -196,8 +196,17 @@ export interface GtdApi {
     releaseName?: string;
     releaseNotes?: string;
     releaseUrl?: string;
+    downloadUrl?: string;
+    fileName?: string;
     error?: string;
   }>;
+  downloadUpdate: (downloadUrl: string, fileName?: string) => Promise<{
+    success: boolean;
+    filePath?: string;
+    error?: string;
+  }>;
+  installUpdate: (filePath: string) => Promise<boolean>;
+  onDownloadProgress: (callback: (progress: { receivedBytes: number; totalBytes: number; percent: number }) => void) => () => void;
 
   // Window Controls
   minimizeWindow: () => Promise<void>;

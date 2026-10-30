@@ -11,7 +11,10 @@ import {
   RefreshCw,
   ExternalLink,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
@@ -35,6 +38,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const { showToast } = useToast();
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadPercent, setDownloadPercent] = useState(0);
+  const [downloadedFilePath, setDownloadedFilePath] = useState<string | null>(null);
+
   const [updateInfo, setUpdateInfo] = useState<{
     checked: boolean;
     hasUpdate: boolean;
@@ -42,11 +49,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     latestVersion?: string;
     releaseName?: string;
     releaseUrl?: string;
+    downloadUrl?: string;
+    fileName?: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (window.gtdApi?.onDownloadProgress) {
+      const unsubscribe = window.gtdApi.onDownloadProgress((progress) => {
+        setDownloadPercent(progress.percent);
+      });
+      return unsubscribe;
+    }
+  }, []);
 
   const handleCheckUpdate = async () => {
     if (!window.gtdApi?.checkUpdate) return;
     setCheckingUpdate(true);
+    setDownloadedFilePath(null);
+    setDownloadPercent(0);
     try {
       const res = await window.gtdApi.checkUpdate();
       setUpdateInfo({
@@ -56,10 +76,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         latestVersion: res.latestVersion,
         releaseName: res.releaseName,
         releaseUrl: res.releaseUrl,
+        downloadUrl: res.downloadUrl,
+        fileName: res.fileName,
       });
 
       if (res.hasUpdate) {
-        showToast(`Доступна новая версия ${res.latestVersion}!`, 'info');
+        showToast(`Доступна новая версия: ${res.releaseName || res.latestVersion}!`, 'info');
       } else {
         showToast('У вас установлена актуальная версия', 'success');
       }
@@ -68,6 +90,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       showToast('Не удалось проверить обновления', 'info');
     } finally {
       setCheckingUpdate(false);
+    }
+  };
+
+  const handleStartDownload = async () => {
+    if (!updateInfo?.downloadUrl || !window.gtdApi?.downloadUpdate) return;
+    setDownloading(true);
+    setDownloadPercent(0);
+    try {
+      const res = await window.gtdApi.downloadUpdate(updateInfo.downloadUrl, updateInfo.fileName);
+      if (res.success && res.filePath) {
+        setDownloadedFilePath(res.filePath);
+        showToast('Обновление успешно скачано! Нажмите «Установить и перезапустить»', 'success');
+      } else {
+        showToast(`Ошибка скачивания: ${res.error || 'неизвестно'}`, 'info');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Ошибка скачивания: ${err.message}`, 'info');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleInstallAndRestart = async () => {
+    if (!downloadedFilePath || !window.gtdApi?.installUpdate) return;
+    try {
+      showToast('Запуск обновления и перезапуск приложения...', 'info');
+      await window.gtdApi.installUpdate(downloadedFilePath);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -236,17 +288,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div>
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
               <RefreshCw className="w-4 h-4 text-sky-500" />
-              <span>Обновления приложения</span>
+              <span>Обновления программы</span>
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Проверка новых релизов и версий программы на GitHub
+              Автоматическая проверка и скачивание релизов из GitHub
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleCheckUpdate}
-            disabled={checkingUpdate}
+            disabled={checkingUpdate || downloading}
             className="flex items-center space-x-2 px-4 py-2 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
@@ -257,27 +309,93 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {updateInfo?.checked && (
           <div className="pt-2">
             {updateInfo.hasUpdate ? (
-              <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-bold text-sky-950 dark:text-sky-200">
-                      Доступна новая версия: {updateInfo.latestVersion}
-                    </h4>
-                    <p className="text-[11px] text-sky-800 dark:text-sky-300 mt-0.5">
-                      {updateInfo.releaseName || 'Доступны новые функции и улучшения.'}
-                    </p>
+              <div className="p-5 rounded-2xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-sky-950 dark:text-sky-200">
+                        Доступно обновление: {updateInfo.releaseName || updateInfo.latestVersion}
+                      </h4>
+                      <p className="text-xs text-sky-800 dark:text-sky-300 mt-0.5">
+                        Текущая версия: {updateInfo.currentVersion} • Новая версия: {updateInfo.latestVersion}
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenReleaseUrl(updateInfo.releaseUrl)}
+                    className="text-[11px] text-sky-700 dark:text-sky-400 hover:underline flex items-center space-x-1 shrink-0"
+                    title="Открыть страницу релиза на GitHub"
+                  >
+                    <span>Страница релиза</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenReleaseUrl(updateInfo.releaseUrl)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
-                >
-                  <span>Скачать с GitHub</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
+                {/* Скачивание и установка */}
+                <div className="pt-2 border-t border-sky-200/60 dark:border-sky-800/60">
+                  {downloadedFilePath ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Check className="w-4 h-4" />
+                        <span>Файл обновления готов к установке</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleInstallAndRestart}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+                      >
+                        Установить и перезапустить
+                      </button>
+                    </div>
+                  ) : downloading ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-sky-900 dark:text-sky-200 font-semibold">
+                        <span className="flex items-center space-x-2">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
+                          <span>Скачивание обновления...</span>
+                        </span>
+                        <span>{downloadPercent}%</span>
+                      </div>
+                      <div className="w-full bg-sky-200 dark:bg-sky-900 h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-sky-600 h-full transition-all duration-200 rounded-full"
+                          style={{ width: `${downloadPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : updateInfo.downloadUrl ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-sky-800 dark:text-sky-300">
+                        Файл: {updateInfo.fileName || 'Arspective GTD Setup.exe'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleStartDownload}
+                        className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Скачать прямо в приложение</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-sky-800 dark:text-sky-300">
+                        Прямой файл инсталлятора не найден в релизе.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReleaseUrl(updateInfo.releaseUrl)}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <span>Скачать вручную</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center space-x-2.5 text-xs text-emerald-800 dark:text-emerald-300">

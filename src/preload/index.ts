@@ -71,6 +71,15 @@ const api: GtdApi = {
     ipcRenderer.invoke('system:restoreBackup', filePath),
   checkUpdate: () =>
     ipcRenderer.invoke('system:checkUpdate'),
+  downloadUpdate: (downloadUrl: string, fileName?: string) =>
+    ipcRenderer.invoke('system:downloadUpdate', downloadUrl, fileName),
+  installUpdate: (filePath: string) =>
+    ipcRenderer.invoke('system:installUpdate', filePath),
+  onDownloadProgress: (callback: (progress: any) => void) => {
+    const handler = (_: any, progress: any) => callback(progress);
+    ipcRenderer.on('system:downloadProgress', handler);
+    return () => ipcRenderer.removeListener('system:downloadProgress', handler);
+  },
   openExternalUrl: (url: string) =>
     ipcRenderer.invoke('system:openExternalUrl', url),
   fetchLinkPreview: (url: string) =>
