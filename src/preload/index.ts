@@ -69,6 +69,8 @@ const api: GtdApi = {
     ipcRenderer.invoke('system:createBackup'),
   restoreBackup: (filePath: string) =>
     ipcRenderer.invoke('system:restoreBackup', filePath),
+  checkUpdate: () =>
+    ipcRenderer.invoke('system:checkUpdate'),
   openExternalUrl: (url: string) =>
     ipcRenderer.invoke('system:openExternalUrl', url),
   fetchLinkPreview: (url: string) =>

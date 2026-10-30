@@ -18,6 +18,7 @@ import { SyncView } from './views/SyncView';
 import { SettingsView } from './views/SettingsView';
 import { WindowTitleBar } from './components/WindowTitleBar';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { ToastProvider } from './components/ToastNotification';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { Language, getStoredLanguage, setStoredLanguage } from './i18n/translations';
 
@@ -353,25 +354,26 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
-      {/* Единая интегрированная верхняя панель приложения */}
-      <WindowTitleBar 
-        tabTitle={getTabTitle()} 
-        tabCount={getTabCount()} 
-      />
-
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Боковая панель навигации Arspective GTD */}
-        <Navigation
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          inboxCount={inboxTasks.length}
-          onStartProcessing={() => {
-            setWizardInitialTask(null);
-            setIsProcessingOpen(true);
-          }}
-          language={language}
+    <ToastProvider>
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
+        {/* Единая интегрированная верхняя панель приложения */}
+        <WindowTitleBar 
+          tabTitle={getTabTitle()} 
+          tabCount={getTabCount()} 
         />
+
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Боковая панель навигации Arspective GTD */}
+          <Navigation
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            inboxCount={inboxTasks.length}
+            onStartProcessing={() => {
+              setWizardInitialTask(null);
+              setIsProcessingOpen(true);
+            }}
+            language={language}
+          />
 
         {/* Основная рабочая область */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#191919] transition-colors relative">
@@ -755,6 +757,7 @@ export const App: React.FC = () => {
       />
       </div>
     </div>
+    </ToastProvider>
   );
 };
 

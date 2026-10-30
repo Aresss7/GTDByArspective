@@ -189,6 +189,15 @@ export interface GtdApi {
   getAppVersion: () => Promise<string>;
   createBackup: () => Promise<string>;
   restoreBackup: (filePath: string) => Promise<boolean>;
+  checkUpdate: () => Promise<{
+    hasUpdate: boolean;
+    currentVersion: string;
+    latestVersion?: string;
+    releaseName?: string;
+    releaseNotes?: string;
+    releaseUrl?: string;
+    error?: string;
+  }>;
 
   // Window Controls
   minimizeWindow: () => Promise<void>;
