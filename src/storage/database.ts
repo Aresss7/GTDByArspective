@@ -41,6 +41,10 @@ export function initDatabase(dbPath?: string): Database.Database {
   }
 
   const resolvedPath = dbPath || getDatabasePath();
+  const dir = path.dirname(resolvedPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   activeDbPath = resolvedPath;
   const db = new Database(resolvedPath);
 

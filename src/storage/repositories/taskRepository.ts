@@ -165,8 +165,18 @@ export class TaskRepository {
 
   delete(id: string, permanent: boolean = false): boolean {
     if (permanent) {
+      const now = new Date().toISOString();
       const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
       const res = stmt.run(id);
+      if (res.changes > 0) {
+        try {
+          this.db
+            .prepare('INSERT OR REPLACE INTO sync_tombstones (entity_type, entity_id, deleted_at) VALUES (?, ?, ?)')
+            .run('task', id, now);
+        } catch {
+          // Игнорируем в изолированных тестах, если таблица не инициализирована
+        }
+      }
       return res.changes > 0;
     } else {
       const now = new Date().toISOString();

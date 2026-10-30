@@ -11,12 +11,13 @@ import {
   Trash2,
   Sparkles,
   Sun,
-  Moon
+  Moon,
+  Smartphone
 } from 'lucide-react';
 import { TaskDestination } from '@shared/types';
 import appLogo from '../assets/icon.png';
 
-export type NavigationTab = TaskDestination | 'projects' | 'completed';
+export type NavigationTab = TaskDestination | 'projects' | 'completed' | 'sync';
 
 interface NavigationProps {
   activeTab: NavigationTab;
@@ -45,6 +46,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'notes', label: 'Заметки', icon: FileText },
     { id: 'completed', label: 'Завершённые', icon: CheckCircle2 },
     { id: 'trash', label: 'Мусор', icon: Trash2 },
+    { id: 'sync', label: 'Синхронизация', icon: Smartphone },
   ];
 
   return (

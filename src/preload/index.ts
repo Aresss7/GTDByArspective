@@ -44,6 +44,20 @@ const api: GtdApi = {
   completeSession: (sessionId: string) =>
     ipcRenderer.invoke('processing:completeSession', sessionId),
 
+  // Sync
+  getSyncStatus: () =>
+    ipcRenderer.invoke('sync:getStatus'),
+  startSyncServer: () =>
+    ipcRenderer.invoke('sync:startServer'),
+  stopSyncServer: () =>
+    ipcRenderer.invoke('sync:stopServer'),
+  createPairingSession: () =>
+    ipcRenderer.invoke('sync:createPairingSession'),
+  getPairedDevices: () =>
+    ipcRenderer.invoke('sync:getPairedDevices'),
+  revokeDevice: (deviceId: string) =>
+    ipcRenderer.invoke('sync:revokeDevice', deviceId),
+
   // System
   getAppVersion: () =>
     ipcRenderer.invoke('system:getAppVersion'),
