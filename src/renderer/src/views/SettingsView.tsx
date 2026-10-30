@@ -62,6 +62,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, []);
 
+  useEffect(() => {
+    handleCheckUpdate();
+  }, []);
+
   const handleCheckUpdate = async () => {
     if (!window.gtdApi?.checkUpdate) return;
     setCheckingUpdate(true);

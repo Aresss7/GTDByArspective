@@ -19,12 +19,13 @@ import { SettingsView } from './views/SettingsView';
 import { WindowTitleBar } from './components/WindowTitleBar';
 import { UpdateBanner } from './components/UpdateBanner';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
-import { ToastProvider } from './components/ToastNotification';
+import { useToast } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { Language, getStoredLanguage, setStoredLanguage } from './i18n/translations';
 
 export const App: React.FC = () => {
+  const { showToast } = useToast();
   // Стартовый экран по умолчанию — «Текущие действия»
   const [activeTab, setActiveTab] = useState<NavigationTab>('next_actions');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -131,7 +132,7 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Первоначальная загрузка данных, проверка активной сессии и фоновая проверка обновлений
+  // Первоначальная загрузка данных и проверка активной сессии
   useEffect(() => {
     refreshData().then(async () => {
       if (window.gtdApi) {
@@ -143,21 +144,34 @@ export const App: React.FC = () => {
         } catch (e) {
           console.warn('Session check failed:', e);
         }
-
-        // Автоматическая тихая проверка обновлений при старте приложения
-        try {
-          const update = await window.gtdApi.checkUpdate();
-          if (update && update.hasUpdate) {
-            setAvailableUpdate({
-              version: update.latestVersion || '',
-              releaseName: update.releaseName,
-            });
-          }
-        } catch (e) {
-          // Игнорируем ошибки сети при старте
-        }
       }
     });
+  }, []);
+
+  // Автоматическая проверка наличия обновлений при запуске приложения
+  useEffect(() => {
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      if (!window.gtdApi?.checkUpdate) return;
+      try {
+        const update = await window.gtdApi.checkUpdate();
+        if (!isMounted) return;
+        if (update && update.hasUpdate) {
+          setAvailableUpdate({
+            version: update.latestVersion || '',
+            releaseName: update.releaseName,
+          });
+          showToast(`Доступно обновление: ${update.releaseName || update.latestVersion}!`, 'info', 6000);
+        }
+      } catch (e) {
+        console.warn('Auto-update check on startup error:', e);
+      }
+    }, 1500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleSaveTask = async (taskData: Partial<Task> & { title: string }) => {
@@ -382,9 +396,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <ToastProvider>
-      <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
-        {/* Интегрированная верхняя панель приложения без строки поиска */}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 transition-colors">
+      {/* Интегрированная верхняя панель приложения без строки поиска */}
         <WindowTitleBar 
           tabTitle={getTabTitle()} 
           tabCount={getTabCount()} 
@@ -772,6 +785,7 @@ export const App: React.FC = () => {
           <Plus className="w-7 h-7 stroke-[2.5]" />
         </button>
       </main>
+      </div>
 
       {/* Быстрое непрерывное добавление задач строго в Корзину */}
       <RapidCaptureModal
@@ -845,9 +859,7 @@ export const App: React.FC = () => {
         onTaskUpdated={refreshData}
         onCreateProjectRequested={handleCreateProjectFromWizard}
       />
-      </div>
     </div>
-    </ToastProvider>
   );
 };
 

@@ -23,6 +23,7 @@ export function registerSystemIpc(): void {
         headers: {
           'User-Agent': 'Arspective-GTD-App',
           'Accept': 'application/vnd.github.v3+json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       });
 
@@ -37,25 +38,26 @@ export function registerSystemIpc(): void {
       const releaseName: string = (release.name || '').trim();
       const tagName: string = (release.tag_name || '').trim();
 
-      // Extract version: prioritize release name first (e.g. "Arspective GTD 1.3.0" or "v1.3.0"), fallback to tag_name
-      const extractedNameVersion = extractVersionString(releaseName);
-      const extractedTagVersion = extractVersionString(tagName);
-      const targetVersion = extractedNameVersion || extractedTagVersion || tagName;
-
-      // Compare semantic versions
-      const isNewer = compareVersions(targetVersion, currentVersion) > 0;
-
       // Find the downloadable .exe asset (Setup or executable)
       const assets = Array.isArray(release.assets) ? release.assets : [];
       const exeAsset = assets.find((a: any) => 
         a.name && a.name.toLowerCase().endsWith('.exe') && !a.name.toLowerCase().includes('portable')
       ) || assets.find((a: any) => a.name && a.name.toLowerCase().endsWith('.exe'));
 
+      // Extract version: prioritize release name first, then tag_name, then asset filename
+      const extractedNameVersion = extractVersionString(releaseName);
+      const extractedTagVersion = extractVersionString(tagName);
+      const extractedAssetVersion = exeAsset ? extractVersionString(exeAsset.name) : null;
+      const targetVersion = extractedNameVersion || extractedTagVersion || extractedAssetVersion || tagName;
+
+      // Compare semantic versions
+      const isNewer = compareVersions(targetVersion, currentVersion) > 0;
+
       return {
         hasUpdate: isNewer,
         currentVersion,
         latestVersion: targetVersion,
-        releaseName: releaseName || tagName,
+        releaseName: releaseName || tagName || (exeAsset ? exeAsset.name : ''),
         releaseNotes: release.body || '',
         releaseUrl: release.html_url || 'https://github.com/Aresss7/GTDByArspective/releases',
         downloadUrl: exeAsset ? exeAsset.browser_download_url : undefined,
@@ -139,8 +141,8 @@ export function registerSystemIpc(): void {
         throw new Error(`Update installer file not found at ${filePath}`);
       }
 
-      // Launch the downloaded setup .exe detached, then quit current app
-      const child = spawn(filePath, [], {
+      // Launch the downloaded setup .exe with /S (silent update mode) to preserve taskbar pin
+      const child = spawn(filePath, ['/S'], {
         detached: true,
         stdio: 'ignore',
       });

@@ -17,12 +17,15 @@ win:
       arch:
         - x64
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowElevation: true
   deleteAppDataOnUninstall: false
-  createDesktopShortcut: true
+  createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Arspective GTD
+  include: build/installer.nsh
+  guid: "c8e6dfd1-3ab7-4fb8-9c10-2cb03dc698f1"
   artifactName: Arspective GTD Setup ${version}.${ext}
 portable:
   artifactName: Arspective-GTD-Portable-${version}.${ext}
