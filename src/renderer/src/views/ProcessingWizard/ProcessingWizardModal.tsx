@@ -212,6 +212,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
   const progress = GTDStateMachine.getStepNumber(currentQuestion);
   const questionTitle = GTDStateMachine.getQuestionTitle(currentQuestion);
+  const currentProject = currentTask?.project_id ? projects.find((p) => p.id === currentTask.project_id) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-fadeIn select-none">

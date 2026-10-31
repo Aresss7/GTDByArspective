@@ -474,13 +474,13 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 />
               </div>
 
-              {/* Плашка первого шага проекта: строгий монохром без фиолетового */}
-              <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-[#282828] border border-zinc-200 dark:border-zinc-700 space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
-                  {isEn ? 'First Next Action' : 'Первый следующий шаг'} <span className="text-zinc-400">*</span>
+              {/* Блок первого шага проекта: выделенный фирменный фиолетовый акцент */}
+              <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-purple-950/30 border border-indigo-100 dark:border-purple-900/50 space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-purple-200">
+                  {isEn ? 'First Next Action' : 'Первый следующий шаг'} <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex items-start space-x-2 text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-[#1f1f1f] p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-zinc-500" />
+                <div className="flex items-start space-x-2 text-xs text-indigo-900 dark:text-purple-200 bg-indigo-100/70 dark:bg-purple-900/40 p-3 rounded-xl">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600 dark:text-purple-400" />
                   <p className="leading-relaxed">
                     <strong className="font-semibold">{isEn ? 'GTD Rule:' : 'Правило ГТД:'}</strong> {isEn ? 'The first step must be a single physical action you can complete right away without further decomposition.' : 'Первый шаг должен быть одним конкретным действием, которое можно выполнить без дополнительного разложения на несколько шагов.'}
                   </p>
@@ -491,7 +491,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   value={projectFirstStepTitle}
                   onChange={(e) => setProjectFirstStepTitle(e.target.value)}
                   placeholder={isEn ? 'e.g. Request price list from supplier' : 'Например: Запросить прайс-лист у поставщика'}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-sm focus:outline-none focus:border-zinc-500 transition-colors text-zinc-900 dark:text-zinc-100"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-indigo-200 dark:border-purple-800/80 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-purple-500 transition-colors text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
                 />
               </div>
 
@@ -532,7 +532,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting || !projectTitle.trim() || !projectFirstStepTitle.trim()}
-                  className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
+                  className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <span>{isEn ? 'Create & Process 1st Step' : 'Создать и обработать 1-й шаг'}</span>
                   <ArrowRight className="w-4 h-4" />

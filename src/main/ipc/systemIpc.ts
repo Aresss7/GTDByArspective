@@ -142,7 +142,13 @@ export function registerSystemIpc(): void {
       }
 
       // Launch the downloaded setup .exe with /S (silent update mode) to preserve taskbar pin
-      const child = spawn(filePath, ['/S'], {
+      // When packaged, specify /D=<current_dir> so the update replaces the existing installation in-place (e.g. on D:\ drive)
+      const args = ['/S'];
+      if (app.isPackaged) {
+        args.push(`/D=${path.dirname(process.execPath)}`);
+      }
+
+      const child = spawn(filePath, args, {
         detached: true,
         stdio: 'ignore',
       });
