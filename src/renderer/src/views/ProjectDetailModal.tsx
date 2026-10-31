@@ -525,8 +525,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                             </span>
                           )}
 
-                          {/* Кнопка "Разобрать" для невыполненных шагов (особенно в корзине) */}
-                          {onProcessStep && step.status !== 'completed' && (
+                          {/* Кнопка "Разобрать" только для ещё неразобранных шагов в корзине */}
+                          {onProcessStep && step.status !== 'completed' && step.destination === 'inbox' && (
                             <button
                               type="button"
                               onClick={() => {

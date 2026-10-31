@@ -111,7 +111,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       {/* Футер: Версия приложения */}
       <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
         <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">Arspective</span>
-        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">v1.4.2</span>
+        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">v1.4.3</span>
       </div>
     </aside>
   );

@@ -185,6 +185,14 @@ export const App: React.FC = () => {
         }
       }
     });
+
+    // Мгновенная реакция на любые изменения данных (локальные или синхронизация с мобильным приложением)
+    if (window.gtdApi?.onDataChanged) {
+      const unsubscribe = window.gtdApi.onDataChanged(() => {
+        refreshData();
+      });
+      return unsubscribe;
+    }
   }, []);
 
   // Автоматическая проверка наличия обновлений при запуске приложения

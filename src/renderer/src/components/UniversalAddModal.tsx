@@ -88,6 +88,30 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
   const isProjectsTab = currentTab === 'projects' || Boolean(sourceTask);
 
+  // Синхронизированное обновление текста при вводе во всех вкладках
+  const handleUpdateTitle = (newTitle: string) => {
+    setRapidTitle(newTitle);
+    setTaskTitle(newTitle);
+    setProjectTitle(newTitle);
+  };
+
+  const handleUpdateNotes = (newNotes: string) => {
+    setTaskNotes(newNotes);
+    setProjectDescription(newNotes);
+  };
+
+  const handleSwitchMode = (newMode: 'quick' | 'full') => {
+    if (newMode === 'full') {
+      const current = rapidTitle || taskTitle || projectTitle;
+      setTaskTitle(current);
+      setProjectTitle(current);
+    } else {
+      const current = taskTitle || projectTitle || rapidTitle;
+      setRapidTitle(current);
+    }
+    setModalMode(newMode);
+  };
+
   // Точное вычисление целевого назначения без ложных привязок к next_actions
   const getContextualDestination = (): TaskDestination => {
     if (targetDestination) return targetDestination;
@@ -354,7 +378,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
               {/* Таб 1: Добавить в корзину */}
               <button
                 type="button"
-                onClick={() => setModalMode('quick')}
+                onClick={() => handleSwitchMode('quick')}
                 className={`flex items-center space-x-1.5 py-1.5 px-3.5 rounded-xl text-xs transition-colors cursor-pointer ${
                   modalMode === 'quick'
                     ? 'bg-white dark:bg-[#282828] text-zinc-900 dark:text-zinc-100 font-bold shadow-xs border border-zinc-200/90 dark:border-zinc-700'
@@ -368,7 +392,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
               {/* Таб 2: В текущий раздел / Новый проект */}
               <button
                 type="button"
-                onClick={() => setModalMode('full')}
+                onClick={() => handleSwitchMode('full')}
                 className={`flex items-center space-x-1.5 py-1.5 px-3.5 rounded-xl text-xs transition-colors cursor-pointer ${
                   modalMode === 'full'
                     ? 'bg-white dark:bg-[#282828] text-zinc-900 dark:text-zinc-100 font-bold shadow-xs border border-zinc-200/90 dark:border-zinc-700'
@@ -401,7 +425,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                     ref={rapidInputRef}
                     type="text"
                     value={rapidTitle}
-                    onChange={(e) => setRapidTitle(e.target.value)}
+                    onChange={(e) => handleUpdateTitle(e.target.value)}
                     placeholder={isEn ? 'What needs to be done? Write here...' : 'Что нужно сделать? Напишите сюда...'}
                     className="w-full px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-zinc-900 dark:text-zinc-100"
                   />
@@ -455,7 +479,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   type="text"
                   required
                   value={projectTitle}
-                  onChange={(e) => setProjectTitle(e.target.value)}
+                  onChange={(e) => handleUpdateTitle(e.target.value)}
                   placeholder={isEn ? 'e.g. Launch online store' : 'Например: Запустить интернет-магазин'}
                   className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-zinc-500 transition-colors text-zinc-900 dark:text-zinc-100"
                 />
@@ -468,7 +492,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 <textarea
                   rows={2}
                   value={projectDescription}
-                  onChange={(e) => setProjectDescription(e.target.value)}
+                  onChange={(e) => handleUpdateNotes(e.target.value)}
                   placeholder={isEn ? 'Context or details...' : 'Контекст или детали...'}
                   className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors resize-none text-zinc-900 dark:text-zinc-100"
                 />
@@ -567,7 +591,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   type="text"
                   required
                   value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
+                  onChange={(e) => handleUpdateTitle(e.target.value)}
                   placeholder={isEn ? 'What needs to be done?' : 'Что необходимо сделать?'}
                   className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
                 />
@@ -586,7 +610,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 <textarea
                   rows={destination === 'notes' ? 4 : 2}
                   value={taskNotes}
-                  onChange={(e) => setTaskNotes(e.target.value)}
+                  onChange={(e) => handleUpdateNotes(e.target.value)}
                   placeholder={
                     destination === 'notes'
                       ? (isEn ? 'Enter note content, key ideas, links, checklists...' : 'Введите текст заметки, важные мысли, ссылки, чек-листы...')

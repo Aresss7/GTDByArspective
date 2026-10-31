@@ -61,6 +61,11 @@ const api: GtdApi = {
     ipcRenderer.invoke('sync:getPairedDevices'),
   revokeDevice: (deviceId: string) =>
     ipcRenderer.invoke('sync:revokeDevice', deviceId),
+  onDataChanged: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('data:changed', handler);
+    return () => ipcRenderer.removeListener('data:changed', handler);
+  },
 
   // System
   getAppVersion: () =>
