@@ -230,7 +230,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
               </button>
             )}
             <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-              {currentTask?.project_id ? 'Первый шаг проекта' : 'Обработка задачи'} • Шаг {progress.step} из {progress.total}
+              {currentTask?.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Обработка задачи'} • Шаг {progress.step} из {progress.total}
             </div>
           </div>
 
@@ -284,7 +284,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-purple-400 mb-1.5 flex items-center space-x-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>
-                    {currentTask.project_id ? 'Первый шаг проекта (одношаговое действие)' : 'Текущая задача для обработки'}
+                    {currentTask.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Текущая задача для обработки'}
                   </span>
                 </div>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{currentTask.title}</h2>

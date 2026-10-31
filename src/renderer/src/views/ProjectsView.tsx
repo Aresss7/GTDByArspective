@@ -11,6 +11,7 @@ interface ProjectsViewProps {
   tasks: Task[];
   onOpenCreateProject: () => void;
   onRefreshData: () => Promise<void>;
+  onProcessTask?: (task: Task) => void;
   searchQuery?: string;
 }
 
@@ -19,6 +20,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   tasks,
   onOpenCreateProject,
   onRefreshData,
+  onProcessTask,
   searchQuery = '',
 }) => {
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
@@ -260,6 +262,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         isOpen={Boolean(selectedProjectId)}
         onClose={() => setSelectedProjectId(null)}
         onProjectUpdated={onRefreshData}
+        onProcessStep={(step) => {
+          setSelectedProjectId(null);
+          onProcessTask?.(step);
+        }}
       />
 
       {/* ПКМ меню для проектов */}

@@ -11,7 +11,9 @@ import {
   ListTodo,
   FileCheck,
   Edit2,
-  Check
+  Check,
+  Inbox,
+  Play
 } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { TaskContextMenu } from '../components/TaskContextMenu';
@@ -23,6 +25,7 @@ interface ProjectDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onProjectUpdated: () => Promise<void>;
+  onProcessStep?: (step: Task) => void;
 }
 
 export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
@@ -30,6 +33,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   isOpen,
   onClose,
   onProjectUpdated,
+  onProcessStep,
 }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [steps, setSteps] = useState<Task[]>([]);
@@ -84,7 +88,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
   if (!isOpen || !project) return null;
 
-  // Добавление шага
+  // Добавление шага (сохраняем в корзину для возможности разобрать)
   const handleAddStep = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStepTitle.trim() || !window.gtdApi) return;
@@ -93,7 +97,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
       await window.gtdApi.createTask({
         title: newStepTitle.trim(),
         project_id: project.id,
-        destination: 'next_actions',
+        destination: 'inbox',
         status: 'active',
       });
       setNewStepTitle('');
@@ -496,6 +500,12 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                         </div>
 
                         <div className="flex items-center space-x-2 shrink-0">
+                          {step.destination === 'inbox' && (
+                            <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 text-[10px] font-bold">
+                              <Inbox className="w-3 h-3" />
+                              <span>В корзине</span>
+                            </span>
+                          )}
                           {step.destination === 'next_actions' && (
                             <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 text-[10px] font-bold">
                               <CheckSquare className="w-3 h-3" />
@@ -513,6 +523,22 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                               <UserCheck className="w-3 h-3" />
                               <span>{step.delegated_to || 'Ожидание'}</span>
                             </span>
+                          )}
+
+                          {/* Кнопка "Разобрать" для невыполненных шагов (особенно в корзине) */}
+                          {onProcessStep && step.status !== 'completed' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onProcessStep(step);
+                              }}
+                              className="flex items-center space-x-1 px-3 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+                              title="Разобрать шаг по алгоритму ГТД"
+                            >
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>Разобрать</span>
+                            </button>
                           )}
 
                           {/* Явные кнопки редактирования и удаления задачи */}
@@ -552,6 +578,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
       onEdit={(t) => handleStartEditStep(t)}
       onDelete={(t) => handleDeleteStep(t)}
       onToggleStatus={(t) => handleToggleStep(t)}
+      onProcess={onProcessStep ? (t) => { onClose(); onProcessStep(t); } : undefined}
     />
 
     {/* Красивое окно подтверждения удаления шага проекта */}

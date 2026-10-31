@@ -9,7 +9,8 @@ import {
   Inbox,
   Clock,
   UserCheck,
-  FileText
+  FileText,
+  Play
 } from 'lucide-react';
 import { Task, TaskDestination } from '@shared/types';
 
@@ -20,6 +21,7 @@ interface TaskContextMenuProps {
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onToggleStatus: (task: Task) => void;
+  onProcess?: (task: Task) => void;
   onMoveToDestination?: (task: Task, destination: TaskDestination) => void;
 }
 
@@ -30,6 +32,7 @@ export const TaskContextMenu: React.FC<TaskContextMenuProps> = ({
   onEdit,
   onDelete,
   onToggleStatus,
+  onProcess,
   onMoveToDestination,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -92,6 +95,20 @@ export const TaskContextMenu: React.FC<TaskContextMenuProps> = ({
       </div>
 
       <div className="py-1">
+        {/* Разобрать по алгоритму ГТД */}
+        {onProcess && task.status !== 'completed' && (
+          <button
+            onClick={() => {
+              onClose();
+              onProcess(task);
+            }}
+            className="w-full px-3.5 py-2 flex items-center space-x-2.5 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] transition-colors text-left cursor-pointer font-bold text-zinc-900 dark:text-zinc-100"
+          >
+            <Play className="w-3.5 h-3.5 text-zinc-800 dark:text-zinc-200 fill-current" />
+            <span>Разобрать по алгоритму ГТД</span>
+          </button>
+        )}
+
         {/* Редактировать */}
         <button
           onClick={() => {
