@@ -442,6 +442,7 @@ export const App: React.FC = () => {
                 setIsCreateProjectOpen(true);
               }}
               onRefreshData={refreshData}
+              onProcessTask={handleProcessSingleTask}
             />
           )}
 
@@ -577,51 +578,64 @@ export const App: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    {inboxTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        onContextMenu={(e) => handleTaskContextMenu(e, task)}
-                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group cursor-context-menu"
-                      >
-                        <div className="flex-1 min-w-0 pr-4">
-                          <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{task.title}</h4>
-                          {task.notes && (
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
-                          )}
-                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 block">
-                            Добавлено: {new Date(task.created_at).toLocaleString('ru-RU')}
-                          </span>
-                        </div>
+                    {inboxTasks.map((task) => {
+                      const parentProject = task.project_id
+                        ? projects.find((p) => p.id === task.project_id)
+                        : null;
 
-                        <div className="flex items-center space-x-2 shrink-0">
-                          {/* Кнопка выборочного разбора */}
-                          <button
-                            onClick={() => handleProcessSingleTask(task)}
-                            className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
-                            title="Разобрать по алгоритму ГТД"
-                          >
-                            <Play className="w-3 h-3 fill-current" />
-                            <span>Разобрать</span>
-                          </button>
+                      return (
+                        <div
+                          key={task.id}
+                          onContextMenu={(e) => handleTaskContextMenu(e, task)}
+                          className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group cursor-context-menu"
+                        >
+                          <div className="flex-1 min-w-0 pr-4">
+                            <div className="flex items-center space-x-2">
+                              <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{task.title}</h4>
+                              {parentProject && (
+                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0">
+                                  📂 {parentProject.title}
+                                </span>
+                              )}
+                            </div>
+                            {task.notes && (
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
+                            )}
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 block">
+                              Добавлено: {new Date(task.created_at).toLocaleString('ru-RU')}
+                            </span>
+                          </div>
 
-                          {/* Кнопки редактирования и удаления */}
-                          <button
-                            onClick={() => setEditingTask(task)}
-                            className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                            title="Редактировать задачу (или нажмите ПКМ)"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setTaskToDelete(task)}
-                            className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                            title="Удалить задачу (или нажмите ПКМ)"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center space-x-2 shrink-0">
+                            {/* Кнопка выборочного разбора */}
+                            <button
+                              onClick={() => handleProcessSingleTask(task)}
+                              className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                              title="Разобрать по алгоритму ГТД"
+                            >
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>Разобрать</span>
+                            </button>
+
+                            {/* Кнопки редактирования и удаления */}
+                            <button
+                              onClick={() => setEditingTask(task)}
+                              className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                              title="Редактировать задачу (или нажмите ПКМ)"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setTaskToDelete(task)}
+                              className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                              title="Удалить задачу (или нажмите ПКМ)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -813,6 +827,7 @@ export const App: React.FC = () => {
         onEdit={(t) => setEditingTask(t)}
         onDelete={(t) => setTaskToDelete(t)}
         onToggleStatus={(t) => handleToggleTaskStatus(t)}
+        onProcess={handleProcessSingleTask}
         onMoveToDestination={(t, dest) => handleMoveTaskDestination(t, dest)}
       />
 
