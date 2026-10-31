@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, CheckSquare, Inbox as InboxIcon, Play, Edit2, Trash2, Search } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
-import { QuickAddTaskModal } from './components/QuickAddTaskModal';
-import { RapidCaptureModal } from './components/RapidCaptureModal';
+import { UniversalAddModal } from './components/UniversalAddModal';
 import { EditTaskModal } from './components/EditTaskModal';
 import { TaskContextMenu } from './components/TaskContextMenu';
-import { CreateProjectModal } from './components/CreateProjectModal';
 import { ProcessingWizardModal } from './views/ProcessingWizard/ProcessingWizardModal';
 import { ProjectsView } from './views/ProjectsView';
 import { CalendarView } from './views/CalendarView';
@@ -29,10 +27,9 @@ export const App: React.FC = () => {
   // Стартовый экран по умолчанию — «Текущие действия»
   const [activeTab, setActiveTab] = useState<NavigationTab>('next_actions');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isRapidCaptureOpen, setIsRapidCaptureOpen] = useState(false);
+  const [universalAddInitialMode, setUniversalAddInitialMode] = useState<'quick' | 'full' | undefined>(undefined);
   const [modalDefaultDest, setModalDefaultDest] = useState<TaskDestination>('next_actions');
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [projectSourceTask, setProjectSourceTask] = useState<Task | null>(null);
 
   // Для передачи конкретной задачи на обработку (по выбору пользователя)
@@ -126,16 +123,22 @@ export const App: React.FC = () => {
     } else {
       setModalDefaultDest('inbox');
     }
+    setUniversalAddInitialMode('full');
     setIsAddModalOpen(true);
   };
 
-  // Горячая клавиша Ctrl+N для быстрого непрерывного добавления задач в Корзину
+  const openRapidAddModal = () => {
+    setUniversalAddInitialMode(undefined);
+    setIsAddModalOpen(true);
+  };
+
+  // Горячая клавиша Ctrl+N для быстрого добавления задач
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isNKey = e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т';
       if ((e.ctrlKey || e.metaKey) && isNKey) {
         e.preventDefault();
-        setIsRapidCaptureOpen(true);
+        openRapidAddModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -352,7 +355,8 @@ export const App: React.FC = () => {
   const handleCreateProjectFromWizard = (task: Task) => {
     setIsProcessingOpen(false);
     setProjectSourceTask(task);
-    setIsCreateProjectOpen(true);
+    setUniversalAddInitialMode('full');
+    setIsAddModalOpen(true);
   };
 
   // Списки задач для разделов
@@ -452,7 +456,8 @@ export const App: React.FC = () => {
               tasks={tasks}
               onOpenCreateProject={() => {
                 setProjectSourceTask(null);
-                setIsCreateProjectOpen(true);
+                setUniversalAddInitialMode('full');
+                setIsAddModalOpen(true);
               }}
               onRefreshData={refreshData}
               onProcessTask={handleProcessSingleTask}
@@ -805,24 +810,34 @@ export const App: React.FC = () => {
           )}
         </div>
 
-        {/* Самая нижняя кнопка добавления просто плюсиком (добавляет строго в Корзину) */}
+        {/* Самая нижняя кнопка добавления («+» / Ctrl+N) */}
         <button
-          onClick={() => setIsRapidCaptureOpen(true)}
-          className="fixed bottom-6 right-8 w-14 h-14 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xl flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 cursor-pointer z-40 border border-zinc-700/20 dark:border-zinc-300/20"
-          title="Быстро добавить в корзину (Ctrl+N)"
+          onClick={openRapidAddModal}
+          className="fixed bottom-6 right-8 w-14 h-14 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 shadow-2xl flex items-center justify-center transition-colors cursor-pointer z-40 border border-zinc-700/20 dark:border-zinc-300/20"
+          title="Добавить задачу / мысль (Ctrl+N)"
         >
           <Plus className="w-7 h-7 stroke-[2.5]" />
         </button>
       </main>
       </div>
 
-      {/* Быстрое непрерывное добавление задач вкладками (Корзина / Текущий раздел) */}
-      <RapidCaptureModal
-        isOpen={isRapidCaptureOpen}
-        onClose={() => setIsRapidCaptureOpen(false)}
-        onSaveTask={handleRapidSaveTask}
+      {/* Единое модальное окно добавления с ровными вкладками */}
+      <UniversalAddModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setProjectSourceTask(null);
+          setUniversalAddInitialMode(undefined);
+        }}
         currentTab={activeTab}
         defaultCaptureSetting={defaultCaptureTab}
+        defaultDestination={modalDefaultDest}
+        initialMode={universalAddInitialMode}
+        projects={projects}
+        onSaveTask={handleSaveTask}
+        onRapidSaveTask={handleRapidSaveTask}
+        onProjectCreated={handleProjectCreated}
+        sourceTask={projectSourceTask}
       />
 
       {/* Модальное окно редактирования задачи (по клику на карандаш или через ПКМ) */}
@@ -854,26 +869,6 @@ export const App: React.FC = () => {
         isPermanent={false}
         onClose={() => setTaskToDelete(null)}
         onConfirm={handleConfirmSoftDelete}
-      />
-
-      {/* Модальное окно подробного создания задачи с контекстным назначением */}
-      <QuickAddTaskModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSave={handleSaveTask}
-        projects={projects}
-        defaultDestination={modalDefaultDest}
-      />
-
-      {/* Модальное окно создания проекта */}
-      <CreateProjectModal
-        isOpen={isCreateProjectOpen}
-        onClose={() => {
-          setIsCreateProjectOpen(false);
-          setProjectSourceTask(null);
-        }}
-        sourceTask={projectSourceTask}
-        onProjectCreated={handleProjectCreated}
       />
 
       {/* Полноэкранный мастер обработки корзины ГТД */}
