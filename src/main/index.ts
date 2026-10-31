@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import fs from 'fs';
 
 // Установка постоянного AppUserModelId сразу при запуске процесса для сохранения закрепления на панели задач Windows
 app.setAppUserModelId('com.arspective.gtd');
@@ -32,6 +33,13 @@ function createWindow() {
       sandbox: false,
     },
     autoHideMenuBar: true,
+  });
+
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    try {
+      fs.appendFileSync(path.join(app.getPath('userData'), 'renderer-debug.log'), `[Level ${level}] ${message} at ${sourceId}:${line}\n`);
+    } catch {}
+    console.error(`[Renderer Log] ${message} (${sourceId}:${line})`);
   });
 
   const devServerUrl = process.env['VITE_DEV_SERVER_URL'];
