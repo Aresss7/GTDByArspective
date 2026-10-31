@@ -396,7 +396,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
-      {/* Панель поиска в стиле NotesView */}
+      {/* Панель поиска */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
@@ -408,14 +408,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
-
-        <button
-          onClick={onOpenAddTask}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t.calendarAddBtn}</span>
-        </button>
       </div>
 
       {/* Верхняя панель управления календарем */}
