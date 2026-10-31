@@ -13,6 +13,7 @@ import {
 import { Task, Project } from '@shared/types';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 import { Checkbox } from '../components/Checkbox';
+import { Language, translations } from '../i18n/translations';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -20,6 +21,7 @@ interface CalendarViewProps {
   onTaskUpdated: () => Promise<void>;
   onOpenAddTask: () => void;
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void;
+  language?: Language;
 }
 
 type CalendarMode = 'month' | 'week' | 'day';
@@ -30,6 +32,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onTaskUpdated,
   onOpenAddTask,
   onTaskContextMenu,
+  language = 'ru',
 }) => {
   const [mode, setMode] = useState<CalendarMode>('month');
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +40,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [rescheduleTask, setRescheduleTask] = useState<Task | null>(null);
   const [newDateInput, setNewDateInput] = useState('');
   const [newTimeInput, setNewTimeInput] = useState('');
+
+  const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
 
   // Форматирование даты в YYYY-MM-DD (локальное время)
   const formatDateKey = (date: Date): string => {
@@ -136,7 +142,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       gridCells.push(new Date(year, month, day));
     }
 
-    const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const weekDays = isEn
+      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
     return (
       <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
@@ -312,14 +320,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Генерация вида "День"
   const renderDayView = () => {
     return (
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-4 max-w-2xl">
+      <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-4 max-w-2xl">
         <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-              Расписание на день
+              {isEn ? 'Daily Schedule' : 'Расписание на день'}
             </span>
             <h3 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100">
-              {selectedDate.toLocaleDateString('ru-RU', {
+              {selectedDate.toLocaleDateString(isEn ? 'en-US' : 'ru-RU', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -327,32 +335,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               })}
             </h3>
           </div>
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-indigo-100 dark:bg-purple-900/60 text-indigo-800 dark:text-purple-200">
-            Дел: {tasksForSelectedDay.length}
+          <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+            {isEn ? `Tasks: ${tasksForSelectedDay.length}` : `Дел: ${tasksForSelectedDay.length}`}
           </span>
         </div>
 
         {tasksForSelectedDay.length === 0 ? (
           <div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-xs">
-            На этот день дел не запланировано.
+            {isEn ? 'No tasks scheduled for this day.' : 'На этот день дел не запланировано.'}
           </div>
         ) : (
           <div className="space-y-2.5">
             {tasksForSelectedDay.map((task) => (
               <div
                 key={task.id}
-                className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200/80 dark:border-zinc-700/60 flex items-center justify-between group hover:shadow-sm transition-all"
+                className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between group hover:shadow-sm transition-all"
               >
                 <div className="flex items-center space-x-3.5">
                   <Checkbox
                     checked={task.status === 'completed'}
                     onChange={() => handleToggleTaskStatus(task)}
-                    title="Отметить выполненным"
+                    title={t.markCompleted}
                   />
                   <div>
                     <div className="flex items-center space-x-2">
                       {task.scheduled_time && (
-                        <span className="text-xs font-bold text-indigo-700 dark:text-purple-300 bg-indigo-100 dark:bg-purple-900/60 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
                           {task.scheduled_time}
                         </span>
                       )}
@@ -374,9 +382,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     setNewDateInput(task.scheduled_date || '');
                     setNewTimeInput(task.scheduled_time || '');
                   }}
-                  className="text-xs text-indigo-600 dark:text-purple-400 hover:text-indigo-800 dark:hover:text-purple-300 font-semibold px-3 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-semibold px-3 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  Перенести
+                  {isEn ? 'Reschedule' : 'Перенести'}
                 </button>
               </div>
             ))}
@@ -396,7 +404,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск по событиям и задачам календаря..."
+            placeholder={t.calendarSearchPlaceholder}
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
@@ -406,7 +414,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Запланировать</span>
+          <span>{t.calendarAddBtn}</span>
         </button>
       </div>
 
@@ -418,7 +426,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             onClick={handleToday}
             className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-full text-xs font-bold transition-colors cursor-pointer"
           >
-            Сегодня
+            {isEn ? 'Today' : 'Сегодня'}
           </button>
           <div className="flex items-center space-x-1">
             <button
@@ -435,7 +443,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </button>
           </div>
           <h3 className="text-base font-extrabold text-zinc-800 dark:text-zinc-100 ml-2 capitalize">
-            {selectedDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+            {selectedDate.toLocaleDateString(isEn ? 'en-US' : 'ru-RU', { month: 'long', year: 'numeric' })}
           </h3>
         </div>
 
@@ -450,17 +458,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               }`}
             >
-              Месяц
+              {isEn ? 'Month' : 'Месяц'}
             </button>
             <button
               onClick={() => setMode('week')}
               className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
                 mode === 'week' 
                   ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' 
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               }`}
             >
-              Неделя
+              {isEn ? 'Week' : 'Неделя'}
             </button>
             <button
               onClick={() => setMode('day')}
@@ -470,7 +478,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               }`}
             >
-              День
+              {isEn ? 'Day' : 'День'}
             </button>
           </div>
         </div>

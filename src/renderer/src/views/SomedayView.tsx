@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Clock, ArrowRight, Trash2, Plus, Edit2, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { Language, translations } from '../i18n/translations';
 
 interface SomedayViewProps {
   tasks: Task[];
@@ -10,6 +11,7 @@ interface SomedayViewProps {
   onOpenAddTask: () => void;
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void;
   onEditTask?: (task: Task) => void;
+  language?: Language;
 }
 
 export const SomedayView: React.FC<SomedayViewProps> = ({
@@ -19,9 +21,13 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
   onOpenAddTask,
   onTaskContextMenu,
   onEditTask,
+  language = 'ru',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
 
   const allSomedayTasks = tasks.filter((t) => t.destination === 'someday' && t.status === 'active' && !t.deleted_at);
 
@@ -62,7 +68,7 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск по идеям и планам..."
+            placeholder={t.somedaySearchPlaceholder}
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
@@ -72,13 +78,13 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
           className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Добавить идею</span>
+          <span>{t.somedayAddBtn}</span>
         </button>
       </div>
 
       <div className="pb-1">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Идеи и долгосрочные желания • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
+          {t.somedayHint}
         </p>
       </div>
 
@@ -88,10 +94,10 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
             <Clock className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-            {searchQuery ? 'Ничего не найдено' : 'Список пуст'}
+            {searchQuery ? t.notFoundTitle : t.somedayEmptyTitle}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            Записывайте сюда всё, что хотелось бы сделать, но не на этой неделе.
+            {searchQuery ? t.notFoundDesc : t.somedayEmptyDesc}
           </p>
         </div>
       ) : (
@@ -111,17 +117,17 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
                 <button
                   onClick={() => handleActivate(task)}
                   className="px-4 py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors shadow-sm"
-                  title="Перевести в Текущие действия"
+                  title={t.somedayActivateBtn}
                 >
                   <ArrowRight className="w-3.5 h-3.5" />
-                  <span>В работу</span>
+                  <span>{isEn ? 'Activate' : 'В работу'}</span>
                 </button>
 
                 {onEditTask && (
                   <button
                     onClick={() => onEditTask(task)}
                     className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                    title="Редактировать (или нажмите ПКМ)"
+                    title={t.edit}
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
@@ -130,7 +136,7 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
                 <button
                   onClick={() => setTaskToDelete(task)}
                   className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                  title="Удалить (или нажмите ПКМ)"
+                  title={t.delete}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

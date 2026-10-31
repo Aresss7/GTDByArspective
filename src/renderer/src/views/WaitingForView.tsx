@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserCheck, Calendar, CheckCircle2, ArrowRight, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { Language, translations } from '../i18n/translations';
 
 interface WaitingForViewProps {
   tasks: Task[];
@@ -10,6 +11,7 @@ interface WaitingForViewProps {
   onOpenAddTask: () => void;
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void;
   onEditTask?: (task: Task) => void;
+  language?: Language;
 }
 
 export const WaitingForView: React.FC<WaitingForViewProps> = ({
@@ -19,9 +21,13 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
   onOpenAddTask,
   onTaskContextMenu,
   onEditTask,
+  language = 'ru',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
 
   const allWaitingTasks = tasks.filter((t) => t.destination === 'waiting_for' && t.status === 'active' && !t.deleted_at);
 
@@ -78,7 +84,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск по порученным задачам и людям..."
+            placeholder={t.waitingForSearchPlaceholder}
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
@@ -88,13 +94,13 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
           className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Делегировать задачу</span>
+          <span>{t.waitingForAddBtn}</span>
         </button>
       </div>
 
       <div className="pb-1">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Задачи, порученные другим людям • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
+          {t.waitingForHint}
         </p>
       </div>
 
@@ -104,10 +110,10 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
             <UserCheck className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-            {searchQuery ? 'Ничего не найдено' : 'Ожидающих дел нет'}
+            {searchQuery ? t.notFoundTitle : t.waitingForEmptyTitle}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            Здесь будут отображаться дела, делегированные коллегам или ожидающие ответа.
+            {searchQuery ? t.notFoundDesc : t.waitingForEmptyDesc}
           </p>
         </div>
       ) : (
@@ -130,7 +136,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-800 dark:text-zinc-200 flex items-center space-x-1.5 border border-zinc-200 dark:border-zinc-700">
                       <UserCheck className="w-3.5 h-3.5" />
-                      <span>{task.delegated_to || 'Делегировано'}</span>
+                      <span>{task.delegated_to || t.waitingForDelegated}</span>
                     </span>
                     {project && (
                       <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
@@ -143,7 +149,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
 
                   {task.waiting_for && (
                     <p className="text-xs text-zinc-600 dark:text-zinc-300 bg-zinc-50 dark:bg-[#191919] p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                      <strong>Ожидаемый результат:</strong> {task.waiting_for}
+                      <strong>{t.waitingForExpectedResult}:</strong> {task.waiting_for}
                     </p>
                   )}
 
@@ -151,7 +157,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                     <div className="flex items-center space-x-1.5 text-xs">
                       <Calendar className="w-3.5 h-3.5 text-zinc-400" />
                       <span className={isCheckDue ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}>
-                        Дата проверки: {task.check_date} {isCheckDue && '⚠️ Пора проверить статус!'}
+                        {t.waitingForCheckDate}: {task.check_date} {isCheckDue && `⚠️ ${t.waitingForCheckDueAlert}`}
                       </span>
                     </div>
                   )}
@@ -161,23 +167,24 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                   <button
                     onClick={() => handleMoveToNextActions(task)}
                     className="px-3.5 py-2 rounded-full border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] text-zinc-700 dark:text-zinc-300 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
-                    title="Вернуть в свои текущие действия"
+                    title={t.waitingForMoveToNext}
                   >
-                    <span>В текущие</span>
+                    <span>{t.waitingForMoveToNext}</span>
                     <ArrowRight className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => handleMarkDone(task)}
                     className="px-4 py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-sm"
+                    title={t.markCompleted}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Получено</span>
+                    <span>{isEn ? 'Done' : 'Получено'}</span>
                   </button>
                   {onEditTask && (
                     <button
                       onClick={() => onEditTask(task)}
                       className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] text-zinc-500 cursor-pointer"
-                      title="Редактировать (или нажмите ПКМ)"
+                      title={t.edit}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
@@ -185,7 +192,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                   <button
                     onClick={() => setTaskToDelete(task)}
                     className="p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 cursor-pointer"
-                    title="Удалить (или нажмите ПКМ)"
+                    title={t.delete}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
