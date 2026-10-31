@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { ProjectRepository } from '../../storage/repositories/projectRepository';
 import { getDatabase } from '../../storage/database';
 import { ProjectStatus, Project } from '../../shared/types';
+import { SyncServer } from '../sync/syncServer';
 
 export function registerProjectsIpc(): void {
   const getRepo = () => new ProjectRepository(getDatabase());
@@ -15,7 +16,9 @@ export function registerProjectsIpc(): void {
   });
 
   ipcMain.handle('projects:restore', async (_, id: string) => {
-    return getRepo().restore(id);
+    const res = getRepo().restore(id);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 
   ipcMain.handle('projects:getById', async (_, id: string) => {
@@ -30,14 +33,20 @@ export function registerProjectsIpc(): void {
     completionCriteria?: string;
     sourceTaskId?: string;
   }) => {
-    return getRepo().createWithFirstStep(data);
+    const res = getRepo().createWithFirstStep(data);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 
   ipcMain.handle('projects:update', async (_, id: string, updates: Partial<Project>) => {
-    return getRepo().update(id, updates);
+    const res = getRepo().update(id, updates);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 
   ipcMain.handle('projects:delete', async (_, id: string, permanent?: boolean) => {
-    return getRepo().delete(id, permanent);
+    const res = getRepo().delete(id, permanent);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 }

@@ -11,6 +11,8 @@ export class SyncServer {
   private server: http.Server | null = null;
   private port: number = 52420;
   private isRunning: boolean = false;
+  private eventClients: Set<http.ServerResponse> = new Set();
+  private pingInterval: NodeJS.Timeout | null = null;
 
   private constructor() {}
 
@@ -77,6 +79,18 @@ export class SyncServer {
       this.server.listen(this.port, '0.0.0.0', () => {
         this.isRunning = true;
         console.log(`[SyncServer] Running at http://${SyncServer.getLocalIpAddress()}:${this.port}`);
+
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.pingInterval = setInterval(() => {
+          for (const client of this.eventClients) {
+            try {
+              client.write(': ping\n\n');
+            } catch (e) {
+              this.eventClients.delete(client);
+            }
+          }
+        }, 20000);
+
         resolve(this.getStatus());
       });
     });
@@ -84,6 +98,17 @@ export class SyncServer {
 
   // Остановка сервера
   async stop(): Promise<SyncStatus> {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+    for (const client of this.eventClients) {
+      try {
+        client.end();
+      } catch (e) {}
+    }
+    this.eventClients.clear();
+
     if (!this.isRunning || !this.server) {
       this.isRunning = false;
       return this.getStatus();
@@ -97,6 +122,31 @@ export class SyncServer {
         resolve(this.getStatus());
       });
     });
+  }
+
+  // Оповещение об изменении данных (для мгновенной синхронизации)
+  broadcastChange(): void {
+    // 1. Отправляем уведомление на подключённые клиенты (Android) по SSE
+    const payload = `data: ${JSON.stringify({ type: 'sync_needed', timestamp: new Date().toISOString() })}\n\n`;
+    for (const client of this.eventClients) {
+      try {
+        client.write(payload);
+      } catch (err) {
+        this.eventClients.delete(client);
+      }
+    }
+
+    // 2. Оповещаем окна десктопного приложения Electron
+    try {
+      const { BrowserWindow } = require('electron');
+      BrowserWindow.getAllWindows().forEach((win: any) => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('data:changed');
+        }
+      });
+    } catch (e) {
+      // Игнорируем в окружении тестов
+    }
   }
 
   // Текущий статус сервера
@@ -254,6 +304,17 @@ export class SyncServer {
         // 1. Применяем изменения клиента на сервере
         const stats = repo.applyClientChanges(clientChanges, authenticatedDevice.id);
 
+        // Если были изменения от мобильного клиента, уведомляем другие клиенты и Desktop UI
+        if (
+          stats.tasksCreated > 0 ||
+          stats.tasksUpdated > 0 ||
+          stats.projectsCreated > 0 ||
+          stats.projectsUpdated > 0 ||
+          stats.tombstonesApplied > 0
+        ) {
+          this.broadcastChange();
+        }
+
         // 2. Получаем изменения с сервера, произошедшие после момента последней синхронизации клиента
         const serverChanges = repo.getChangesSince(lastSyncedAt);
 
@@ -267,6 +328,24 @@ export class SyncServer {
         };
 
         this.sendJson(res, 200, responseData);
+        return;
+      }
+
+      // 5. Постоянный SSE-поток событий для Android: GET /api/v1/events
+      if (req.method === 'GET' && pathname === '/api/v1/events') {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.write(': connected\n\n');
+
+        this.eventClients.add(res);
+
+        req.on('close', () => {
+          this.eventClients.delete(res);
+        });
         return;
       }
 

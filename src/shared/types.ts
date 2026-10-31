@@ -180,6 +180,7 @@ export interface GtdApi {
   createPairingSession: () => Promise<SyncPairingSession>;
   getPairedDevices: () => Promise<SyncDevice[]>;
   revokeDevice: (deviceId: string) => Promise<boolean>;
+  onDataChanged?: (callback: () => void) => () => void;
 
   // Links & Preview
   fetchLinkPreview: (url: string) => Promise<LinkPreviewData>;

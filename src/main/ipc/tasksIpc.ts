@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { TaskRepository } from '../../storage/repositories/taskRepository';
 import { getDatabase } from '../../storage/database';
 import { Task, TaskDestination } from '../../shared/types';
+import { SyncServer } from '../sync/syncServer';
 
 export function registerTasksIpc(): void {
   const getRepo = () => new TaskRepository(getDatabase());
@@ -23,14 +24,20 @@ export function registerTasksIpc(): void {
   });
 
   ipcMain.handle('tasks:create', async (_, data: Partial<Task> & { title: string }) => {
-    return getRepo().create(data);
+    const res = getRepo().create(data);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 
   ipcMain.handle('tasks:update', async (_, id: string, updates: Partial<Task>) => {
-    return getRepo().update(id, updates);
+    const res = getRepo().update(id, updates);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 
   ipcMain.handle('tasks:delete', async (_, id: string, permanent?: boolean) => {
-    return getRepo().delete(id, permanent);
+    const res = getRepo().delete(id, permanent);
+    SyncServer.getInstance().broadcastChange();
+    return res;
   });
 }

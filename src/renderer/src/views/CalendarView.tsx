@@ -54,7 +54,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   const todayStr = formatDateKey(new Date());
   const q = searchQuery.toLowerCase().trim();
-  const allActiveCalendarTasks = tasks.filter((t) => !t.deleted_at && t.destination !== 'trash');
+  const allActiveCalendarTasks = tasks.filter(
+    (t) => !t.deleted_at && t.destination !== 'trash' && (t.destination === 'calendar' || Boolean(t.scheduled_date))
+  );
   const activeCalendarTasks = allActiveCalendarTasks.filter((t) => {
     if (!q) return true;
     return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
@@ -476,81 +478,187 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       </div>
 
-      {/* Основная сетка выбранного режима */}
-      {mode === 'month' && renderMonthGrid()}
-      {mode === 'week' && renderWeekGrid()}
-      {mode === 'day' && renderDayView()}
-
-      {/* Панель задач на выбранную дату (для режима Месяц) */}
-      {mode === 'month' && (
-        <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 mb-4">
+      {/* Если введён поисковый запрос — показываем список найденных задач */}
+      {q ? (
+        <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-              Задачи на {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {isEn ? `Found in calendar (${activeCalendarTasks.length})` : `Найдено в календаре (${activeCalendarTasks.length})`}
             </h4>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-              {tasksForSelectedDay.length}
+            <span className="text-xs text-zinc-400">
+              {isEn ? 'Matching events' : 'Все совпадения по расписанию'}
             </span>
           </div>
 
-          {tasksForSelectedDay.length === 0 ? (
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 py-3">На эту дату задач не запланировано.</p>
+          {activeCalendarTasks.length === 0 ? (
+            <div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-xs">
+              {t.notFoundDesc}
+            </div>
           ) : (
-            <div className="space-y-2">
-              {tasksForSelectedDay.map((task) => (
-                <div
-                  key={task.id}
-                  onContextMenu={(e) => onTaskContextMenu?.(e, task)}
-                  className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-xs transition-colors cursor-context-menu hover:border-zinc-400 dark:hover:border-zinc-600"
-                >
-                  <div className="flex items-center space-x-3.5">
-                    <Checkbox
-                      checked={task.status === 'completed'}
-                      onChange={() => handleToggleTaskStatus(task)}
-                      title="Выполнить задачу"
-                    />
-                    <div className="flex items-center space-x-2">
-                      {task.scheduled_time && (
-                        <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-purple-900/60 text-indigo-800 dark:text-purple-200 font-bold">
-                          {task.scheduled_time}
-                        </span>
-                      )}
-                      <span className={`font-semibold ${
-                        task.status === 'completed'
-                          ? 'line-through text-zinc-400 dark:text-zinc-500'
-                          : 'text-zinc-800 dark:text-zinc-200'
-                      }`}>
-                        {task.title}
-                      </span>
-                      {task.due_date && (
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isOverdue(task)
-                              ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
-                              : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
-                          }`}
-                        >
-                          Дедлайн: {task.due_date} {isOverdue(task) && '⚠️ Просрочено!'}
-                        </span>
-                      )}
+            <div className="space-y-2.5">
+              {activeCalendarTasks.map((task) => {
+                const project = task.project_id ? projects.find((p) => p.id === task.project_id) : null;
+                return (
+                  <div
+                    key={task.id}
+                    onContextMenu={(e) => onTaskContextMenu?.(e, task)}
+                    className="p-4 bg-zinc-50 dark:bg-[#1e1e1e] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between text-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-context-menu group"
+                  >
+                    <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-4">
+                      <Checkbox
+                        checked={task.status === 'completed'}
+                        onChange={() => handleToggleTaskStatus(task)}
+                        title={isEn ? 'Mark as completed' : 'Выполнить задачу'}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          {task.scheduled_date ? (
+                            <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] font-bold">
+                              <CalendarIcon className="w-3 h-3" />
+                              <span>{task.scheduled_date}</span>
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px]">
+                              {isEn ? 'No date' : 'Без точной даты'}
+                            </span>
+                          )}
+                          {task.scheduled_time && (
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-purple-900/60 text-indigo-800 dark:text-purple-200 text-[10px] font-bold">
+                              🕒 {task.scheduled_time}
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isOverdue(task)
+                                  ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                                  : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+                              }`}
+                            >
+                              {isEn ? 'Due' : 'Дедлайн'}: {task.due_date} {isOverdue(task) && '⚠️'}
+                            </span>
+                          )}
+                          {project && (
+                            <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[10px] font-medium truncate max-w-[150px]">
+                              📁 {project.title}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className={`text-sm mt-1 font-semibold truncate ${
+                          task.status === 'completed'
+                            ? 'line-through text-zinc-400 dark:text-zinc-500'
+                            : 'text-zinc-900 dark:text-zinc-100'
+                        }`}>
+                          {task.title}
+                        </h4>
+                        {task.notes && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                            {task.notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          if (task.scheduled_date) {
+                            setSelectedDate(new Date(task.scheduled_date));
+                          }
+                          setRescheduleTask(task);
+                          setNewDateInput(task.scheduled_date || '');
+                          setNewTimeInput(task.scheduled_time || '');
+                        }}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                      >
+                        {isEn ? 'Reschedule' : 'Перенести'}
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      setRescheduleTask(task);
-                      setNewDateInput(task.scheduled_date || '');
-                      setNewTimeInput(task.scheduled_time || '');
-                    }}
-                    className="text-indigo-600 dark:text-purple-400 hover:text-indigo-800 dark:hover:text-purple-300 font-bold cursor-pointer"
-                  >
-                    Перенести
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
+      ) : (
+        <>
+          {/* Основная сетка выбранного режима */}
+          {mode === 'month' && renderMonthGrid()}
+          {mode === 'week' && renderWeekGrid()}
+          {mode === 'day' && renderDayView()}
+
+          {/* Панель задач на выбранную дату (для режима Месяц) */}
+          {mode === 'month' && (
+            <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 mb-4">
+                <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                  Задачи на {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </h4>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                  {tasksForSelectedDay.length}
+                </span>
+              </div>
+
+              {tasksForSelectedDay.length === 0 ? (
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 py-3">На эту дату задач не запланировано.</p>
+              ) : (
+                <div className="space-y-2">
+                  {tasksForSelectedDay.map((task) => (
+                    <div
+                      key={task.id}
+                      onContextMenu={(e) => onTaskContextMenu?.(e, task)}
+                      className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-xs transition-colors cursor-context-menu hover:border-zinc-400 dark:hover:border-zinc-600"
+                    >
+                      <div className="flex items-center space-x-3.5">
+                        <Checkbox
+                          checked={task.status === 'completed'}
+                          onChange={() => handleToggleTaskStatus(task)}
+                          title="Выполнить задачу"
+                        />
+                        <div className="flex items-center space-x-2">
+                          {task.scheduled_time && (
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-purple-900/60 text-indigo-800 dark:text-purple-200 font-bold">
+                              {task.scheduled_time}
+                            </span>
+                          )}
+                          <span className={`font-semibold ${
+                            task.status === 'completed'
+                              ? 'line-through text-zinc-400 dark:text-zinc-500'
+                              : 'text-zinc-800 dark:text-zinc-200'
+                          }`}>
+                            {task.title}
+                          </span>
+                          {task.due_date && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isOverdue(task)
+                                  ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                                  : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+                              }`}
+                            >
+                              Дедлайн: {task.due_date} {isOverdue(task) && '⚠️ Просрочено!'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setRescheduleTask(task);
+                          setNewDateInput(task.scheduled_date || '');
+                          setNewTimeInput(task.scheduled_time || '');
+                        }}
+                        className="text-indigo-600 dark:text-purple-400 hover:text-indigo-800 dark:hover:text-purple-300 font-bold cursor-pointer"
+                      >
+                        Перенести
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Модальное окно переноса даты задачи */}
