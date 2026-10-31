@@ -280,7 +280,7 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
           )}
 
           {/* Привязка к существующему проекту */}
-          {projects.length > 0 && destination !== 'notes' && (
+          {projects.some((p) => p.status !== 'completed' && !p.deleted_at) && destination !== 'notes' && (
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
                 Относится к проекту (необязательно)
@@ -291,7 +291,7 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
                 className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-200"
               >
                 <option value="">Без проекта (самостоятельное действие)</option>
-                {projects.map((p) => (
+                {projects.filter((p) => p.status !== 'completed' && !p.deleted_at).map((p) => (
                   <option key={p.id} value={p.id}>
                     📂 {p.title}
                   </option>
