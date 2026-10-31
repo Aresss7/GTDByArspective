@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { CustomDatePicker } from './CustomDatePicker';
+import { ProjectSelect } from './ProjectSelect';
 import { DefaultCaptureTabSetting } from '../views/SettingsView';
 import { Language } from '../i18n/translations';
 
@@ -609,10 +610,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                         key={opt.id}
                         type="button"
                         onClick={() => setDestination(opt.id as TaskDestination)}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-xl border transition-colors text-left cursor-pointer ${
+                        className={`flex items-center space-x-2 px-3.5 py-2.5 rounded-xl border transition-colors text-left cursor-pointer ${
                           isSelected
-                            ? 'border-zinc-900 dark:border-zinc-300 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-xs'
-                            : 'border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                            ? 'border-transparent bg-white text-zinc-950 font-bold shadow-xs'
+                            : 'border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#191919] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800/80'
                         }`}
                       >
                         <Icon className="w-4 h-4 shrink-0" />
@@ -625,10 +626,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
               {/* Поля календаря */}
               {destination === 'calendar' && (
-                <div className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3">
+                <div className="p-4 bg-zinc-50 dark:bg-[#1c1c1e] rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                         {isEn ? 'Scheduled Date' : 'Дата выполнения'} <span className="text-zinc-400">*</span>
                       </label>
                       <CustomDatePicker
@@ -640,14 +641,14 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                         {isEn ? 'Time (optional)' : 'Время (необязательно)'}
                       </label>
                       <input
                         type="time"
                         value={scheduledTime}
                         onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
                       />
                     </div>
                   </div>
@@ -656,9 +657,9 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
               {/* Поля делегирования */}
               {destination === 'waiting_for' && (
-                <div className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3 text-xs">
+                <div className="p-4 bg-zinc-50 dark:bg-[#1c1c1e] rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-3 text-xs">
                   <div>
-                    <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                       {isEn ? 'Delegated to?' : 'Кому поручено дело?'} <span className="text-zinc-400">*</span>
                     </label>
                     <input
@@ -667,12 +668,12 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                       value={delegatedTo}
                       onChange={(e) => setDelegatedTo(e.target.value)}
                       placeholder={isEn ? 'Name, contact or colleague...' : 'Имя, контакт или коллега...'}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                      <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                         {isEn ? 'Expected result' : 'Ожидаемый результат'}
                       </label>
                       <input
@@ -680,11 +681,11 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                         value={waitingFor}
                         onChange={(e) => setWaitingFor(e.target.value)}
                         placeholder={isEn ? 'What is expected...' : 'Что ожидается...'}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                      <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                         {isEn ? 'Check date' : 'Дата проверки'}
                       </label>
                       <CustomDatePicker
@@ -698,27 +699,19 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 </div>
               )}
 
-              {/* Привязка к существующему проекту: строгий монохром, без системных аномалий */}
+              {/* Привязка к существующему проекту: современный селектор */}
               {projects.length > 0 && destination !== 'notes' && (
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                     {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}
                   </label>
-                  <select
+                  <ProjectSelect
+                    projects={projects}
                     value={projectId}
-                    onChange={(e) => setProjectId(e.target.value)}
-                    style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 transition-colors"
-                  >
-                    <option value="" className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100">
-                      {isEn ? 'Without project (standalone action)' : 'Без проекта (самостоятельное действие)'}
-                    </option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id} className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100">
-                        📂 {p.title}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setProjectId}
+                    language={language}
+                    isDarkMode={isDarkMode}
+                  />
                 </div>
               )}
 

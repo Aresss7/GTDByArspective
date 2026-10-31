@@ -400,8 +400,9 @@ export const App: React.FC = () => {
     return t.title.toLowerCase().includes(inboxQ) || Boolean(t.notes && t.notes.toLowerCase().includes(inboxQ));
   });
 
+  const t = translations[language] || translations.ru;
+
   const getTabTitle = () => {
-    const t = translations[language];
     switch (activeTab) {
       case 'next_actions':
         return t.navNextActions;
@@ -490,6 +491,7 @@ export const App: React.FC = () => {
               }}
               onRefreshData={refreshData}
               onProcessTask={handleProcessSingleTask}
+              language={language}
             />
           )}
 
@@ -500,6 +502,7 @@ export const App: React.FC = () => {
               onTaskUpdated={refreshData}
               onOpenAddTask={() => openAddModal('calendar')}
               onTaskContextMenu={handleTaskContextMenu}
+              language={language}
             />
           )}
 
@@ -511,6 +514,7 @@ export const App: React.FC = () => {
               onOpenAddTask={() => openAddModal('waiting_for')}
               onTaskContextMenu={handleTaskContextMenu}
               onEditTask={setEditingTask}
+              language={language}
             />
           )}
 
@@ -522,6 +526,7 @@ export const App: React.FC = () => {
               onOpenAddTask={() => openAddModal('someday')}
               onTaskContextMenu={handleTaskContextMenu}
               onEditTask={setEditingTask}
+              language={language}
             />
           )}
 
@@ -530,6 +535,7 @@ export const App: React.FC = () => {
               tasks={tasks}
               onTaskUpdated={refreshData}
               onOpenAddTask={() => openAddModal('notes')}
+              language={language}
             />
           )}
 
@@ -547,6 +553,7 @@ export const App: React.FC = () => {
               tasks={tasks}
               projects={projects}
               onTaskUpdated={refreshData}
+              language={language}
             />
           )}
 
@@ -575,16 +582,16 @@ export const App: React.FC = () => {
                 <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
                   <InboxIcon className="w-7 h-7" />
                 </div>
-                <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">Корзина пуста</h3>
+                <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">{t.inboxEmptyTitle}</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-                  Все входящие мысли и задачи обработаны. Нажмите кнопку «+» внизу или нажмите Ctrl+N для добавления.
+                  {t.inboxEmptyDesc}
                 </p>
                 <button
                   onClick={() => setIsRapidCaptureOpen(true)}
                   className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-[#282828] hover:bg-zinc-200 dark:hover:bg-[#323232] border border-zinc-200 dark:border-zinc-700 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Записать мысль в корзину</span>
+                  <span>{t.inboxCaptureBtn}</span>
                 </button>
               </div>
             ) : (
@@ -597,7 +604,7 @@ export const App: React.FC = () => {
                       type="text"
                       value={inboxSearch}
                       onChange={(e) => setInboxSearch(e.target.value)}
-                      placeholder="Поиск по корзине входящих..."
+                      placeholder={t.inboxSearchPlaceholder}
                       className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
                     />
                   </div>
@@ -610,22 +617,22 @@ export const App: React.FC = () => {
                     className="flex items-center space-x-1.5 px-5 py-2.5 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 shadow-sm cursor-pointer transition-all active:scale-95"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Разобрать по порядку</span>
+                    <span>{t.inboxProcessAll}</span>
                   </button>
                 </div>
 
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Вы можете разобрать задачи по порядку, кликнуть <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> по задаче для меню или нажать кнопки действий:
+                    {t.inboxHint}
                   </p>
                 </div>
 
                 {inboxTasks.length === 0 ? (
                   <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                     <InboxIcon className="w-8 h-8 text-zinc-400 mb-2" />
-                    <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Ничего не найдено</h4>
+                    <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{t.notFoundTitle}</h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                      По запросу «{inboxSearch}» ничего нет.
+                      {t.notFoundDesc}
                     </p>
                   </div>
                 ) : (
@@ -654,7 +661,7 @@ export const App: React.FC = () => {
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
                             )}
                             <span className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 block">
-                              Добавлено: {new Date(task.created_at).toLocaleString('ru-RU')}
+                              {t.inboxAddedAt}: {new Date(task.created_at).toLocaleString(language === 'en' ? 'en-US' : 'ru-RU')}
                             </span>
                           </div>
 
@@ -663,24 +670,24 @@ export const App: React.FC = () => {
                             <button
                               onClick={() => handleProcessSingleTask(task)}
                               className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
-                              title="Разобрать по алгоритму ГТД"
+                              title={t.inboxProcessSingle}
                             >
                               <Play className="w-3 h-3 fill-current" />
-                              <span>Разобрать</span>
+                              <span>{t.inboxProcessSingle}</span>
                             </button>
 
                             {/* Кнопки редактирования и удаления */}
                             <button
                               onClick={() => setEditingTask(task)}
                               className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-zinc-200 dark:hover:bg-[#353535] text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                              title="Редактировать задачу (или нажмите ПКМ)"
+                              title={t.edit}
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setTaskToDelete(task)}
                               className="p-2 rounded-xl bg-zinc-100 dark:bg-[#2c2c2c] hover:bg-rose-100 dark:hover:bg-rose-950/40 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                              title="Удалить задачу (или нажмите ПКМ)"
+                              title={t.delete}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -705,7 +712,7 @@ export const App: React.FC = () => {
                     type="text"
                     value={nextActionsSearch}
                     onChange={(e) => setNextActionsSearch(e.target.value)}
-                    placeholder="Поиск по текущим действиям..."
+                    placeholder={t.nextActionsSearchPlaceholder}
                     className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
                   />
                 </div>
@@ -715,13 +722,13 @@ export const App: React.FC = () => {
                   className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Добавить действие</span>
+                  <span>{t.nextActionsAddBtn}</span>
                 </button>
               </div>
 
               <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Список конкретных ближайших действий • Кликните <kbd className="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">ПКМ</kbd> для меню задачи.
+                  {t.nextActionsHint}
                 </p>
               </div>
 
@@ -730,24 +737,24 @@ export const App: React.FC = () => {
                   <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300 flex items-center justify-center mb-3.5 shadow-sm">
                     <CheckSquare className="w-7 h-7" />
                   </div>
-                  <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">Список текущих действий чист</h3>
+                  <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">{t.nextActionsEmptyTitle}</h3>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-                    Здесь находятся конкретные действия, готовые к выполнению.
+                    {t.nextActionsEmptyDesc}
                   </p>
                   <button
                     onClick={() => openAddModal('next_actions')}
                     className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 transition-all cursor-pointer shadow-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Добавить действие</span>
+                    <span>{t.nextActionsAddBtn}</span>
                   </button>
                 </div>
               ) : nextActionsTasks.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                   <CheckSquare className="w-8 h-8 text-zinc-400 mb-2" />
-                  <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Ничего не найдено</h4>
+                  <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{t.notFoundTitle}</h4>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                    По запросу «{nextActionsSearch}» ничего не найдено.
+                    {t.notFoundDesc}
                   </p>
                 </div>
               ) : (
@@ -883,6 +890,8 @@ export const App: React.FC = () => {
         onSave={handleSaveEditedTask}
         onDelete={handleDeleteTask}
         projects={projects}
+        language={language}
+        isDarkMode={isDarkMode}
       />
 
       {/* Контекстное меню ПКМ (правый клик мыши) */}

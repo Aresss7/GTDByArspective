@@ -5,6 +5,7 @@ import { ProjectDetailModal } from './ProjectDetailModal';
 import { ProjectContextMenu } from '../components/ProjectContextMenu';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useToast } from '../components/ToastNotification';
+import { Language, translations } from '../i18n/translations';
 
 interface ProjectsViewProps {
   projects: Project[];
@@ -13,6 +14,7 @@ interface ProjectsViewProps {
   onRefreshData: () => Promise<void>;
   onProcessTask?: (task: Task) => void;
   searchQuery?: string;
+  language?: Language;
 }
 
 export const ProjectsView: React.FC<ProjectsViewProps> = ({
@@ -22,10 +24,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   onRefreshData,
   onProcessTask,
   searchQuery = '',
+  language = 'ru',
 }) => {
   const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
 
   // Контекстное меню ПКМ
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -71,7 +77,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       });
       await onRefreshData();
       showToast(
-        isCompleted ? 'Проект возвращён в работу' : 'Проект успешно завершён',
+        isCompleted
+          ? (isEn ? 'Project reactivated' : 'Проект возвращён в работу')
+          : (isEn ? 'Project completed' : 'Проект успешно завершён'),
         isCompleted ? 'restore' : 'success'
       );
     } catch (err) {
@@ -83,7 +91,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     if (!window.gtdApi || !projectToDelete) return;
     try {
       await window.gtdApi.deleteProject(projectToDelete.id);
-      showToast(`Проект «${projectToDelete.title}» перемещён в корзину`, 'info');
+      showToast(
+        isEn
+          ? `Project "${projectToDelete.title}" moved to trash`
+          : `Проект «${projectToDelete.title}» перемещён в корзину`,
+        'info'
+      );
       setProjectToDelete(null);
       await onRefreshData();
     } catch (err) {
@@ -101,7 +114,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             type="text"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="Поиск по проектам..."
+            placeholder={t.projectsSearchPlaceholder}
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
@@ -111,7 +124,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Новый проект</span>
+          <span>{t.projectsNewBtn}</span>
         </button>
       </div>
 
@@ -126,7 +139,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
-            Активные ({projects.filter((p) => p.status === 'active').length})
+            {t.projectsFilterActive} ({projects.filter((p) => p.status === 'active').length})
           </button>
           <button
             onClick={() => setFilter('completed')}
@@ -136,7 +149,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
-            Завершённые ({projects.filter((p) => p.status === 'completed').length})
+            {t.projectsFilterCompleted} ({projects.filter((p) => p.status === 'completed').length})
           </button>
           <button
             onClick={() => setFilter('all')}
@@ -146,7 +159,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
-            Все ({projects.length})
+            {t.projectsFilterAll} ({projects.length})
           </button>
         </div>
 
@@ -155,7 +168,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           className="flex items-center space-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Новый проект</span>
+          <span>{t.projectsNewBtn}</span>
         </button>
       </div>
 
@@ -166,17 +179,17 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             <FolderKanban className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-            {filter === 'completed' ? 'Нет завершённых проектов' : 'Нет активных проектов'}
+            {filter === 'completed' ? t.projectsEmptyCompletedTitle : t.projectsEmptyActiveTitle}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
-            Проекты объединяют комплексные дела, требующие нескольких самостоятельных шагов.
+            {t.projectsEmptyDesc}
           </p>
           <button
             onClick={onOpenCreateProject}
             className="inline-flex items-center space-x-2 px-5 py-2 rounded-full text-xs font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-[#282828] hover:bg-zinc-200 dark:hover:bg-[#303030] border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Создать проект</span>
+            <span>{t.projectsCreateBtn}</span>
           </button>
         </div>
       ) : (
@@ -207,7 +220,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                           : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
                       }`}
                     >
-                      {project.status === 'completed' ? 'Завершен' : 'В работе'}
+                      {project.status === 'completed' ? (isEn ? 'Completed' : 'Завершён') : (isEn ? 'Active' : 'В работе')}
                     </span>
                   </div>
 
@@ -217,14 +230,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
                   {project.completion_criteria && (
                     <div className="text-[11px] text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-[#191919] p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 mb-3">
-                      <strong>Критерий:</strong> {project.completion_criteria}
+                      <strong>{isEn ? 'Criteria:' : 'Критерий:'}</strong> {project.completion_criteria}
                     </div>
                   )}
 
                   {firstStep && (
                     <div className="text-xs bg-zinc-50 dark:bg-[#191919] p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 mb-3">
                       <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-zinc-500 block mb-0.5">
-                        1-й шаг:
+                        {isEn ? '1st Step:' : '1-й шаг:'}
                       </span>
                       <span className={firstStep.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200 font-semibold'}>
                         {firstStep.title}
@@ -236,7 +249,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 {/* Прогресс шагов */}
                 <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 font-semibold">
-                    <span>Выполнено:</span>
+                    <span>{isEn ? 'Completed:' : 'Выполнено:'}</span>
                     <span>
                       {completedCount} / {projectSteps.length} ({progressPercent}%)
                     </span>

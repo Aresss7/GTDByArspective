@@ -14,21 +14,27 @@ import {
 import { Task } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { MarkdownNoteEditor } from '../components/MarkdownEditor';
+import { Language, translations } from '../i18n/translations';
 
 interface NotesViewProps {
   tasks: Task[];
   onTaskUpdated: () => Promise<void>;
   onOpenAddTask: () => void;
+  language?: Language;
 }
 
 export const NotesView: React.FC<NotesViewProps> = ({
   tasks,
   onTaskUpdated,
   onOpenAddTask,
+  language = 'ru',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNote, setSelectedNote] = useState<Task | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Task | null>(null);
+  
+  const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
   
   // Состояния редактирования для открытой страницы заметки
   const [draftTitle, setDraftTitle] = useState('');
@@ -127,15 +133,15 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <button
               onClick={handleCloseNote}
               className="flex items-center space-x-2 px-3.5 py-2 rounded-2xl bg-zinc-100 dark:bg-[#222222] hover:bg-zinc-200 dark:hover:bg-[#2b2b2b] text-xs font-bold text-zinc-700 dark:text-zinc-200 transition-all cursor-pointer shadow-xs active:scale-95"
-              title="Вернуться ко всем заметкам (Esc)"
+              title={isEn ? 'Back to all notes (Esc)' : 'Вернуться ко всем заметкам (Esc)'}
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Все заметки</span>
+              <span>{t.notesAll}</span>
             </button>
             <span className="text-xs text-zinc-400">|</span>
             <span className="text-xs text-zinc-400 flex items-center space-x-1">
               <Calendar className="w-3.5 h-3.5" />
-              <span>Создано: {new Date(selectedNote.created_at).toLocaleDateString('ru-RU')}</span>
+              <span>{t.notesCreated}: {new Date(selectedNote.created_at).toLocaleDateString(isEn ? 'en-US' : 'ru-RU')}</span>
             </span>
           </div>
 
@@ -144,10 +150,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <button
               onClick={handleCopyNote}
               className="flex items-center space-x-1.5 px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#282828] text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-              title="Скопировать текст заметки"
+              title={isEn ? 'Copy note text' : 'Скопировать текст заметки'}
             >
               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{isCopied ? 'Скопировано!' : 'Копировать'}</span>
+              <span>{isCopied ? t.notesCopied : t.notesCopy}</span>
             </button>
 
             {/* Кнопка сохранения */}
@@ -157,14 +163,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
               className="flex items-center space-x-1.5 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
             >
               {saveSuccess ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-              <span>{saveSuccess ? 'Сохранено' : isSaving ? 'Сохранение...' : 'Сохранить'}</span>
+              <span>{saveSuccess ? t.notesSaved : isSaving ? t.notesSaving : t.notesSave}</span>
             </button>
 
             {/* Кнопка удаления в корзину */}
             <button
               onClick={() => setNoteToDelete(selectedNote)}
               className="p-2 rounded-2xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-              title="Удалить заметку в мусор"
+              title={t.notesDeleteTrash}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -176,24 +182,24 @@ export const NotesView: React.FC<NotesViewProps> = ({
           {/* Редактируемый заголовок заметки */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-              Заголовок заметки
+              {t.notesTitleLabel}
             </label>
             <input
               type="text"
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
-              placeholder="Название заметки..."
+              placeholder={t.notesTitlePlaceholder}
               className="w-full text-xl md:text-2xl font-black bg-transparent border-b border-zinc-200 dark:border-zinc-800 pb-2 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors placeholder:text-zinc-400"
             />
           </div>
 
-          {/* Редактируемый текст заметки с поддержкой двух режимов (Визуальный WYSIWYG / Markdown исходный код) */}
+          {/* Редактируемый текст заметки */}
           <div className="space-y-1.5 pt-1">
             <MarkdownNoteEditor
               value={draftContent}
               onChange={(val) => setDraftContent(val)}
               onSave={handleSaveNote}
-              placeholder="Введите текст заметки, конспекты, полезные ссылки, инструкции или списки..."
+              placeholder={t.notesContentPlaceholder}
             />
           </div>
         </div>
@@ -222,7 +228,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск по заголовку и содержанию..."
+            placeholder={t.notesSearchPlaceholder}
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
@@ -232,7 +238,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
           className="flex items-center space-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Создать заметку</span>
+          <span>{t.notesCreateBtn}</span>
         </button>
       </div>
 
@@ -242,10 +248,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <FileText className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-            {searchQuery ? 'Ничего не найдено' : 'Раздел заметок пуст'}
+            {searchQuery ? t.notFoundTitle : t.notesEmpty}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            Кликните «Создать заметку», чтобы записать полезную справочную информацию, чек-лист или идеи.
+            {searchQuery ? t.notFoundDesc : (isEn ? 'Click «Create Note» to record reference materials, checklists, or ideas.' : 'Кликните «Создать заметку», чтобы записать полезную справочную информацию, чек-лист или идеи.')}
           </p>
         </div>
       ) : (

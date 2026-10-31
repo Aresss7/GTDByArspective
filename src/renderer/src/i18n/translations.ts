@@ -76,6 +76,94 @@ export const translations = {
     notesVisualMode: 'Визуальный',
     notesMarkdownMode: 'Markdown',
     notesLinkPreviews: 'Предпросмотр ссылок',
+
+    // Inbox
+    inboxEmptyTitle: 'Корзина пуста',
+    inboxEmptyDesc: 'Все входящие мысли и задачи обработаны. Нажмите кнопку «+» внизу или нажмите Ctrl+N для добавления.',
+    inboxCaptureBtn: 'Записать мысль в корзину',
+    inboxSearchPlaceholder: 'Поиск по корзине входящих...',
+    inboxProcessAll: 'Разобрать по порядку',
+    inboxHint: 'Вы можете разобрать задачи по порядку, кликнуть ПКМ по задаче для меню или нажать кнопки действий:',
+    inboxProcessSingle: 'Разобрать',
+    inboxAddedAt: 'Добавлено',
+
+    // Next Actions
+    nextActionsSearchPlaceholder: 'Поиск по текущим действиям...',
+    nextActionsAddBtn: 'Добавить действие',
+    nextActionsHint: 'Список конкретных ближайших действий • Кликните ПКМ для меню задачи.',
+    nextActionsEmptyTitle: 'Список текущих действий чист',
+    nextActionsEmptyDesc: 'Здесь находятся конкретные действия, готовые к выполнению.',
+    markCompleted: 'Отметить выполненным',
+
+    // Projects
+    projectsSearchPlaceholder: 'Поиск по проектам...',
+    projectsNewBtn: 'Новый проект',
+    projectsFilterActive: 'Активные',
+    projectsFilterCompleted: 'Завершённые',
+    projectsFilterAll: 'Все',
+    projectsEmptyActiveTitle: 'Нет активных проектов',
+    projectsEmptyCompletedTitle: 'Нет завершённых проектов',
+    projectsEmptyDesc: 'Проекты объединяют комплексные дела, требующие нескольких самостоятельных шагов.',
+    projectsCreateBtn: 'Создать проект',
+    projectsFirstStep: 'Первый шаг',
+    projectsStepsCount: 'шагов',
+    projectsOpenProject: 'Открыть проект',
+    projectsCompleteBtn: 'Завершить проект',
+    projectsActivateBtn: 'Возобновить проект',
+    projectsDeleteBtn: 'Удалить проект',
+
+    // Calendar
+    calendarSearchPlaceholder: 'Поиск событий календаря...',
+    calendarAddBtn: 'Запланировать событие',
+    calendarHint: 'Задачи и события, привязанные к конкретной дате • Кликните ПКМ для меню задачи.',
+    calendarFilterToday: 'Сегодня',
+    calendarFilterUpcoming: 'Предстоящие',
+    calendarFilterAll: 'Все события',
+    calendarEmptyTitle: 'В календаре пока нет событий',
+    calendarEmptyDesc: 'Планируйте задачи на конкретные дни или время.',
+    calendarTimeAt: 'в',
+    calendarOverdue: 'Просрочено',
+
+    // Waiting For
+    waitingForSearchPlaceholder: 'Поиск по порученным задачам и людям...',
+    waitingForAddBtn: 'Делегировать задачу',
+    waitingForHint: 'Задачи, порученные другим людям • Кликните ПКМ для меню задачи.',
+    waitingForEmptyTitle: 'Ожидающих дел нет',
+    waitingForEmptyDesc: 'Здесь будут отображаться дела, делегированные коллегам или ожидающие ответа.',
+    waitingForDelegated: 'Делегировано',
+    waitingForExpectedResult: 'Ожидаемый результат',
+    waitingForCheckDate: 'Дата проверки',
+    waitingForCheckDueAlert: 'Пора проверить статус!',
+    waitingForMoveToNext: 'В текущие действия',
+
+    // Someday
+    somedaySearchPlaceholder: 'Поиск по идеям и планам...',
+    somedayAddBtn: 'Записать идею',
+    somedayHint: 'Идеи и проекты на неопределённое будущее • Кликните ПКМ для меню задачи.',
+    somedayEmptyTitle: 'Список «Когда-нибудь» пуст',
+    somedayEmptyDesc: 'Сохраняйте книги, идеи для путешествий, хобби или проекты без точных сроков.',
+    somedayActivateBtn: 'Перенести в текущие действия',
+
+    // Completed
+    completedSearchPlaceholder: 'Поиск по выполненным задачам...',
+    completedClearBtn: 'Очистить историю',
+    completedHint: 'Список успешно выполненных задач и закрытых проектов.',
+    completedEmptyTitle: 'Список завершённых задач пуст',
+    completedEmptyDesc: 'Здесь будут накапливаться ваши завершённые дела и достижения.',
+    completedRestoreBtn: 'Вернуть в работу',
+
+    // Common / UI
+    notFoundTitle: 'Ничего не найдено',
+    notFoundDesc: 'По вашему запросу ничего не найдено.',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    delete: 'Удалить',
+    edit: 'Редактировать',
+    close: 'Закрыть',
+    withoutProject: 'Без проекта (самостоятельное действие)',
+    selectProject: 'Выберите проект',
+    searchProjects: 'Поиск проекта...',
+    projectLabel: 'Относится к проекту (необязательно)',
   },
   en: {
     // Nav
@@ -152,6 +240,94 @@ export const translations = {
     notesVisualMode: 'Visual',
     notesMarkdownMode: 'Markdown',
     notesLinkPreviews: 'Link Previews',
+
+    // Inbox
+    inboxEmptyTitle: 'Inbox is empty',
+    inboxEmptyDesc: 'All incoming thoughts and tasks are processed. Click «+» below or press Ctrl+N to capture.',
+    inboxCaptureBtn: 'Capture thought to Inbox',
+    inboxSearchPlaceholder: 'Search inbox...',
+    inboxProcessAll: 'Process in order',
+    inboxHint: 'You can process tasks in order, right-click a task for menu, or use action buttons:',
+    inboxProcessSingle: 'Process',
+    inboxAddedAt: 'Added',
+
+    // Next Actions
+    nextActionsSearchPlaceholder: 'Search next actions...',
+    nextActionsAddBtn: 'Add Action',
+    nextActionsHint: 'Specific next physical actions • Right-click for task menu.',
+    nextActionsEmptyTitle: 'Next actions list is clear',
+    nextActionsEmptyDesc: 'Concrete actions ready to be executed will appear here.',
+    markCompleted: 'Mark completed',
+
+    // Projects
+    projectsSearchPlaceholder: 'Search projects...',
+    projectsNewBtn: 'New Project',
+    projectsFilterActive: 'Active',
+    projectsFilterCompleted: 'Completed',
+    projectsFilterAll: 'All',
+    projectsEmptyActiveTitle: 'No active projects',
+    projectsEmptyCompletedTitle: 'No completed projects',
+    projectsEmptyDesc: 'Projects group complex outcomes that require multiple individual steps.',
+    projectsCreateBtn: 'Create Project',
+    projectsFirstStep: 'First step',
+    projectsStepsCount: 'steps',
+    projectsOpenProject: 'Open Project',
+    projectsCompleteBtn: 'Complete Project',
+    projectsActivateBtn: 'Reactivate Project',
+    projectsDeleteBtn: 'Delete Project',
+
+    // Calendar
+    calendarSearchPlaceholder: 'Search calendar events...',
+    calendarAddBtn: 'Schedule Event',
+    calendarHint: 'Tasks and events tied to a specific date • Right-click for task menu.',
+    calendarFilterToday: 'Today',
+    calendarFilterUpcoming: 'Upcoming',
+    calendarFilterAll: 'All Events',
+    calendarEmptyTitle: 'No events in calendar yet',
+    calendarEmptyDesc: 'Schedule tasks for specific days or times.',
+    calendarTimeAt: 'at',
+    calendarOverdue: 'Overdue',
+
+    // Waiting For
+    waitingForSearchPlaceholder: 'Search delegated tasks and people...',
+    waitingForAddBtn: 'Delegate Task',
+    waitingForHint: 'Tasks assigned to other people • Right-click for task menu.',
+    waitingForEmptyTitle: 'No waiting items',
+    waitingForEmptyDesc: 'Tasks delegated to colleagues or awaiting response will appear here.',
+    waitingForDelegated: 'Delegated',
+    waitingForExpectedResult: 'Expected result',
+    waitingForCheckDate: 'Check date',
+    waitingForCheckDueAlert: 'Time to check status!',
+    waitingForMoveToNext: 'Move to Next Actions',
+
+    // Someday
+    somedaySearchPlaceholder: 'Search ideas and someday plans...',
+    somedayAddBtn: 'Add Idea',
+    somedayHint: 'Ideas and projects for an undetermined future • Right-click for task menu.',
+    somedayEmptyTitle: '«Someday / Maybe» list is empty',
+    somedayEmptyDesc: 'Save books, travel ideas, hobbies, or projects without immediate deadlines.',
+    somedayActivateBtn: 'Move to Next Actions',
+
+    // Completed
+    completedSearchPlaceholder: 'Search completed tasks...',
+    completedClearBtn: 'Clear History',
+    completedHint: 'List of successfully completed tasks and finished projects.',
+    completedEmptyTitle: 'Completed list is empty',
+    completedEmptyDesc: 'Your completed actions and achievements will accumulate here.',
+    completedRestoreBtn: 'Restore to active',
+
+    // Common / UI
+    notFoundTitle: 'Nothing found',
+    notFoundDesc: 'No items match your search query.',
+    cancel: 'Cancel',
+    save: 'Save',
+    delete: 'Delete',
+    edit: 'Edit',
+    close: 'Close',
+    withoutProject: 'Without project (standalone action)',
+    selectProject: 'Select a project',
+    searchProjects: 'Search projects...',
+    projectLabel: 'Project (optional)',
   },
 } as const;
 

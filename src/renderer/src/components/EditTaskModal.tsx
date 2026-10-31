@@ -3,6 +3,8 @@ import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox, FileText, Trash2 } f
 import { Task, TaskDestination, Project } from '@shared/types';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { CustomDatePicker } from './CustomDatePicker';
+import { ProjectSelect } from './ProjectSelect';
+import { Language, translations } from '../i18n/translations';
 
 interface EditTaskModalProps {
   task: Task | null;
@@ -11,6 +13,8 @@ interface EditTaskModalProps {
   onSave: (taskId: string, updates: Partial<Task>) => Promise<void>;
   onDelete?: (taskId: string) => Promise<void>;
   projects: Project[];
+  language?: Language;
+  isDarkMode?: boolean;
 }
 
 export const EditTaskModal: React.FC<EditTaskModalProps> = ({
@@ -20,7 +24,10 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   onSave,
   onDelete,
   projects,
+  language = 'ru',
+  isDarkMode = false,
 }) => {
+  const isEn = language === 'en';
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [destination, setDestination] = useState<TaskDestination>('inbox');
@@ -274,21 +281,16 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           {/* Привязка к проекту */}
           {projects.length > 0 && destination !== 'notes' && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                Относится к проекту
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}
               </label>
-              <select
+              <ProjectSelect
+                projects={projects}
                 value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-200"
-              >
-                <option value="">Без проекта (самостоятельное действие)</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    📂 {p.title}
-                  </option>
-                ))}
-              </select>
+                onChange={setProjectId}
+                language={language}
+                isDarkMode={isDarkMode}
+              />
             </div>
           )}
 
