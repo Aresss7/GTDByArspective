@@ -30,6 +30,9 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
 
   const selectedProject = projects.find((p) => p.id === value);
 
+  // Отображаем только незавершённые и неудалённые проекты для выбора
+  const activeProjects = projects.filter((p) => p.status !== 'completed' && !p.deleted_at);
+
   // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -48,16 +51,16 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
 
   // Focus search input on open
   useEffect(() => {
-    if (isOpen && projects.length >= 4) {
+    if (isOpen && activeProjects.length >= 4) {
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
     } else {
       setSearchQuery('');
     }
-  }, [isOpen, projects.length]);
+  }, [isOpen, activeProjects.length]);
 
-  const filteredProjects = projects.filter((p) => {
+  const filteredProjects = activeProjects.filter((p) => {
     if (!searchQuery.trim()) return true;
     return p.title.toLowerCase().includes(searchQuery.toLowerCase().trim());
   });
@@ -107,8 +110,8 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
       {/* Выпадающее современное меню */}
       {isOpen && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-          {/* Поле поиска, если проектов 4 и более */}
-          {projects.length >= 4 && (
+          {/* Поле поиска, если активных проектов 4 и более */}
+          {activeProjects.length >= 4 && (
             <div className="px-2 pt-1 pb-2 border-b border-zinc-100 dark:border-zinc-800 mb-1">
               <div className="relative flex items-center">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 text-zinc-400" />

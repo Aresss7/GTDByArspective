@@ -278,8 +278,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             </div>
           )}
 
-          {/* Привязка к проекту */}
-          {projects.length > 0 && destination !== 'notes' && (
+          {/* Привязка к проекту (показываем, если есть незавершённые проекты или проект уже привязан) */}
+          {(projects.some((p) => p.status !== 'completed' && !p.deleted_at) || Boolean(projectId)) && destination !== 'notes' && (
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                 {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}

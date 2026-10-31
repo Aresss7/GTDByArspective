@@ -723,8 +723,8 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 </div>
               )}
 
-              {/* Привязка к существующему проекту: современный селектор */}
-              {projects.length > 0 && destination !== 'notes' && (
+              {/* Привязка к существующему незавершённому проекту: современный селектор */}
+              {projects.some((p) => p.status !== 'completed' && !p.deleted_at) && destination !== 'notes' && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                     {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}
