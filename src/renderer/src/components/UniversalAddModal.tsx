@@ -16,19 +16,22 @@ import {
 import { Task, Project, TaskDestination } from '@shared/types';
 import { CustomDatePicker } from './CustomDatePicker';
 import { DefaultCaptureTabSetting } from '../views/SettingsView';
+import { Language } from '../i18n/translations';
 
 interface UniversalAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentTab: string;
   defaultCaptureSetting?: DefaultCaptureTabSetting;
-  defaultDestination?: TaskDestination;
+  targetDestination?: TaskDestination | null;
   initialMode?: 'quick' | 'full';
   projects: Project[];
   onSaveTask: (taskData: Partial<Task> & { title: string }) => Promise<void>;
   onRapidSaveTask: (title: string, destination?: TaskDestination) => Promise<void>;
   onProjectCreated: (result: { project: Project; firstStep: Task }) => Promise<void>;
   sourceTask?: Task | null;
+  language?: Language;
+  isDarkMode?: boolean;
 }
 
 export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
@@ -36,14 +39,18 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   onClose,
   currentTab,
   defaultCaptureSetting = 'inbox',
-  defaultDestination,
+  targetDestination,
   initialMode,
   projects,
   onSaveTask,
   onRapidSaveTask,
   onProjectCreated,
   sourceTask,
+  language = 'ru',
+  isDarkMode = false,
 }) => {
+  const isEn = language === 'en';
+
   // Режим модального окна: 'quick' (быстрая фиксация в Корзину) или 'full' (полная форма раздела)
   const [modalMode, setModalMode] = useState<'quick' | 'full'>('quick');
 
@@ -80,9 +87,9 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
   const isProjectsTab = currentTab === 'projects' || Boolean(sourceTask);
 
-  // Определение контекстного назначения для задач
+  // Точное вычисление целевого назначения без ложных привязок к next_actions
   const getContextualDestination = (): TaskDestination => {
-    if (defaultDestination) return defaultDestination;
+    if (targetDestination) return targetDestination;
     switch (currentTab) {
       case 'calendar': return 'calendar';
       case 'waiting_for': return 'waiting_for';
@@ -95,18 +102,24 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     }
   };
 
-  // Метка второй вкладки
+  // Название второй вкладки в зависимости от текущей страницы
   const getPageTabLabel = () => {
     switch (currentTab) {
-      case 'projects': return 'Новый проект';
-      case 'calendar': return 'В «Календарь»';
-      case 'waiting_for': return 'В «Ожидание»';
-      case 'someday': return 'В «Когда-нибудь»';
-      case 'notes': return 'В «Заметки»';
-      case 'inbox': return 'Подробная задача';
+      case 'projects':
+        return isEn ? 'New Project' : 'Новый проект';
+      case 'calendar':
+        return isEn ? 'To «Calendar»' : 'В «Календарь»';
+      case 'waiting_for':
+        return isEn ? 'To «Waiting For»' : 'В «Ожидание»';
+      case 'someday':
+        return isEn ? 'To «Someday»' : 'В «Когда-нибудь»';
+      case 'notes':
+        return isEn ? 'To «Notes»' : 'В «Заметки»';
+      case 'inbox':
+        return isEn ? 'Detailed Task' : 'Подробная задача';
       case 'next_actions':
       default:
-        return 'В «Следующие действия»';
+        return isEn ? 'To «Next Actions»' : 'В «Следующие действия»';
     }
   };
 
@@ -131,7 +144,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       setToastCount(0);
       setIsSubmitting(false);
 
-      // Инициализация режима
+      // Инициализация режима в зависимости от настроек
       if (initialMode) {
         setModalMode(initialMode);
       } else if (defaultCaptureSetting === 'current_menu') {
@@ -140,9 +153,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         setModalMode('quick');
       }
 
-      // Сброс полей задачи
+      // Вычисление точного назначения
       const dest = getContextualDestination();
       setDestination(dest);
+
       setTaskTitle(sourceTask ? sourceTask.title : '');
       setTaskNotes(sourceTask?.notes || '');
       setProjectId('');
@@ -168,7 +182,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         }
       }, 50);
     }
-  }, [isOpen, currentTab, defaultCaptureSetting, initialMode]);
+  }, [isOpen, currentTab, defaultCaptureSetting, initialMode, targetDestination]);
 
   // Фокусировка при переключении вкладки
   useEffect(() => {
@@ -183,7 +197,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     }
   }, [modalMode]);
 
-  // Обработка клавиши Escape
+  // Закрытие по Escape
   useEffect(() => {
     if (!isOpen) return;
 
@@ -220,12 +234,15 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       await onRapidSaveTask(trimmed, 'inbox');
       const nextCount = toastCount + 1;
       setToastCount(nextCount);
-      showToast(`✓ Сохранено в Корзину: "${trimmed.length > 25 ? trimmed.slice(0, 25) + '...' : trimmed}"`);
+      const text = isEn 
+        ? `✓ Saved to Inbox: "${trimmed.length > 25 ? trimmed.slice(0, 25) + '...' : trimmed}"`
+        : `✓ Сохранено в Корзину: "${trimmed.length > 25 ? trimmed.slice(0, 25) + '...' : trimmed}"`;
+      showToast(text);
       setRapidTitle('');
       rapidInputRef.current?.focus();
     } catch (err) {
       console.error(err);
-      showToast('Ошибка при сохранении задачи');
+      showToast(isEn ? 'Error saving task' : 'Ошибка при сохранении задачи');
     }
   };
 
@@ -236,15 +253,15 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
     // Валидация дат
     if (destination === 'calendar' && scheduledDate && scheduledDate < todayStr) {
-      alert('Дата выполнения в календаре не может быть раньше сегодняшнего дня.');
+      alert(isEn ? 'Calendar date cannot be earlier than today.' : 'Дата выполнения в календаре не может быть раньше сегодняшнего дня.');
       return;
     }
     if (dueDate && dueDate < todayStr) {
-      alert('Крайний срок (дедлайн) не может быть раньше сегодняшнего дня.');
+      alert(isEn ? 'Due date cannot be earlier than today.' : 'Крайний срок (дедлайн) не может быть раньше сегодняшнего дня.');
       return;
     }
     if (destination === 'waiting_for' && checkDate && checkDate < todayStr) {
-      alert('Дата проверки делегированного дела не может быть раньше сегодняшнего дня.');
+      alert(isEn ? 'Check date cannot be earlier than today.' : 'Дата проверки делегированного дела не может быть раньше сегодняшнего дня.');
       return;
     }
 
@@ -290,19 +307,19 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         onClose();
       }
     } catch (err: any) {
-      alert(err.message || 'Ошибка создания проекта');
+      alert(err.message || (isEn ? 'Error creating project' : 'Ошибка создания проекта'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const destinationOptions = [
-    { id: 'next_actions', label: 'Текущие действия', icon: CheckSquare },
-    { id: 'inbox', label: 'Корзина ГТД', icon: Inbox },
-    { id: 'calendar', label: 'Календарь', icon: Calendar },
-    { id: 'waiting_for', label: 'Делегирование / Ожидание', icon: UserCheck },
-    { id: 'someday', label: 'Когда-нибудь потом', icon: Clock },
-    { id: 'notes', label: 'Заметки', icon: FileText },
+    { id: 'next_actions', label: isEn ? 'Next Actions' : 'Текущие действия', icon: CheckSquare },
+    { id: 'inbox', label: isEn ? 'GTD Inbox' : 'Корзина ГТД', icon: Inbox },
+    { id: 'calendar', label: isEn ? 'Calendar' : 'Календарь', icon: Calendar },
+    { id: 'waiting_for', label: isEn ? 'Waiting For' : 'Делегирование / Ожидание', icon: UserCheck },
+    { id: 'someday', label: isEn ? 'Someday / Maybe' : 'Когда-нибудь потом', icon: Clock },
+    { id: 'notes', label: isEn ? 'Notes' : 'Заметки', icon: FileText },
   ];
 
   const PageIcon = getPageTabIcon();
@@ -315,24 +332,24 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
           <span>{toastMessage}</span>
           {toastCount > 1 && (
             <span className="bg-zinc-700 dark:bg-zinc-200 text-white dark:text-zinc-900 px-2 py-0.5 rounded-full text-[10px]">
-              всего: {toastCount}
+              {isEn ? `total: ${toastCount}` : `всего: ${toastCount}`}
             </span>
           )}
         </div>
       )}
 
-      {/* Оверлей и модальное окно без дерганий */}
+      {/* Оверлей и модальное окно: строгий монохром #191919 / #222222, без фиолетовых оттенков */}
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 select-none p-4"
         onClick={onClose}
       >
         <div
-          className="bg-white dark:bg-[#1f1f1f] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800"
+          className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Верхняя строка: ровный переключатель вкладок + кнопка закрытия */}
           <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0 gap-3">
-            <div className="flex items-center p-1 bg-zinc-100 dark:bg-[#141414] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 gap-1">
+            <div className="flex items-center p-1 bg-zinc-100 dark:bg-[#191919] rounded-2xl border border-zinc-200 dark:border-zinc-700 gap-1">
               {/* Таб 1: Добавить в корзину */}
               <button
                 type="button"
@@ -344,7 +361,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 }`}
               >
                 <Inbox className="w-3.5 h-3.5 shrink-0" />
-                <span>Добавить в корзину</span>
+                <span>{isEn ? 'Add to Inbox' : 'Добавить в корзину'}</span>
               </button>
 
               {/* Таб 2: В текущий раздел / Новый проект */}
@@ -365,7 +382,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
-              title="Закрыть (Esc)"
+              title={isEn ? 'Close (Esc)' : 'Закрыть (Esc)'}
             >
               <X className="w-4 h-4" />
             </button>
@@ -377,21 +394,21 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
               <form onSubmit={handleRapidSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
-                    Быстрая фиксация мысли в Корзину:
+                    {isEn ? 'Quick capture thought to Inbox:' : 'Быстрая фиксация мысли в Корзину:'}
                   </label>
                   <input
                     ref={rapidInputRef}
                     type="text"
                     value={rapidTitle}
                     onChange={(e) => setRapidTitle(e.target.value)}
-                    placeholder="Что нужно сделать? Напишите сюда..."
-                    className="w-full px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-zinc-900 dark:text-zinc-100"
+                    placeholder={isEn ? 'What needs to be done? Write here...' : 'Что нужно сделать? Напишите сюда...'}
+                    className="w-full px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-[11px] text-zinc-400 dark:text-zinc-500 flex items-center space-x-1">
-                    <span>Enter — сохранить и следующая</span>
+                    <span>{isEn ? 'Enter — save & next' : 'Enter — сохранить и следующая'}</span>
                     <CornerDownLeft className="w-3 h-3 inline" />
                   </span>
 
@@ -401,14 +418,14 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                       onClick={onClose}
                       className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
-                      Отмена
+                      {isEn ? 'Cancel' : 'Отмена'}
                     </button>
                     <button
                       type="submit"
                       disabled={!rapidTitle.trim()}
                       className="px-5 py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold transition-colors shadow-sm disabled:opacity-40 cursor-pointer"
                     >
-                      Сохранить в корзину
+                      {isEn ? 'Save to Inbox' : 'Сохранить в корзину'}
                     </button>
                   </div>
                 </div>
@@ -416,19 +433,21 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
             </div>
           )}
 
-          {/* КОНТЕНТ: Режим 2 — Полная форма: Новый проект */}
+          {/* КОНТЕНТ: Режим 2 — Полная форма: Новый проект (строгий монохром) */}
           {modalMode === 'full' && isProjectsTab && (
             <form onSubmit={handleProjectSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
-                <h3 className="text-base font-bold tracking-tight">Новый проект</h3>
+                <h3 className="text-base font-bold tracking-tight">
+                  {isEn ? 'New Project' : 'Новый проект'}
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Желаемый результат из нескольких действий
+                  {isEn ? 'Outcome requiring multiple action steps' : 'Желаемый результат из нескольких действий'}
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                  Название проекта <span className="text-rose-500">*</span>
+                  {isEn ? 'Project Title' : 'Название проекта'} <span className="text-zinc-400">*</span>
                 </label>
                 <input
                   ref={fullInputRef}
@@ -436,32 +455,33 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   required
                   value={projectTitle}
                   onChange={(e) => setProjectTitle(e.target.value)}
-                  placeholder="Например: Запустить интернет-магазин"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-zinc-500 transition-colors"
+                  placeholder={isEn ? 'e.g. Launch online store' : 'Например: Запустить интернет-магазин'}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-zinc-500 transition-colors text-zinc-900 dark:text-zinc-100"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                  Описание (необязательно)
+                  {isEn ? 'Description (optional)' : 'Описание (необязательно)'}
                 </label>
                 <textarea
                   rows={2}
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
-                  placeholder="Контекст или детали..."
-                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors resize-none"
+                  placeholder={isEn ? 'Context or details...' : 'Контекст или детали...'}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors resize-none text-zinc-900 dark:text-zinc-100"
                 />
               </div>
 
-              <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-[#25202e] border border-purple-200/80 dark:border-purple-900/50 space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-purple-950 dark:text-purple-200">
-                  Первый следующий шаг <span className="text-rose-500">*</span>
+              {/* Плашка первого шага проекта: строгий монохром без фиолетового */}
+              <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-[#282828] border border-zinc-200 dark:border-zinc-700 space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                  {isEn ? 'First Next Action' : 'Первый следующий шаг'} <span className="text-zinc-400">*</span>
                 </label>
-                <div className="flex items-start space-x-2 text-xs text-purple-800 dark:text-purple-300 bg-purple-100/70 dark:bg-[#30263d] p-3 rounded-xl border border-purple-200/60 dark:border-purple-800/40">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="flex items-start space-x-2 text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-[#1f1f1f] p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-zinc-500" />
                   <p className="leading-relaxed">
-                    <strong className="font-semibold">Правило ГТД:</strong> Первый шаг должен быть одним конкретным действием, которое можно выполнить без дополнительного разложения на несколько шагов.
+                    <strong className="font-semibold">{isEn ? 'GTD Rule:' : 'Правило ГТД:'}</strong> {isEn ? 'The first step must be a single physical action you can complete right away without further decomposition.' : 'Первый шаг должен быть одним конкретным действием, которое можно выполнить без дополнительного разложения на несколько шагов.'}
                   </p>
                 </div>
                 <input
@@ -469,34 +489,34 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   required
                   value={projectFirstStepTitle}
                   onChange={(e) => setProjectFirstStepTitle(e.target.value)}
-                  placeholder="Например: Запросить прайс-лист у поставщика"
-                  className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#141414] border border-purple-200 dark:border-purple-800/80 text-sm focus:outline-none focus:border-purple-500 transition-colors"
+                  placeholder={isEn ? 'e.g. Request price list from supplier' : 'Например: Запросить прайс-лист у поставщика'}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-sm focus:outline-none focus:border-zinc-500 transition-colors text-zinc-900 dark:text-zinc-100"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                  Примерный план действий
+                  {isEn ? 'Approximate Action Plan' : 'Примерный план действий'}
                 </label>
                 <textarea
                   rows={3}
                   value={projectPlan}
                   onChange={(e) => setProjectPlan(e.target.value)}
-                  placeholder={"1. Найти варианты\n2. Сравнить условия..."}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors font-mono"
+                  placeholder={isEn ? "1. Find options\n2. Compare conditions..." : "1. Найти варианты\n2. Сравнить условия..."}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors font-mono text-zinc-900 dark:text-zinc-100"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                  Критерии завершения
+                  {isEn ? 'Completion Criteria' : 'Критерии завершения'}
                 </label>
                 <input
                   type="text"
                   value={projectCriteria}
                   onChange={(e) => setProjectCriteria(e.target.value)}
-                  placeholder="Когда проект считается закрытым?"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors"
+                  placeholder={isEn ? 'When is this project considered done?' : 'Когда проект считается закрытым?'}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors text-zinc-900 dark:text-zinc-100"
                 />
               </div>
 
@@ -506,38 +526,40 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   onClick={onClose}
                   className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  Отмена
+                  {isEn ? 'Cancel' : 'Отмена'}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !projectTitle.trim() || !projectFirstStepTitle.trim()}
-                  className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-40 cursor-pointer"
+                  className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
                 >
-                  <span>Создать и обработать 1-й шаг</span>
+                  <span>{isEn ? 'Create & Process 1st Step' : 'Создать и обработать 1-й шаг'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </form>
           )}
 
-          {/* КОНТЕНТ: Режим 2 — Полная форма: Задача для любого раздела */}
+          {/* КОНТЕНТ: Режим 2 — Полная форма: Задача для любого раздела (строгий монохром) */}
           {modalMode === 'full' && !isProjectsTab && (
             <form onSubmit={handleTaskSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
-                <h3 className="text-base font-bold tracking-tight">Новая задача</h3>
+                <h3 className="text-base font-bold tracking-tight">
+                  {isEn ? 'New Task' : 'Новая задача'}
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {destination === 'next_actions' ? 'Добавление в «Текущие действия»' : 
-                   destination === 'calendar' ? 'Запланировать событие в Календарь' :
-                   destination === 'waiting_for' ? 'Делегированное поручение' :
-                   destination === 'someday' ? 'Идея в «Когда-нибудь потом»' :
-                   destination === 'notes' ? 'Новая заметка' : 'Быстрая запись во входящие'}
+                  {destination === 'next_actions' ? (isEn ? 'Adding to «Next Actions»' : 'Добавление в «Текущие действия»') : 
+                   destination === 'calendar' ? (isEn ? 'Schedule event in Calendar' : 'Запланировать событие в Календарь') :
+                   destination === 'waiting_for' ? (isEn ? 'Delegated item' : 'Делегированное поручение') :
+                   destination === 'someday' ? (isEn ? 'Idea for «Someday / Maybe»' : 'Идея в «Когда-нибудь потом»') :
+                   destination === 'notes' ? (isEn ? 'New note' : 'Новая заметка') : (isEn ? 'Quick entry to Inbox' : 'Быстрая запись во входящие')}
                 </p>
               </div>
 
               {/* Название задачи */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-                  Название <span className="text-zinc-400">*</span>
+                  {isEn ? 'Title' : 'Название'} <span className="text-zinc-400">*</span>
                 </label>
                 <input
                   ref={fullInputRef}
@@ -545,8 +567,8 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   required
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder="Что необходимо сделать?"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
+                  placeholder={isEn ? 'What needs to be done?' : 'Что необходимо сделать?'}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
                 />
               </div>
 
@@ -554,10 +576,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    {destination === 'notes' ? 'Текст заметки' : 'Описание / Контекст'}
+                    {destination === 'notes' ? (isEn ? 'Note Text' : 'Текст заметки') : (isEn ? 'Description / Context' : 'Описание / Контекст')}
                   </label>
                   <span className="text-[11px] text-zinc-400">
-                    {destination === 'notes' ? 'Справочный материал' : 'План, детали или ссылки'}
+                    {destination === 'notes' ? (isEn ? 'Reference material' : 'Справочный материал') : (isEn ? 'Plan, details, or links' : 'План, детали или ссылки')}
                   </span>
                 </div>
                 <textarea
@@ -566,17 +588,17 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   onChange={(e) => setTaskNotes(e.target.value)}
                   placeholder={
                     destination === 'notes'
-                      ? 'Введите текст заметки, важные мысли, ссылки, чек-листы...'
-                      : '1. Детали или примерный план действий...\n2. Полезные ссылки или критерии...'
+                      ? (isEn ? 'Enter note content, key ideas, links, checklists...' : 'Введите текст заметки, важные мысли, ссылки, чек-листы...')
+                      : (isEn ? '1. Details or rough action plan...\n2. Useful links or criteria...' : '1. Детали или примерный план действий...\n2. Полезные ссылки или критерии...')
                   }
-                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none transition-colors placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100 resize-y min-h-[70px] leading-relaxed"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none transition-colors placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100 resize-y min-h-[70px] leading-relaxed"
                 />
               </div>
 
               {/* Место назначения - монохромные чипы */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
-                  Место назначения
+                  {isEn ? 'Destination' : 'Место назначения'}
                 </label>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {destinationOptions.map((opt) => {
@@ -603,29 +625,29 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
               {/* Поля календаря */}
               {destination === 'calendar' && (
-                <div className="p-4 bg-zinc-50 dark:bg-[#141414] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3">
+                <div className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                        Дата выполнения <span className="text-zinc-400">*</span>
+                        {isEn ? 'Scheduled Date' : 'Дата выполнения'} <span className="text-zinc-400">*</span>
                       </label>
                       <CustomDatePicker
                         value={scheduledDate}
                         onChange={setScheduledDate}
                         minDate={todayStr}
-                        placeholder="Выберите дату"
+                        placeholder={isEn ? 'Select date' : 'Выберите дату'}
                         required
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                        Время (необязательно)
+                        {isEn ? 'Time (optional)' : 'Время (необязательно)'}
                       </label>
                       <input
                         type="time"
                         value={scheduledTime}
                         onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#1f1f1f] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
                   </div>
@@ -634,62 +656,65 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
               {/* Поля делегирования */}
               {destination === 'waiting_for' && (
-                <div className="p-4 bg-zinc-50 dark:bg-[#141414] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3 text-xs">
+                <div className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3 text-xs">
                   <div>
                     <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                      Кому поручено дело? <span className="text-zinc-400">*</span>
+                      {isEn ? 'Delegated to?' : 'Кому поручено дело?'} <span className="text-zinc-400">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={delegatedTo}
                       onChange={(e) => setDelegatedTo(e.target.value)}
-                      placeholder="Имя, контакт или коллега..."
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#1f1f1f] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                      placeholder={isEn ? 'Name, contact or colleague...' : 'Имя, контакт или коллега...'}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                        Ожидаемый результат
+                        {isEn ? 'Expected result' : 'Ожидаемый результат'}
                       </label>
                       <input
                         type="text"
                         value={waitingFor}
                         onChange={(e) => setWaitingFor(e.target.value)}
-                        placeholder="Что ожидается..."
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#1f1f1f] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                        placeholder={isEn ? 'What is expected...' : 'Что ожидается...'}
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
                     <div>
                       <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                        Дата проверки
+                        {isEn ? 'Check date' : 'Дата проверки'}
                       </label>
                       <CustomDatePicker
                         value={checkDate}
                         onChange={setCheckDate}
                         minDate={todayStr}
-                        placeholder="Дата проверки"
+                        placeholder={isEn ? 'Check date' : 'Дата проверки'}
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Привязка к существующему проекту */}
+              {/* Привязка к существующему проекту: строгий монохром, без системных аномалий */}
               {projects.length > 0 && destination !== 'notes' && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                    Относится к проекту (необязательно)
+                    {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}
                   </label>
                   <select
                     value={projectId}
                     onChange={(e) => setProjectId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-200"
+                    style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 transition-colors"
                   >
-                    <option value="">Без проекта (самостоятельное действие)</option>
+                    <option value="" className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100">
+                      {isEn ? 'Without project (standalone action)' : 'Без проекта (самостоятельное действие)'}
+                    </option>
                     {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
+                      <option key={p.id} value={p.id} className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100">
                         📂 {p.title}
                       </option>
                     ))}
@@ -704,14 +729,14 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   onClick={onClose}
                   className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  Отмена
+                  {isEn ? 'Cancel' : 'Отмена'}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !taskTitle.trim()}
                   className="px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
                 >
-                  Сохранить задачу
+                  {isEn ? 'Save Task' : 'Сохранить задачу'}
                 </button>
               </div>
             </form>

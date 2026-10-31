@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Minus, Square, Copy, X } from 'lucide-react';
 import appLogo from '../assets/icon.png';
+import { Language, translations } from '../i18n/translations';
 
 interface WindowTitleBarProps {
   tabTitle?: string;
   tabCount?: string;
+  language?: Language;
 }
 
 export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
   tabTitle,
   tabCount,
+  language = 'ru',
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
+  const t = translations[language];
 
   useEffect(() => {
     let isMounted = true;
@@ -71,7 +75,7 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
             Arspective GTD
           </h1>
           <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate">
-            Система управления делами
+            {t.appSubtitle}
           </p>
         </div>
       </div>
@@ -94,7 +98,7 @@ export const WindowTitleBar: React.FC<WindowTitleBarProps> = ({
         </div>
 
         <div className="text-xs text-zinc-400 dark:text-zinc-500 hidden md:block truncate px-4 pointer-events-none">
-          Нажмите <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">ПКМ</kbd> для меню • <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#282828] border border-zinc-300 dark:border-zinc-700 text-[10px] font-mono">Ctrl+N</kbd> в корзину
+          {t.topBarHint}
         </div>
       </div>
 

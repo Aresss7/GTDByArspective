@@ -28,7 +28,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('next_actions');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [universalAddInitialMode, setUniversalAddInitialMode] = useState<'quick' | 'full' | undefined>(undefined);
-  const [modalDefaultDest, setModalDefaultDest] = useState<TaskDestination>('next_actions');
+  const [explicitDestination, setExplicitDestination] = useState<TaskDestination | null>(null);
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [projectSourceTask, setProjectSourceTask] = useState<Task | null>(null);
 
@@ -50,10 +50,63 @@ export const App: React.FC = () => {
     releaseName?: string;
   } | null>(null);
 
-  // Тёмная тема
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('gtd-theme') === 'dark';
+  // Тема оформления: 'system' (по умолчанию), 'light' или 'dark'
+  const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
+    return (localStorage.getItem('gtd-theme-mode') as 'system' | 'light' | 'dark') || 'system';
   });
+
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const savedMode = (localStorage.getItem('gtd-theme-mode') as 'system' | 'light' | 'dark') || 'system';
+    if (savedMode === 'dark') return true;
+    if (savedMode === 'light') return false;
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    const applyTheme = () => {
+      let isDark = false;
+      if (themeMode === 'system') {
+        isDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      } else {
+        isDark = themeMode === 'dark';
+      }
+      setIsDarkMode(isDark);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    applyTheme();
+    localStorage.setItem('gtd-theme-mode', themeMode);
+
+    if (themeMode === 'system' && typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => {
+        setIsDarkMode(e.matches);
+        if (e.matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      };
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+  }, [themeMode]);
+
+  const handleThemeModeChange = (mode: 'system' | 'light' | 'dark') => {
+    setThemeMode(mode);
+  };
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      handleThemeModeChange('light');
+    } else {
+      handleThemeModeChange('dark');
+    }
+  };
 
   // Язык интерфейса
   const [language, setLanguage] = useState<Language>(() => {
@@ -75,20 +128,6 @@ export const App: React.FC = () => {
     localStorage.setItem('gtd-default-capture-tab', val);
   };
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('gtd-theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('gtd-theme', 'light');
-    }
-  }, [isDarkMode]);
-
-  const toggleTheme = () => {
-    setIsDarkMode((prev) => !prev);
-  };
-
   // Загрузка актуальных данных
   const refreshData = async () => {
     if (window.gtdApi) {
@@ -108,26 +147,13 @@ export const App: React.FC = () => {
 
   // Открытие подробного модального окна добавления с контекстом текущей вкладки
   const openAddModal = (customDest?: TaskDestination) => {
-    if (customDest) {
-      setModalDefaultDest(customDest);
-    } else if (activeTab === 'next_actions') {
-      setModalDefaultDest('next_actions');
-    } else if (activeTab === 'calendar') {
-      setModalDefaultDest('calendar');
-    } else if (activeTab === 'waiting_for') {
-      setModalDefaultDest('waiting_for');
-    } else if (activeTab === 'someday') {
-      setModalDefaultDest('someday');
-    } else if (activeTab === 'notes') {
-      setModalDefaultDest('notes');
-    } else {
-      setModalDefaultDest('inbox');
-    }
+    setExplicitDestination(customDest || null);
     setUniversalAddInitialMode('full');
     setIsAddModalOpen(true);
   };
 
   const openRapidAddModal = () => {
+    setExplicitDestination(null);
     setUniversalAddInitialMode(undefined);
     setIsAddModalOpen(true);
   };
@@ -375,41 +401,43 @@ export const App: React.FC = () => {
   });
 
   const getTabTitle = () => {
+    const t = translations[language];
     switch (activeTab) {
       case 'next_actions':
-        return 'Текущие действия';
+        return t.navNextActions;
       case 'inbox':
-        return 'Корзина ГТД';
+        return t.navInbox;
       case 'projects':
-        return 'Проекты';
+        return t.navProjects;
       case 'calendar':
-        return 'Календарь';
+        return t.navCalendar;
       case 'waiting_for':
-        return 'Делегирование / Ожидание';
+        return t.navWaitingFor;
       case 'someday':
-        return 'Когда-нибудь потом';
+        return t.navSomeday;
       case 'notes':
-        return 'Заметки';
+        return t.navNotes;
       case 'completed':
-        return 'Завершённые';
+        return t.navCompleted;
       case 'trash':
-        return 'Мусор';
+        return t.navTrash;
       case 'sync':
-        return 'Синхронизация с телефоном';
+        return t.navSync;
       case 'settings':
-        return 'Настройки';
+        return t.navSettings;
       default:
-        return 'Задачи';
+        return 'Arspective GTD';
     }
   };
 
   const getTabCount = () => {
-    if (activeTab === 'projects') return `${projects.length} шт.`;
-    if (activeTab === 'sync') return 'Wi-Fi сеть';
-    if (activeTab === 'settings') return 'Параметры';
-    if (activeTab === 'inbox') return `${allInboxTasks.length} шт.`;
-    if (activeTab === 'next_actions') return `${allNextActions.length} шт.`;
-    return `${tasks.filter((t) => t.destination === activeTab && !t.deleted_at).length} шт.`;
+    const t = translations[language];
+    if (activeTab === 'projects') return `${projects.length} ${t.pcs}`;
+    if (activeTab === 'sync') return t.wifiNetwork;
+    if (activeTab === 'settings') return t.parameters;
+    if (activeTab === 'inbox') return `${allInboxTasks.length} ${t.pcs}`;
+    if (activeTab === 'next_actions') return `${allNextActions.length} ${t.pcs}`;
+    return `${tasks.filter((t) => t.destination === activeTab && !t.deleted_at).length} ${t.pcs}`;
   };
 
   return (
@@ -417,7 +445,8 @@ export const App: React.FC = () => {
       {/* Интегрированная верхняя панель приложения без строки поиска */}
         <WindowTitleBar 
           tabTitle={getTabTitle()} 
-          tabCount={getTabCount()} 
+          tabCount={getTabCount()}
+          language={language}
         />
 
         {/* Информационный баннер об обнаруженном обновлении */}
@@ -509,6 +538,7 @@ export const App: React.FC = () => {
               tasks={tasks}
               projects={projects}
               onTaskUpdated={refreshData}
+              language={language}
             />
           )}
 
@@ -528,6 +558,8 @@ export const App: React.FC = () => {
             <SettingsView
               isDarkMode={isDarkMode}
               onToggleTheme={toggleTheme}
+              themeMode={themeMode}
+              onChangeThemeMode={handleThemeModeChange}
               language={language}
               onChangeLanguage={handleLanguageChange}
               onOpenSync={() => setActiveTab('sync')}
@@ -828,16 +860,19 @@ export const App: React.FC = () => {
           setIsAddModalOpen(false);
           setProjectSourceTask(null);
           setUniversalAddInitialMode(undefined);
+          setExplicitDestination(null);
         }}
         currentTab={activeTab}
         defaultCaptureSetting={defaultCaptureTab}
-        defaultDestination={modalDefaultDest}
+        targetDestination={explicitDestination}
         initialMode={universalAddInitialMode}
         projects={projects}
         onSaveTask={handleSaveTask}
         onRapidSaveTask={handleRapidSaveTask}
         onProjectCreated={handleProjectCreated}
         sourceTask={projectSourceTask}
+        language={language}
+        isDarkMode={isDarkMode}
       />
 
       {/* Модальное окно редактирования задачи (по клику на карандаш или через ПКМ) */}

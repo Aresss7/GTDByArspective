@@ -17,16 +17,20 @@ import {
   Check,
   PlusCircle,
   Inbox,
-  Layers
+  Layers,
+  Monitor
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
 
 export type DefaultCaptureTabSetting = 'inbox' | 'current_menu';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 interface SettingsViewProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  themeMode?: ThemeMode;
+  onChangeThemeMode?: (mode: ThemeMode) => void;
   language: Language;
   onChangeLanguage: (lang: Language) => void;
   onOpenSync: () => void;
@@ -37,6 +41,8 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({
   isDarkMode,
   onToggleTheme,
+  themeMode = 'system',
+  onChangeThemeMode,
   language,
   onChangeLanguage,
   onOpenSync,
@@ -175,12 +181,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-w-md">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl">
           <button
             type="button"
-            onClick={() => { if (isDarkMode) onToggleTheme(); }}
+            onClick={() => onChangeThemeMode ? onChangeThemeMode('system') : null}
             className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
-              !isDarkMode
+              themeMode === 'system'
+                ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] font-bold shadow-xs'
+                : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+            }`}
+          >
+            <div className="flex items-center space-x-2.5">
+              <Monitor className="w-4 h-4 text-zinc-500" />
+              <span className="text-xs text-zinc-900 dark:text-zinc-100">{t.themeSystem}</span>
+            </div>
+            {themeMode === 'system' && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeThemeMode ? onChangeThemeMode('light') : onToggleTheme()}
+            className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              themeMode === 'light'
                 ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] font-bold shadow-xs'
                 : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
             }`}
@@ -189,16 +213,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Sun className="w-4 h-4 text-amber-500" />
               <span className="text-xs text-zinc-900 dark:text-zinc-100">{t.themeLight}</span>
             </div>
-            {!isDarkMode && (
+            {themeMode === 'light' && (
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             )}
           </button>
 
           <button
             type="button"
-            onClick={() => { if (!isDarkMode) onToggleTheme(); }}
+            onClick={() => onChangeThemeMode ? onChangeThemeMode('dark') : onToggleTheme()}
             className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
-              isDarkMode
+              themeMode === 'dark'
                 ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] font-bold shadow-xs'
                 : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
             }`}
@@ -207,7 +231,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Moon className="w-4 h-4 text-indigo-400" />
               <span className="text-xs text-zinc-900 dark:text-zinc-100">{t.themeDark}</span>
             </div>
-            {isDarkMode && (
+            {themeMode === 'dark' && (
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             )}
           </button>
@@ -493,7 +517,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         <div className="flex items-center justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
           <span>{t.aboutVersion}</span>
-          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.3.5</span>
+          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.3.6</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <span>{t.aboutDeveloper}</span>
