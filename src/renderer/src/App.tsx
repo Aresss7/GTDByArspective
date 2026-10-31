@@ -68,6 +68,16 @@ export const App: React.FC = () => {
     setStoredLanguage(lang);
   };
 
+  // Настройка вкладки по умолчанию для быстрого добавления: 'inbox' (по умолчанию) или 'current_menu'
+  const [defaultCaptureTab, setDefaultCaptureTab] = useState<'inbox' | 'current_menu'>(() => {
+    return (localStorage.getItem('gtd-default-capture-tab') as 'inbox' | 'current_menu') || 'inbox';
+  });
+
+  const handleDefaultCaptureTabChange = (val: 'inbox' | 'current_menu') => {
+    setDefaultCaptureTab(val);
+    localStorage.setItem('gtd-default-capture-tab', val);
+  };
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -207,14 +217,16 @@ export const App: React.FC = () => {
     setTasks((prev) => [mockTask, ...prev]);
   };
 
-  // Быстрое сохранение из плюсика (всегда строго в Корзину ГТД)
-  const handleRapidSaveTask = async (title: string) => {
+  // Быстрое непрерывное сохранение из плюсика (в Корзину или выбранную вкладку)
+  const handleRapidSaveTask = async (title: string, destination: TaskDestination = 'inbox') => {
+    const todayStr = new Date().toISOString().split('T')[0];
     if (window.gtdApi) {
       try {
         const newTask = await window.gtdApi.createTask({
           title,
-          destination: 'inbox',
+          destination,
           status: 'active',
+          scheduled_date: destination === 'calendar' ? todayStr : undefined,
         });
         setTasks((prev) => [newTask, ...prev]);
         return;
@@ -226,8 +238,9 @@ export const App: React.FC = () => {
     const mockTask: Task = {
       id: 'task_' + Date.now(),
       title,
-      destination: 'inbox',
+      destination,
       status: 'active',
+      scheduled_date: destination === 'calendar' ? todayStr : undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -513,6 +526,8 @@ export const App: React.FC = () => {
               language={language}
               onChangeLanguage={handleLanguageChange}
               onOpenSync={() => setActiveTab('sync')}
+              defaultCaptureTab={defaultCaptureTab}
+              onChangeDefaultCaptureTab={handleDefaultCaptureTabChange}
             />
           )}
 
@@ -801,12 +816,13 @@ export const App: React.FC = () => {
       </main>
       </div>
 
-      {/* Быстрое непрерывное добавление задач строго в Корзину */}
+      {/* Быстрое непрерывное добавление задач вкладками (Корзина / Текущий раздел) */}
       <RapidCaptureModal
         isOpen={isRapidCaptureOpen}
         onClose={() => setIsRapidCaptureOpen(false)}
         onSaveTask={handleRapidSaveTask}
         currentTab={activeTab}
+        defaultCaptureSetting={defaultCaptureTab}
       />
 
       {/* Модальное окно редактирования задачи (по клику на карандаш или через ПКМ) */}
