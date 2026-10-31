@@ -3,15 +3,23 @@ import { Trash2, RotateCcw, FolderKanban, CheckSquare, Search } from 'lucide-rea
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useToast } from '../components/ToastNotification';
+import { Language, translations } from '../i18n/translations';
 
 interface TrashViewProps {
   tasks: Task[];
   projects: Project[];
   onTaskUpdated: () => Promise<void>;
+  language?: Language;
 }
 
-export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpdated }) => {
+export const TrashView: React.FC<TrashViewProps> = ({ 
+  tasks, 
+  projects, 
+  onTaskUpdated,
+  language = 'ru'
+}) => {
   const { showToast } = useToast();
+  const t = translations[language];
   const [searchQuery, setSearchQuery] = useState('');
   const [trashProjects, setTrashProjects] = useState<Project[]>([]);
   const [deleteModalState, setDeleteModalState] = useState<{
@@ -117,7 +125,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск по удалённым задачам и проектам..."
+              placeholder={t.trashSearchPlaceholder}
               className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
             />
           </div>
@@ -128,20 +136,20 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
                 setDeleteModalState({
                   isOpen: true,
                   type: 'all',
-                  title: `Все ${totalTrashCount} удалённых элементов (задачи и проекты)`,
+                  title: `${totalTrashCount} ${t.pcs}`,
                 })
               }
               className="flex items-center space-x-1.5 px-4 py-2.5 rounded-full border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Очистить мусор</span>
+              <span>{t.trashEmptyAllBtn}</span>
             </button>
           )}
         </div>
 
         <div className="pb-1">
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Удалённые задачи, проекты и отклонённые мысли • Вы можете восстановить их или стереть навсегда.
+            {t.trashSubtitle}
           </p>
         </div>
 
@@ -150,9 +158,9 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
             <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
               <Trash2 className="w-7 h-7" />
             </div>
-            <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Раздел «Мусор» пуст</h3>
+            <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">{t.trashEmptyTitle}</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-              Здесь будут отображаться удалённые задачи и проекты.
+              {t.trashEmptyDesc}
             </p>
           </div>
         ) : (
@@ -161,7 +169,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
             {filteredTrashProjects.length > 0 && (
               <div className="space-y-2.5">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Удалённые проекты ({filteredTrashProjects.length})
+                  {t.trashDeletedProjects} ({filteredTrashProjects.length})
                 </div>
                 {filteredTrashProjects.map((project) => (
                   <div
@@ -188,10 +196,10 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
                       <button
                         onClick={() => handleRestoreProject(project)}
                         className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
-                        title="Восстановить проект"
+                        title={t.trashRestoreProject}
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                        <span>Восстановить проект</span>
+                        <span>{t.trashRestoreProject}</span>
                       </button>
 
                       <button
@@ -204,7 +212,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
                           })
                         }
                         className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                        title="Удалить навсегда"
+                        title={t.trashDeletePermanent}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -218,7 +226,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
             {trashTasks.length > 0 && (
               <div className="space-y-2.5">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Удалённые задачи ({trashTasks.length})
+                  {t.trashDeletedTasks} ({trashTasks.length})
                 </div>
                 {trashTasks.map((task) => (
                   <div
@@ -243,10 +251,10 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
                       <button
                         onClick={() => handleRestoreTask(task)}
                         className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
-                        title="Восстановить задачу"
+                        title={t.trashRestoreTask}
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                        <span>Восстановить</span>
+                        <span>{t.trashRestoreTask}</span>
                       </button>
 
                       <button
@@ -259,7 +267,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ tasks, projects, onTaskUpd
                           })
                         }
                         className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                        title="Удалить навсегда"
+                        title={t.trashDeletePermanent}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
