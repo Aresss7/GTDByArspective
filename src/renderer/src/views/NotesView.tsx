@@ -243,7 +243,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
             {searchQuery ? t.notFoundTitle : t.notesEmpty}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            {searchQuery ? t.notFoundDesc : (isEn ? 'Click «Create Note» to record reference materials, checklists, or ideas.' : 'Кликните «Создать заметку», чтобы записать полезную справочную информацию, чек-лист или идеи.')}
+            {searchQuery ? t.notFoundDesc : (isEn ? 'Use the «+» button or press Ctrl+N to create notes, checklists, or ideas.' : 'Нажмите кнопку «+» внизу или нажмите Ctrl+N, чтобы записать справочную информацию, чек-лист или идеи.')}
           </p>
         </div>
       ) : (

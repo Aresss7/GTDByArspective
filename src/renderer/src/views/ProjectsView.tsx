@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, FolderKanban, Search } from 'lucide-react';
+import { FolderKanban, Search } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { ProjectDetailModal } from './ProjectDetailModal';
 import { ProjectContextMenu } from '../components/ProjectContextMenu';
@@ -165,16 +165,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
             {filter === 'completed' ? t.projectsEmptyCompletedTitle : t.projectsEmptyActiveTitle}
           </h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
             {t.projectsEmptyDesc}
           </p>
-          <button
-            onClick={onOpenCreateProject}
-            className="inline-flex items-center space-x-2 px-5 py-2 rounded-full text-xs font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-[#282828] hover:bg-zinc-200 dark:hover:bg-[#303030] border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t.projectsCreateBtn}</span>
-          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -583,16 +583,9 @@ export const App: React.FC = () => {
                   <InboxIcon className="w-7 h-7" />
                 </div>
                 <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">{t.inboxEmptyTitle}</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
                   {t.inboxEmptyDesc}
                 </p>
-                <button
-                  onClick={() => setIsRapidCaptureOpen(true)}
-                  className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-[#282828] hover:bg-zinc-200 dark:hover:bg-[#323232] border border-zinc-200 dark:border-zinc-700 transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{t.inboxCaptureBtn}</span>
-                </button>
               </div>
             ) : (
               <div className="space-y-4 w-full max-w-6xl mx-auto">
@@ -730,16 +723,9 @@ export const App: React.FC = () => {
                     <CheckSquare className="w-7 h-7" />
                   </div>
                   <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 mb-1">{t.nextActionsEmptyTitle}</h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-4">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
                     {t.nextActionsEmptyDesc}
                   </p>
-                  <button
-                    onClick={() => openAddModal('next_actions')}
-                    className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full text-xs font-bold text-white dark:text-zinc-900 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 transition-all cursor-pointer shadow-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>{t.nextActionsAddBtn}</span>
-                  </button>
                 </div>
               ) : nextActionsTasks.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
