@@ -20,7 +20,7 @@ import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { useToast } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
 import { Task, Project, TaskDestination } from '@shared/types';
-import { Language, getStoredLanguage, setStoredLanguage } from './i18n/translations';
+import { Language, getStoredLanguage, setStoredLanguage, translations } from './i18n/translations';
 
 export const App: React.FC = () => {
   const { showToast } = useToast();
