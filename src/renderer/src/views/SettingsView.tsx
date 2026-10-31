@@ -493,7 +493,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         <div className="flex items-center justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
           <span>{t.aboutVersion}</span>
-          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.3.4</span>
+          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.3.5</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <span>{t.aboutDeveloper}</span>
