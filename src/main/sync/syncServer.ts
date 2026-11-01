@@ -304,16 +304,8 @@ export class SyncServer {
         // 1. Применяем изменения клиента на сервере
         const stats = repo.applyClientChanges(clientChanges, authenticatedDevice.id);
 
-        // Если были изменения от мобильного клиента, уведомляем другие клиенты и Desktop UI
-        if (
-          stats.tasksCreated > 0 ||
-          stats.tasksUpdated > 0 ||
-          stats.projectsCreated > 0 ||
-          stats.projectsUpdated > 0 ||
-          stats.tombstonesApplied > 0
-        ) {
-          this.broadcastChange();
-        }
+        // Всегда сразу уведомляем Desktop UI и мобильных клиентов о любых изменениях / синхронизации
+        this.broadcastChange();
 
         // 2. Получаем изменения с сервера, произошедшие после момента последней синхронизации клиента
         const serverChanges = repo.getChangesSince(lastSyncedAt);
