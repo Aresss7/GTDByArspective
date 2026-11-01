@@ -4,6 +4,7 @@ import fs from 'fs';
 
 // Установка постоянного AppUserModelId сразу при запуске процесса для сохранения закрепления на панели задач Windows
 app.setAppUserModelId('com.arspective.gtd');
+
 import { initDatabase, closeDatabase } from '../storage/database';
 import { registerTasksIpc } from './ipc/tasksIpc';
 import { registerProjectsIpc } from './ipc/projectsIpc';
@@ -12,8 +13,27 @@ import { registerSystemIpc } from './ipc/systemIpc';
 import { registerSyncIpc } from './ipc/syncIpc';
 import { registerPreviewIpc } from './ipc/previewIpc';
 import { SyncServer } from './sync/syncServer';
+import { createAppTray, loadCloseAction, getCloseAction, isAppQuitting, setAppQuitting } from './tray';
 
 let mainWindow: BrowserWindow | null = null;
+
+// Проверка единого экземпляра приложения
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.focus();
+    }
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -49,6 +69,14 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
+  // Перехват закрытия окна: сворачивание в трей при активной настройке
+  mainWindow.on('close', (event) => {
+    if (!isAppQuitting() && getCloseAction() === 'tray') {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -57,6 +85,9 @@ function createWindow() {
 app.whenReady().then(() => {
   // Установка постоянного AppUserModelId для сохранения закрепления на панели задач Windows
   app.setAppUserModelId('com.arspective.gtd');
+
+  // Загружаем настройки приложения
+  loadCloseAction();
 
   // Инициализация базы данных и запуск миграций
   initDatabase();
@@ -76,20 +107,32 @@ app.whenReady().then(() => {
 
   createWindow();
 
+  if (mainWindow) {
+    createAppTray(mainWindow);
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+      if (mainWindow) {
+        createAppTray(mainWindow);
+      }
+    } else if (mainWindow) {
+      if (!mainWindow.isVisible()) mainWindow.show();
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
     }
   });
 });
 
 app.on('before-quit', async () => {
+  setAppQuitting(true);
   await SyncServer.getInstance().stop();
   closeDatabase();
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (getCloseAction() !== 'tray' && process.platform !== 'darwin') {
     app.quit();
   }
 });

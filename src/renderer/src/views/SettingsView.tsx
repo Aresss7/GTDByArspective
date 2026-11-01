@@ -18,10 +18,13 @@ import {
   PlusCircle,
   Inbox,
   Layers,
-  Monitor
+  Monitor,
+  Minimize2,
+  Power
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
+import { WindowCloseAction } from '@shared/types';
 
 export type DefaultCaptureTabSetting = 'inbox' | 'current_menu';
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -36,6 +39,8 @@ interface SettingsViewProps {
   onOpenSync: () => void;
   defaultCaptureTab?: DefaultCaptureTabSetting;
   onChangeDefaultCaptureTab?: (setting: DefaultCaptureTabSetting) => void;
+  windowCloseAction?: WindowCloseAction;
+  onChangeWindowCloseAction?: (action: WindowCloseAction) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -48,6 +53,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenSync,
   defaultCaptureTab = 'inbox',
   onChangeDefaultCaptureTab,
+  windowCloseAction = 'tray',
+  onChangeWindowCloseAction,
 }) => {
   const t = translations[language];
   const { showToast } = useToast();
@@ -348,6 +355,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* Секция: Работа приложения и закрытие (Трей) */}
+      <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
+            <Minimize2 className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
+            <span>{t.windowSection}</span>
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {t.windowCloseBehaviorLabel}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
+          <button
+            type="button"
+            onClick={() => onChangeWindowCloseAction?.('tray')}
+            className={`flex items-start justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+              windowCloseAction === 'tray'
+                ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] shadow-xs'
+                : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+            }`}
+          >
+            <div className="space-y-1 pr-2">
+              <div className="flex items-center space-x-2">
+                <Minimize2 className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                  {t.windowCloseMinimizeToTray}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                {t.windowCloseMinimizeToTrayDesc}
+              </p>
+            </div>
+            {windowCloseAction === 'tray' && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeWindowCloseAction?.('quit')}
+            className={`flex items-start justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+              windowCloseAction === 'quit'
+                ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] shadow-xs'
+                : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+            }`}
+          >
+            <div className="space-y-1 pr-2">
+              <div className="flex items-center space-x-2">
+                <Power className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                  {t.windowCloseQuit}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                {t.windowCloseQuitDesc}
+              </p>
+            </div>
+            {windowCloseAction === 'quit' && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" />
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Секция: Синхронизация */}
       <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
         <div className="flex items-start justify-between">
@@ -517,7 +589,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         <div className="flex items-center justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
           <span>{t.aboutVersion}</span>
-          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.4.6</span>
+          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.4.7</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <span>{t.aboutDeveloper}</span>
