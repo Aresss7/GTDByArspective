@@ -214,7 +214,11 @@ export interface GtdApi {
   toggleMaximizeWindow: () => Promise<boolean>;
   isWindowMaximized: () => Promise<boolean>;
   closeWindow: () => Promise<void>;
+  setWindowCloseAction: (action: WindowCloseAction) => Promise<void>;
+  getWindowCloseAction: () => Promise<WindowCloseAction>;
 }
+
+export type WindowCloseAction = 'tray' | 'quit';
 
 declare global {
   interface Window {

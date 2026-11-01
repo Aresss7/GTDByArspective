@@ -19,7 +19,7 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { useToast } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
-import { Task, Project, TaskDestination } from '@shared/types';
+import { Task, Project, TaskDestination, WindowCloseAction } from '@shared/types';
 import { Language, getStoredLanguage, setStoredLanguage, translations } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -127,6 +127,25 @@ export const App: React.FC = () => {
     setDefaultCaptureTab(val);
     localStorage.setItem('gtd-default-capture-tab', val);
   };
+
+  // Настройка действия при закрытии окна: 'tray' (по умолчанию) или 'quit'
+  const [windowCloseAction, setWindowCloseAction] = useState<WindowCloseAction>(() => {
+    return (localStorage.getItem('gtd-window-close-action') as WindowCloseAction) || 'tray';
+  });
+
+  const handleWindowCloseActionChange = (action: WindowCloseAction) => {
+    setWindowCloseAction(action);
+    localStorage.setItem('gtd-window-close-action', action);
+    if (window.gtdApi?.setWindowCloseAction) {
+      window.gtdApi.setWindowCloseAction(action);
+    }
+  };
+
+  useEffect(() => {
+    if (window.gtdApi?.setWindowCloseAction) {
+      window.gtdApi.setWindowCloseAction(windowCloseAction);
+    }
+  }, []);
 
   // Загрузка актуальных данных
   const refreshData = async () => {
@@ -415,7 +434,25 @@ export const App: React.FC = () => {
   };
 
   // Списки задач для разделов
-  const allNextActions = tasks.filter((t) => t.destination === 'next_actions' && t.status === 'active' && !t.deleted_at);
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysLaterStr = `${sevenDaysLater.getFullYear()}-${String(sevenDaysLater.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysLater.getDate()).padStart(2, '0')}`;
+
+  const allNextActions = tasks.filter((t) => {
+    if (t.status !== 'active' || t.deleted_at) return false;
+    // Прямые текущие действия
+    if (t.destination === 'next_actions') return true;
+
+    // Задачи из календаря, до которых осталась неделя или меньше (включая сегодня и просроченные)
+    if (t.destination === 'calendar' || Boolean(t.scheduled_date)) {
+      const taskDate = t.scheduled_date || t.due_date;
+      if (taskDate && taskDate <= sevenDaysLaterStr) {
+        return true;
+      }
+    }
+    return false;
+  });
   const nextActionsQ = nextActionsSearch.toLowerCase().trim();
   const nextActionsTasks = allNextActions.filter((t) => {
     if (!nextActionsQ) return true;
@@ -601,6 +638,8 @@ export const App: React.FC = () => {
               onOpenSync={() => setActiveTab('sync')}
               defaultCaptureTab={defaultCaptureTab}
               onChangeDefaultCaptureTab={handleDefaultCaptureTabChange}
+              windowCloseAction={windowCloseAction}
+              onChangeWindowCloseAction={handleWindowCloseActionChange}
             />
           )}
 
@@ -806,6 +845,11 @@ export const App: React.FC = () => {
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
                             )}
                             <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              {task.destination === 'calendar' && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[10px] font-semibold">
+                                  🗓️ {t.calendarUpcomingBadge}
+                                </span>
+                              )}
                               {task.scheduled_date && (
                                 <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                                   📅 {task.scheduled_date} {task.scheduled_time || ''}

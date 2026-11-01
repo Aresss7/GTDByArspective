@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { BackupManager } from '../../storage/backup/backupManager';
+import { getCloseAction, setCloseAction, WindowCloseAction } from '../tray';
 
 export function registerSystemIpc(): void {
   ipcMain.handle('system:getAppVersion', () => app.getVersion());
@@ -191,7 +192,21 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('window:close', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (win) win.close();
+    if (win) {
+      if (getCloseAction() === 'tray') {
+        win.hide();
+      } else {
+        win.close();
+      }
+    }
+  });
+
+  ipcMain.handle('system:setWindowCloseAction', (_, action: WindowCloseAction) => {
+    setCloseAction(action);
+  });
+
+  ipcMain.handle('system:getWindowCloseAction', () => {
+    return getCloseAction();
   });
 }
 

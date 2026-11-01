@@ -99,6 +99,10 @@ const api: GtdApi = {
     ipcRenderer.invoke('window:isMaximized'),
   closeWindow: () =>
     ipcRenderer.invoke('window:close'),
+  setWindowCloseAction: (action: import('../shared/types').WindowCloseAction) =>
+    ipcRenderer.invoke('system:setWindowCloseAction', action),
+  getWindowCloseAction: () =>
+    ipcRenderer.invoke('system:getWindowCloseAction'),
 };
 
 contextBridge.exposeInMainWorld('gtdApi', api);
