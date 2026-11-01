@@ -104,11 +104,20 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
+      const target = e.target as Node | null;
+      if (menuRef.current && target && menuRef.current.contains(target)) {
+        return;
       }
+      onClose();
     };
-    const handleScroll = () => onClose();
+    const handleScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      // Не закрывать меню, если скроллится список внутри самого контекстного меню
+      if (menuRef.current && target && (menuRef.current === target || menuRef.current.contains(target))) {
+        return;
+      }
+      onClose();
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -182,6 +191,8 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
+      onMouseDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
       style={{ left: `${left}px`, top: `${top}px` }}
       className="fixed z-50 w-54 bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-1.5 space-y-1 animate-fadeIn select-none flex flex-col"
     >
@@ -201,7 +212,11 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
       </div>
 
       {/* Компактный прокручиваемый слайдер с элементами */}
-      <div className="max-h-[300px] overflow-y-auto space-y-0.5 pr-0.5">
+      <div 
+        className="max-h-[300px] overflow-y-auto space-y-0.5 pr-0.5 scrollbar-thin"
+        onMouseDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {/* Undo / Redo */}
         {(!q || 'отменить'.includes(q) || 'повторить'.includes(q)) && (
           <div className="flex items-center space-x-1 pb-1 border-b border-zinc-100 dark:border-zinc-800">

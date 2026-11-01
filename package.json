@@ -1,7 +1,7 @@
 {
   "name": "arspective-gtd",
   "productName": "Arspective GTD",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Arspective GTD application for Windows",
   "main": "dist-electron/main/index.js",
   "scripts": {
