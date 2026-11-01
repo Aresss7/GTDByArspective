@@ -187,12 +187,33 @@ export const App: React.FC = () => {
     });
 
     // Мгновенная реакция на любые изменения данных (локальные или синхронизация с мобильным приложением)
+    let unsubscribe: (() => void) | undefined;
     if (window.gtdApi?.onDataChanged) {
-      const unsubscribe = window.gtdApi.onDataChanged(() => {
+      unsubscribe = window.gtdApi.onDataChanged(() => {
         refreshData();
       });
-      return unsubscribe;
     }
+
+    const handleFocus = () => {
+      refreshData();
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Фоновое периодическое обновление (каждые 4 секунды) для мгновенного отображения без перезапуска
+    const pollInterval = setInterval(refreshData, 4000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(pollInterval);
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // Автоматическая проверка наличия обновлений при запуске приложения
