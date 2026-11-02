@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   Pause, 
@@ -51,9 +51,20 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   const [scheduledTime, setScheduledTime] = useState('');
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Инициализация задачи и сессии при открытии
+  const isInitializedRef = useRef(false);
+
+  // Инициализация задачи и сессии строго один раз при открытии модального окна
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      isInitializedRef.current = false;
+      return;
+    }
+
+    if (isInitializedRef.current) {
+      // Модальное окно уже открыто и шаг в процессе — не сбрасывать состояние при фоновом обновлении задач
+      return;
+    }
+    isInitializedRef.current = true;
 
     const initWizard = async () => {
       // Если передан конкретный initialTask (по выбору пользователя или первый шаг проекта)
@@ -72,16 +83,17 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         return;
       }
 
-      // Пытаемся восстановить активную сессию из IPC если доступно
+      // Пытаемся восстановить активную сессию из базы данных, только если задача всё ещё активна
       if (window.gtdApi) {
         try {
           const activeSession = await window.gtdApi.getActiveSession();
           if (activeSession) {
             const task = await window.gtdApi.getTaskById(activeSession.current_task_id);
-            if (task && task.status === 'active') {
+            if (task && task.status === 'active' && (task.destination === 'inbox' || task.project_id)) {
               setCurrentTask(task);
-              setCurrentQuestion(activeSession.current_question);
+              setCurrentQuestion(activeSession.current_question || 'ACTIONABLE');
               setSessionId(activeSession.id);
+              setHistoryStack([]);
               return;
             }
           }
@@ -109,7 +121,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     };
 
     initWizard();
-  }, [isOpen, initialTask, initialQuestion, inboxTasks]);
+  }, [isOpen, initialTask?.id]);
 
   if (!isOpen) return null;
 
