@@ -50,31 +50,57 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem('gtd-pinned-notes');
-      return raw ? JSON.parse(raw) : [];
+      const parsed: string[] = raw ? JSON.parse(raw) : [];
+      if (tasks && tasks.length > 0) {
+        const activeIds = new Set(
+          tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at).map((t) => t.id)
+        );
+        const cleaned = parsed.filter((id) => activeIds.has(id));
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem('gtd-pinned-notes', JSON.stringify(cleaned));
+        }
+        return cleaned;
+      }
+      return parsed;
     } catch {
       return [];
     }
   });
 
+  const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
+  const activeNoteIdSet = new Set(noteItems.map((n) => n.id));
+  const activePinnedIds = pinnedIds.filter((id) => activeNoteIdSet.has(id));
+
+  // Очистка удалённых заметок из списка закреплённых при любом обновлении задач / очистке корзины
+  useEffect(() => {
+    setPinnedIds((prev) => {
+      const pruned = prev.filter((id) => activeNoteIdSet.has(id));
+      if (pruned.length !== prev.length) {
+        localStorage.setItem('gtd-pinned-notes', JSON.stringify(pruned));
+        return pruned;
+      }
+      return prev;
+    });
+  }, [tasks]);
+
   const handleTogglePin = (noteId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setPinnedIds((prev) => {
+      const currentActive = prev.filter((id) => activeNoteIdSet.has(id));
       let next: string[];
-      if (prev.includes(noteId)) {
-        next = prev.filter((id) => id !== noteId);
+      if (currentActive.includes(noteId)) {
+        next = currentActive.filter((id) => id !== noteId);
       } else {
-        if (prev.length >= 4) {
+        if (currentActive.length >= 4) {
           setIsPinLimitOpen(true);
-          return prev;
+          return currentActive;
         }
-        next = [noteId, ...prev];
+        next = [noteId, ...currentActive];
       }
       localStorage.setItem('gtd-pinned-notes', JSON.stringify(next));
       return next;
     });
   };
-
-  const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
 
   const filteredNotes = noteItems.filter(
     (n) =>
@@ -82,14 +108,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
       (n.notes && n.notes.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Закреплённые заметки идут первыми в списке
+  // Закреплённые активные заметки идут первыми в списке
   const sortedNotes = [...filteredNotes].sort((a, b) => {
-    const isAPinned = pinnedIds.includes(a.id);
-    const isBPinned = pinnedIds.includes(b.id);
+    const isAPinned = activePinnedIds.includes(a.id);
+    const isBPinned = activePinnedIds.includes(b.id);
     if (isAPinned && !isBPinned) return -1;
     if (!isAPinned && isBPinned) return 1;
     if (isAPinned && isBPinned) {
-      return pinnedIds.indexOf(a.id) - pinnedIds.indexOf(b.id);
+      return activePinnedIds.indexOf(a.id) - activePinnedIds.indexOf(b.id);
     }
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
@@ -145,6 +171,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
     if (!window.gtdApi || !noteToDelete) return;
     try {
       await window.gtdApi.deleteTask(noteToDelete.id, false);
+      setPinnedIds((prev) => {
+        const next = prev.filter((id) => id !== noteToDelete.id);
+        localStorage.setItem('gtd-pinned-notes', JSON.stringify(next));
+        return next;
+      });
       if (selectedNote?.id === noteToDelete.id) {
         setSelectedNote(null);
       }
@@ -194,18 +225,18 @@ export const NotesView: React.FC<NotesViewProps> = ({
               type="button"
               onClick={() => handleTogglePin(selectedNote.id)}
               className={`flex items-center space-x-1.5 px-3 py-2 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 text-xs font-semibold ${
-                pinnedIds.includes(selectedNote.id)
+                activePinnedIds.includes(selectedNote.id)
                   ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
                   : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#282828] text-zinc-700 dark:text-zinc-300'
               }`}
               title={
-                pinnedIds.includes(selectedNote.id)
+                activePinnedIds.includes(selectedNote.id)
                   ? (isEn ? 'Unpin note' : 'Открепить заметку')
                   : (isEn ? 'Pin note (up to 4)' : 'Закрепить заметку (до 4)')
               }
             >
-              <Pin className={`w-3.5 h-3.5 ${pinnedIds.includes(selectedNote.id) ? 'fill-amber-500 text-amber-500' : ''}`} />
-              <span>{pinnedIds.includes(selectedNote.id) ? (isEn ? 'Pinned' : 'Закреплено') : (isEn ? 'Pin' : 'Закрепить')}</span>
+              <Pin className={`w-3.5 h-3.5 ${activePinnedIds.includes(selectedNote.id) ? 'fill-amber-500 text-amber-500' : ''}`} />
+              <span>{activePinnedIds.includes(selectedNote.id) ? (isEn ? 'Pinned' : 'Закреплено') : (isEn ? 'Pin' : 'Закрепить')}</span>
             </button>
 
             {/* Кнопка копирования */}
@@ -302,10 +333,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
           />
         </div>
 
-        {pinnedIds.length > 0 && (
+        {activePinnedIds.length > 0 && (
           <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 flex items-center space-x-1.5 shadow-xs">
             <Pin className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-            <span>{isEn ? `Pinned: ${pinnedIds.length}/4` : `Закреплено: ${pinnedIds.length}/4`}</span>
+            <span>{isEn ? `Pinned: ${activePinnedIds.length}/4` : `Закреплено: ${activePinnedIds.length}/4`}</span>
           </span>
         )}
       </div>
@@ -325,7 +356,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedNotes.map((note) => {
-            const isPinned = pinnedIds.includes(note.id);
+            const isPinned = activePinnedIds.includes(note.id);
             return (
               <div
                 key={note.id}

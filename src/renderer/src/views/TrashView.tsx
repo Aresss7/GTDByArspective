@@ -100,8 +100,25 @@ export const TrashView: React.FC<TrashViewProps> = ({
         for (const proj of trashProjects) {
           await window.gtdApi.deleteProject(proj.id, true);
         }
+        try {
+          const raw = localStorage.getItem('gtd-pinned-notes');
+          if (raw) {
+            const parsed: string[] = JSON.parse(raw);
+            const trashIds = new Set(allTrashTasks.map((t) => t.id));
+            const remaining = parsed.filter((id) => !trashIds.has(id));
+            localStorage.setItem('gtd-pinned-notes', JSON.stringify(remaining));
+          }
+        } catch {}
       } else if (deleteModalState.type === 'task' && deleteModalState.targetId) {
         await window.gtdApi.deleteTask(deleteModalState.targetId, true);
+        try {
+          const raw = localStorage.getItem('gtd-pinned-notes');
+          if (raw) {
+            const parsed: string[] = JSON.parse(raw);
+            const remaining = parsed.filter((id) => id !== deleteModalState.targetId);
+            localStorage.setItem('gtd-pinned-notes', JSON.stringify(remaining));
+          }
+        } catch {}
       } else if (deleteModalState.type === 'project' && deleteModalState.targetId) {
         await window.gtdApi.deleteProject(deleteModalState.targetId, true);
       }
