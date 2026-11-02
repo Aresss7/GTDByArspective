@@ -55,7 +55,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const todayStr = formatDateKey(new Date());
   const q = searchQuery.toLowerCase().trim();
   const allActiveCalendarTasks = tasks.filter(
-    (t) => !t.deleted_at && t.destination !== 'trash' && (t.destination === 'calendar' || Boolean(t.scheduled_date))
+    (t) =>
+      !t.deleted_at &&
+      t.destination !== 'trash' &&
+      t.destination !== 'someday' &&
+      t.destination !== 'notes' &&
+      t.destination !== 'waiting_for' &&
+      (t.destination === 'calendar' || Boolean(t.scheduled_date))
   );
   const activeCalendarTasks = allActiveCalendarTasks.filter((t) => {
     if (!q) return true;

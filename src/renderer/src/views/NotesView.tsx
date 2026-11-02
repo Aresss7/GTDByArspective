@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { PinLimitModal } from '../components/PinLimitModal';
 import { MarkdownNoteEditor } from '../components/MarkdownEditor';
 import { Language, translations } from '../i18n/translations';
 
@@ -45,6 +46,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Закреплённые заметки (до 4 заметок одновременно)
+  const [isPinLimitOpen, setIsPinLimitOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem('gtd-pinned-notes');
@@ -62,7 +64,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
         next = prev.filter((id) => id !== noteId);
       } else {
         if (prev.length >= 4) {
-          alert(isEn ? 'You can pin a maximum of 4 notes simultaneously.' : 'Можно закрепить не более 4 заметок одновременно.');
+          setIsPinLimitOpen(true);
           return prev;
         }
         next = [noteId, ...prev];
@@ -273,6 +275,13 @@ export const NotesView: React.FC<NotesViewProps> = ({
           onClose={() => setNoteToDelete(null)}
           onConfirm={handleConfirmDelete}
         />
+
+        {/* Модальное окно предупреждения о лимите закреплений */}
+        <PinLimitModal
+          isOpen={isPinLimitOpen}
+          onClose={() => setIsPinLimitOpen(false)}
+          language={language}
+        />
       </div>
     );
   }
@@ -404,6 +413,13 @@ export const NotesView: React.FC<NotesViewProps> = ({
         confirmText="Удалить в корзину"
         onClose={() => setNoteToDelete(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Модальное окно предупреждения о лимите закреплений */}
+      <PinLimitModal
+        isOpen={isPinLimitOpen}
+        onClose={() => setIsPinLimitOpen(false)}
+        language={language}
       />
     </div>
   );
