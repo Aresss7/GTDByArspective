@@ -75,13 +75,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         title: title.trim(),
         notes: notes.trim() || undefined,
         destination,
-        project_id: projectId || undefined,
-        scheduled_date: destination === 'calendar' ? scheduledDate || undefined : undefined,
-        scheduled_time: destination === 'calendar' ? scheduledTime || undefined : undefined,
-        due_date: dueDate || undefined,
-        delegated_to: destination === 'waiting_for' ? delegatedTo || undefined : undefined,
-        waiting_for: destination === 'waiting_for' ? waitingFor || undefined : undefined,
-        check_date: destination === 'waiting_for' ? checkDate || undefined : undefined,
+        project_id: projectId || null,
+        scheduled_date: destination === 'calendar' ? scheduledDate || null : null,
+        scheduled_time: destination === 'calendar' ? scheduledTime || null : null,
+        due_date: dueDate || null,
+        delegated_to: destination === 'waiting_for' ? delegatedTo || null : null,
+        waiting_for: destination === 'waiting_for' ? waitingFor || null : null,
+        check_date: destination === 'waiting_for' ? checkDate || null : null,
       });
       onClose();
     } finally {
@@ -188,7 +188,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setDestination(opt.id as TaskDestination)}
+                    onClick={() => {
+                      const nextDest = opt.id as TaskDestination;
+                      setDestination(nextDest);
+                      if (nextDest === 'waiting_for' && !checkDate) {
+                        setCheckDate(scheduledDate || dueDate || todayStr);
+                      }
+                    }}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-xl border transition-all text-left cursor-pointer ${
                       isSelected
                         ? 'border-zinc-900 dark:border-zinc-300 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-sm'
