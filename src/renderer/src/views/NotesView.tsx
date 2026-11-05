@@ -371,9 +371,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </div>
         </div>
 
-        {/* Панель поиска внутри заметки (Ctrl+F) */}
+        {/* Панель поиска внутри заметки (Ctrl+F) — плавающая поверх контента, не уходит при листании */}
         {inNoteSearchOpen && (
-          <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-[#242426] border border-zinc-200 dark:border-zinc-700 shadow-lg animate-fadeIn flex items-center justify-between gap-3">
+          <div className="fixed top-12 right-6 sm:right-10 z-40 p-3 rounded-2xl bg-white/95 dark:bg-[#242426]/95 backdrop-blur-md border border-zinc-200/90 dark:border-zinc-700/90 shadow-2xl animate-fadeIn flex items-center justify-between gap-3 max-w-sm sm:max-w-md w-[calc(100%-3rem)] sm:w-auto">
             <div className="flex items-center space-x-2.5 flex-1 max-w-md">
               <Search className="w-4 h-4 text-zinc-400 shrink-0" />
               <input
