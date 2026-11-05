@@ -28,10 +28,11 @@ export function registerProjectsIpc(): void {
   ipcMain.handle('projects:create', async (_, data: {
     title: string;
     description?: string;
-    firstStepTitle: string;
+    firstStepTitle?: string;
     approximatePlan?: string;
     completionCriteria?: string;
     sourceTaskId?: string;
+    existingTaskId?: string;
   }) => {
     const res = getRepo().createWithFirstStep(data);
     SyncServer.getInstance().broadcastChange();

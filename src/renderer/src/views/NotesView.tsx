@@ -153,6 +153,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
     if (!inNoteQuery.trim()) return;
     if (typeof window.find === 'function') {
       window.find(inNoteQuery, false, backwards, true);
+      // Гарантируем, что фокус остаётся в строке поиска для продолжения ввода или нажатия Enter
+      requestAnimationFrame(() => {
+        inNoteSearchInputRef.current?.focus();
+      });
     }
   };
 
@@ -371,19 +375,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 ref={inNoteSearchInputRef}
                 type="text"
                 value={inNoteQuery}
-                onChange={(e) => {
-                  setInNoteQuery(e.target.value);
-                  if (typeof window.find === 'function' && e.target.value.trim()) {
-                    window.find(e.target.value, false, false, true);
-                  }
-                }}
+                onChange={(e) => setInNoteQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     handleInNoteFind(e.shiftKey);
                   }
                 }}
-                placeholder={isEn ? 'Find in note...' : 'Поиск в тексте заметки...'}
+                placeholder={isEn ? 'Find in note (press Enter)...' : 'Поиск в тексте (Enter для перехода)...'}
                 className="w-full bg-transparent text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none"
               />
             </div>

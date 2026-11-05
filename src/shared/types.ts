@@ -162,11 +162,12 @@ export interface GtdApi {
   createProject: (data: {
     title: string;
     description?: string;
-    firstStepTitle: string;
+    firstStepTitle?: string;
     approximatePlan?: string;
     completionCriteria?: string;
     sourceTaskId?: string;
-  }) => Promise<{ project: Project; firstStep: Task }>;
+    existingTaskId?: string;
+  }) => Promise<{ project: Project; firstStep?: Task }>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
   deleteProject: (id: string, permanent?: boolean) => Promise<boolean>;
 
