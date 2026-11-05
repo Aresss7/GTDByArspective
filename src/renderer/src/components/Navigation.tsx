@@ -56,8 +56,8 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'waiting_for', label: t.navWaitingFor, icon: UserCheck },
     { id: 'someday', label: t.navSomeday, icon: Clock },
     { id: 'notes', label: t.navNotes, icon: FileText },
-    { id: 'completed', label: t.navCompleted, icon: CheckCircle2, count: completedCount },
-    { id: 'trash', label: t.navTrash, icon: Trash2, count: trashCount },
+    { id: 'completed', label: t.navCompleted, icon: CheckCircle2 },
+    { id: 'trash', label: t.navTrash, icon: Trash2 },
     { id: 'settings', label: t.navSettings, icon: Settings },
   ];
 
