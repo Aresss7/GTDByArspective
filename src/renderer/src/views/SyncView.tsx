@@ -86,8 +86,8 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
       {/* Верхняя статусная карточка сервера */}
-      <div className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5">
-        <div className="flex items-start space-x-4">
+      <div className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+        <div className="flex items-start space-x-4 flex-1 min-w-0">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
             status?.isRunning 
               ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' 
@@ -96,8 +96,8 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
             <Wifi className="w-6 h-6" />
           </div>
 
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2.5">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
               <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Локальный сервер синхронизации</h3>
               {status?.isRunning ? (
                 <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold">
@@ -111,7 +111,7 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
               )}
             </div>
 
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl leading-relaxed">
               Синхронизирует задачи и проекты напрямую с вашим телефоном через домашнюю Wi-Fi сеть. Без интернета и облаков.
             </p>
 
@@ -124,7 +124,7 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
         </div>
 
         {/* Кнопки управления */}
-        <div className="flex items-center space-x-2.5 shrink-0 self-end md:self-center">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start xl:self-center">
           <button
             onClick={handleToggleServer}
             disabled={isLoading}

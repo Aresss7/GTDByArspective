@@ -485,18 +485,9 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-3.5 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRapidSubmit(true)}
-                      disabled={!rapidTitle.trim()}
-                      className="px-4 py-2 rounded-full bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors disabled:opacity-40 cursor-pointer"
-                      title={isEn ? 'Save and close modal (Ctrl+Enter)' : 'Сохранить и закрыть окно (Ctrl+Enter)'}
-                    >
-                      {isEn ? 'Save & Close' : 'Сохранить и закрыть'}
                     </button>
                     <button
                       type="button"
