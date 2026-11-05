@@ -13,7 +13,8 @@ import {
   Pin,
   X,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
@@ -29,6 +30,25 @@ interface NotesViewProps {
   language?: Language;
   autoSaveNotesOnExit?: boolean;
 }
+
+const HighlightText: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  const cleanQ = query.trim().replace(/^[-–—]|[-–—]$/g, '').replace(/^[«"“]|[»"”]$/g, '').trim();
+  if (!cleanQ) return <span>{text}</span>;
+  const parts = text.split(new RegExp(`(${cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === cleanQ.toLowerCase() ? (
+          <mark key={i} className="bg-amber-300 dark:bg-amber-500/50 text-zinc-950 dark:text-zinc-50 rounded-xs px-0.5 font-bold">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </span>
+  );
+};
 
 export const NotesView: React.FC<NotesViewProps> = ({
   tasks,
@@ -135,28 +155,116 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
   const filteredNotes = noteItems.filter((n) => matchesSearch(n, searchQuery));
 
-  // Подсчёт совпадений внутри открытой заметки
-  const inNoteMatchesCount = useMemo(() => {
-    if (!inNoteQuery.trim()) return 0;
-    const full = (draftTitle + ' ' + draftContent).toLowerCase();
-    const q = inNoteQuery.toLowerCase();
-    let count = 0;
-    let pos = 0;
-    while ((pos = full.indexOf(q, pos)) !== -1) {
-      count++;
-      pos += q.length;
+  // Вычисление конкретных задач и строк, совпавших с поисковым запросом внутри заметки
+  const inNoteMatches = useMemo(() => {
+    const q = inNoteQuery.trim();
+    if (!q) return [];
+
+    const matches: Array<{
+      id: string;
+      type: 'title' | 'task_unchecked' | 'task_checked' | 'bullet' | 'line';
+      text: string;
+      lineNumber?: number;
+    }> = [];
+
+    // Совпадение в заголовке заметки
+    if (draftTitle && matchesSearch({ title: draftTitle }, q)) {
+      matches.push({
+        id: 'title',
+        type: 'title',
+        text: draftTitle,
+      });
     }
-    return count;
+
+    // Построчный поиск задач и чекбоксов в теле заметки
+    const lines = draftContent.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      if (!matchesSearch({ title: trimmed }, q)) return;
+
+      const checkedTaskMatch = trimmed.match(/^[-*]\s*\[([xX])\]\s*(.*)$/);
+      const uncheckedTaskMatch = trimmed.match(/^[-*]\s*\[\s*\]\s*(.*)$/);
+      const bulletMatch = trimmed.match(/^[-*]\s+(.*)$/);
+
+      if (checkedTaskMatch) {
+        matches.push({
+          id: `task_${idx}`,
+          type: 'task_checked',
+          text: checkedTaskMatch[2] || trimmed,
+          lineNumber: idx + 1,
+        });
+      } else if (uncheckedTaskMatch) {
+        matches.push({
+          id: `task_${idx}`,
+          type: 'task_unchecked',
+          text: uncheckedTaskMatch[1] || trimmed,
+          lineNumber: idx + 1,
+        });
+      } else if (bulletMatch) {
+        matches.push({
+          id: `line_${idx}`,
+          type: 'bullet',
+          text: bulletMatch[1] || trimmed,
+          lineNumber: idx + 1,
+        });
+      } else {
+        matches.push({
+          id: `line_${idx}`,
+          type: 'line',
+          text: trimmed,
+          lineNumber: idx + 1,
+        });
+      }
+    });
+
+    return matches;
   }, [inNoteQuery, draftTitle, draftContent]);
+
+  // Подсчёт общего количества вхождений подстроки
+  const inNoteMatchesCount = inNoteMatches.length;
 
   const handleInNoteFind = (backwards: boolean = false) => {
     if (!inNoteQuery.trim()) return;
     if (typeof window.find === 'function') {
       window.find(inNoteQuery, false, backwards, true);
-      // Гарантируем, что фокус остаётся в строке поиска для продолжения ввода или нажатия Enter
       requestAnimationFrame(() => {
         inNoteSearchInputRef.current?.focus();
       });
+    }
+  };
+
+  const handleJumpToMatch = (matchText: string) => {
+    if (typeof window.find === 'function') {
+      window.find(matchText, false, false, true);
+    }
+    const candidates = document.querySelectorAll('.ProseMirror p, .ProseMirror li, .ProseMirror div');
+    for (const el of Array.from(candidates)) {
+      if (el.textContent && el.textContent.toLowerCase().includes(matchText.toLowerCase())) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-amber-100', 'dark:bg-amber-950/60');
+        setTimeout(() => {
+          el.classList.remove('bg-amber-100', 'dark:bg-amber-950/60');
+        }, 1500);
+        break;
+      }
+    }
+    requestAnimationFrame(() => {
+      inNoteSearchInputRef.current?.focus();
+    });
+  };
+
+  const handleToggleTaskInContent = (lineNumber: number, currentChecked: boolean) => {
+    const lines = draftContent.split(/\r?\n/);
+    const lineIdx = lineNumber - 1;
+    if (lineIdx >= 0 && lineIdx < lines.length) {
+      if (currentChecked) {
+        lines[lineIdx] = lines[lineIdx].replace(/^([ \t]*[-*]\s*\[)[xX](\])/, '$1 $2');
+      } else {
+        lines[lineIdx] = lines[lineIdx].replace(/^([ \t]*[-*]\s*\[)\s*(\])/, '$1x$2');
+      }
+      const newContent = lines.join('\n');
+      setDraftContent(newContent);
     }
   };
 
@@ -366,63 +474,137 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </div>
         </div>
 
-        {/* Панель поиска внутри заметки (Ctrl+F) */}
+        {/* Панель поиска внутри заметки (Ctrl+F) с отображением найденных задач */}
         {inNoteSearchOpen && (
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100 dark:bg-[#242426] border border-zinc-200 dark:border-zinc-700 shadow-md animate-fadeIn">
-            <div className="flex items-center space-x-2 flex-1 max-w-md">
-              <Search className="w-4 h-4 text-zinc-400 shrink-0" />
-              <input
-                ref={inNoteSearchInputRef}
-                type="text"
-                value={inNoteQuery}
-                onChange={(e) => setInNoteQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleInNoteFind(e.shiftKey);
-                  }
-                }}
-                placeholder={isEn ? 'Find in note (press Enter)...' : 'Поиск в тексте (Enter для перехода)...'}
-                className="w-full bg-transparent text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none"
-              />
+          <div className="p-3.5 rounded-3xl bg-zinc-100 dark:bg-[#242426] border border-zinc-200 dark:border-zinc-700 shadow-xl animate-fadeIn space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center space-x-2.5 flex-1 max-w-md">
+                <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+                <input
+                  ref={inNoteSearchInputRef}
+                  type="text"
+                  value={inNoteQuery}
+                  onChange={(e) => setInNoteQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleInNoteFind(e.shiftKey);
+                    }
+                  }}
+                  placeholder={isEn ? 'Search tasks and text in this note...' : 'Поиск задач и текста в этой заметке...'}
+                  className="w-full bg-transparent text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none font-medium"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0 text-xs">
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  {inNoteQuery.trim()
+                    ? (inNoteMatches.length > 0 ? `${inNoteMatches.length} ${isEn ? 'found' : 'найдено'}` : (isEn ? 'Not found' : 'Не найдено'))
+                    : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleInNoteFind(true)}
+                  disabled={!inNoteQuery.trim() || inNoteMatches.length === 0}
+                  className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
+                  title={isEn ? 'Previous (Shift+Enter)' : 'Предыдущее (Shift+Enter)'}
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInNoteFind(false)}
+                  disabled={!inNoteQuery.trim() || inNoteMatches.length === 0}
+                  className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
+                  title={isEn ? 'Next (Enter)' : 'Следующее (Enter)'}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInNoteSearchOpen(false);
+                    setInNoteQuery('');
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+                  title={isEn ? 'Close search (Esc)' : 'Закрыть поиск (Esc)'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-2 shrink-0 text-xs">
-              <span className="text-[11px] text-zinc-400 font-mono">
-                {inNoteQuery.trim()
-                  ? (inNoteMatchesCount > 0 ? `${inNoteMatchesCount} ${isEn ? 'matches' : 'совп.'}` : (isEn ? 'Not found' : 'Не найдено'))
-                  : ''}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleInNoteFind(true)}
-                disabled={!inNoteQuery.trim() || inNoteMatchesCount === 0}
-                className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
-                title={isEn ? 'Previous (Shift+Enter)' : 'Предыдущее (Shift+Enter)'}
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInNoteFind(false)}
-                disabled={!inNoteQuery.trim() || inNoteMatchesCount === 0}
-                className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
-                title={isEn ? 'Next (Enter)' : 'Следующее (Enter)'}
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setInNoteSearchOpen(false);
-                  setInNoteQuery('');
-                }}
-                className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
-                title={isEn ? 'Close search (Esc)' : 'Закрыть поиск (Esc)'}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {/* СПИСОК НАЙДЕННЫХ ЗАДАЧ И СТРОК В ЗАМЕТКЕ */}
+            {inNoteQuery.trim() && (
+              <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-700/80">
+                {inNoteMatches.length === 0 ? (
+                  <div className="py-2.5 px-3 text-center text-xs text-zinc-400">
+                    {isEn ? 'No tasks or text matching your search' : 'Задачи или строки по запросу не найдены'}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block px-1 pb-0.5">
+                      {isEn ? `Found tasks & lines (${inNoteMatches.length}):` : `Найденные задачи и строки (${inNoteMatches.length}):`}
+                    </span>
+                    {inNoteMatches.map((match) => (
+                      <div
+                        key={match.id}
+                        onClick={() => handleJumpToMatch(match.text)}
+                        className="flex items-center justify-between p-2.5 rounded-2xl bg-white dark:bg-[#1a1a1c] border border-zinc-200/80 dark:border-zinc-700/80 hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer group shadow-2xs"
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                          {match.type === 'task_checked' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (match.lineNumber) handleToggleTaskInContent(match.lineNumber, true);
+                              }}
+                              className="shrink-0 text-emerald-500 hover:opacity-80 cursor-pointer"
+                              title={isEn ? 'Mark as incomplete' : 'Снять отметку'}
+                            >
+                              <CheckCircle2 className="w-4 h-4 fill-emerald-100 dark:fill-emerald-950/60" />
+                            </button>
+                          )}
+                          {match.type === 'task_unchecked' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (match.lineNumber) handleToggleTaskInContent(match.lineNumber, false);
+                              }}
+                              className="w-4 h-4 rounded-full border-2 border-zinc-400 hover:border-zinc-600 dark:hover:border-zinc-200 shrink-0 cursor-pointer transition-colors"
+                              title={isEn ? 'Mark as completed' : 'Отметить выполненным'}
+                            />
+                          )}
+                          {match.type === 'title' && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-700 text-[10px] font-bold text-zinc-700 dark:text-zinc-200 shrink-0">
+                              {isEn ? 'Title' : 'Заголовок'}
+                            </span>
+                          )}
+                          {match.type === 'bullet' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0 ml-1 mr-1" />
+                          )}
+                          {match.type === 'line' && (
+                            <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                          )}
+
+                          <span className={`text-xs truncate ${match.type === 'task_checked' ? 'line-through text-zinc-400' : 'text-zinc-800 dark:text-zinc-200 font-medium'}`}>
+                            <HighlightText text={match.text} query={inNoteQuery} />
+                          </span>
+                        </div>
+
+                        {match.lineNumber && (
+                          <span className="text-[10px] text-zinc-400 font-mono shrink-0">
+                            {isEn ? `line ${match.lineNumber}` : `стр. ${match.lineNumber}`}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

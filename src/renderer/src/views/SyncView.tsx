@@ -86,7 +86,7 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
       {/* Верхняя статусная карточка сервера */}
-      <div className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+      <div className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5 overflow-hidden">
         <div className="flex items-start space-x-4 flex-1 min-w-0">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
             status?.isRunning 
@@ -96,7 +96,7 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
             <Wifi className="w-6 h-6" />
           </div>
 
-          <div className="space-y-1 min-w-0">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2.5">
               <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Локальный сервер синхронизации</h3>
               {status?.isRunning ? (
@@ -124,7 +124,7 @@ export const SyncView: React.FC<SyncViewProps> = ({ onRefreshData }) => {
         </div>
 
         {/* Кнопки управления */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start xl:self-center">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start lg:self-center">
           <button
             onClick={handleToggleServer}
             disabled={isLoading}
