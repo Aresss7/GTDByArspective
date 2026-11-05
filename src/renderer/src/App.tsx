@@ -1057,7 +1057,7 @@ export const App: React.FC = () => {
         inboxTasks={inboxTasks}
         projects={projects}
         initialTask={wizardInitialTask}
-        initialQuestion={wizardInitialTask?.project_id ? 'FOR_ME' : 'ACTIONABLE'}
+        initialQuestion={wizardInitialTask?.project_id ? 'FOR_ME' : 'WHAT_IS_IT'}
         onTaskUpdated={refreshData}
         onCreateProjectRequested={handleCreateProjectFromWizard}
       />

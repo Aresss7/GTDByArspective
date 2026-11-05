@@ -20,7 +20,8 @@ import {
   Layers,
   Monitor,
   Minimize2,
-  Power
+  Power,
+  FileText
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
@@ -60,7 +61,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   autoSaveNotesOnExit = true,
   onChangeAutoSaveNotesOnExit,
 }) => {
-  const t = translations[language];
+  const t = translations[language] || translations.ru;
   const { showToast } = useToast();
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);

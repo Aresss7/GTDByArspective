@@ -469,24 +469,23 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <div className="text-[11px] text-zinc-400 dark:text-zinc-500 space-y-0.5">
-                    <div className="flex items-center space-x-1">
-                      <span className="font-semibold text-zinc-600 dark:text-zinc-300">Enter</span>
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="text-[11px] text-zinc-400 dark:text-zinc-500 space-y-1 shrink-0 whitespace-nowrap">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Enter</span>
                       <span>— {isEn ? 'save & continue' : 'сохранить и продолжить'}</span>
-                      <CornerDownLeft className="w-3 h-3 inline" />
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <span className="font-semibold text-zinc-600 dark:text-zinc-300">Ctrl + Enter</span>
+                    <div className="flex items-center space-x-1.5">
+                      <span className="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Ctrl + Enter</span>
                       <span>— {isEn ? 'save & close' : 'сохранить и закрыть'}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 shrink-0 ml-auto">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      className="px-3.5 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
                     </button>

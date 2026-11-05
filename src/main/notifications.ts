@@ -1,13 +1,52 @@
-import { Notification, ipcMain, BrowserWindow } from 'electron';
+import { Notification, ipcMain, BrowserWindow, app } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { getDatabase } from '../storage/database';
 
 let reminderInterval: NodeJS.Timeout | null = null;
-const notifiedKeys = new Set<string>();
 
-/**
- * Получить путь к иконке для уведомлений
- */
+// Файл для сохранения истории отправленных уведомлений (не дублировать при перезапуске приложения)
+function getStateFilePath(): string {
+  try {
+    return path.join(app.getPath('userData'), 'notifications-state.json');
+  } catch {
+    return path.join(process.cwd(), 'notifications-state.json');
+  }
+}
+
+interface NotificationState {
+  lastDate: string;
+  dailySummarySent: boolean;
+  notifiedTaskTimes: Record<string, string>; // taskId -> timeString
+}
+
+function loadNotificationState(todayStr: string): NotificationState {
+  try {
+    const file = getStateFilePath();
+    if (fs.existsSync(file)) {
+      const raw = fs.readFileSync(file, 'utf-8');
+      const data: NotificationState = JSON.parse(raw);
+      if (data.lastDate === todayStr) {
+        return data;
+      }
+    }
+  } catch {}
+  return {
+    lastDate: todayStr,
+    dailySummarySent: false,
+    notifiedTaskTimes: {},
+  };
+}
+
+function saveNotificationState(state: NotificationState): void {
+  try {
+    const file = getStateFilePath();
+    fs.writeFileSync(file, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Notifications] Failed to save state:', err);
+  }
+}
+
 function getNotificationIconPath(): string {
   return path.join(__dirname, '../../build/GTD.ico');
 }
@@ -55,19 +94,28 @@ export function showNativeNotification(options: {
   }
 }
 
+function pluralizeTasks(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${count} задач`;
+  if (mod10 === 1) return `${count} задача`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} задачи`;
+  return `${count} задач`;
+}
+
 /**
- * Проверка напоминаний по расписанию (задачи на сегодня, сроки, контрольные даты)
+ * Проверка напоминаний с агрегацией по времени и защитой от повторов при перезапуске
  */
 export function checkReminders(): void {
   try {
     const db = getDatabase();
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const curHours = String(now.getHours()).padStart(2, '0');
-    const curMinutes = String(now.getMinutes()).padStart(2, '0');
-    const currentTimeStr = `${curHours}:${curMinutes}`;
+    const curMinutesTotal = now.getHours() * 60 + now.getMinutes();
 
-    // 1. Задачи календаря и сроки на сегодня
+    const state = loadNotificationState(todayStr);
+
+    // Выбираем активные задачи на сегодня (календарь, дедлайны или контрольные даты ожидания)
     const dueTasks = db.prepare(`
       SELECT id, title, scheduled_date, scheduled_time, due_date, due_time, destination, check_date, waiting_for
       FROM tasks
@@ -79,6 +127,7 @@ export function checkReminders(): void {
           due_date = ? OR
           check_date = ?
         )
+      ORDER BY COALESCE(scheduled_time, due_time, '23:59') ASC
     `).all(todayStr, todayStr, todayStr) as Array<{
       id: string;
       title: string;
@@ -91,52 +140,67 @@ export function checkReminders(): void {
       waiting_for?: string;
     }>;
 
-    for (const task of dueTasks) {
-      // А. Запланированные задачи в календаре
-      if (task.scheduled_date === todayStr) {
-        const key = `${task.id}_scheduled_${todayStr}`;
-        if (!notifiedKeys.has(key)) {
-          if (!task.scheduled_time || task.scheduled_time <= currentTimeStr) {
-            notifiedKeys.add(key);
-            const timeInfo = task.scheduled_time ? ` в ${task.scheduled_time}` : '';
-            showNativeNotification({
-              title: 'Запланировано на сегодня',
-              body: `${task.title}${timeInfo}`,
-            });
-          }
-        }
-      }
+    if (dueTasks.length === 0) return;
 
-      // Б. Задачи с дедлайном (due_date)
-      if (task.due_date === todayStr) {
-        const key = `${task.id}_due_${todayStr}`;
-        if (!notifiedKeys.has(key)) {
-          if (!task.due_time || task.due_time <= currentTimeStr) {
-            notifiedKeys.add(key);
-            const timeInfo = task.due_time ? ` до ${task.due_time}` : '';
-            showNativeNotification({
-              title: 'Срок выполнения сегодня',
-              body: `${task.title}${timeInfo}`,
-            });
-          }
-        }
-      }
+    let stateModified = false;
 
-      // В. Задачи в ожидании (check_date)
-      if (task.check_date === todayStr && task.destination === 'waiting_for') {
-        const key = `${task.id}_waiting_${todayStr}`;
-        if (!notifiedKeys.has(key)) {
-          notifiedKeys.add(key);
-          const who = task.waiting_for ? ` от ${task.waiting_for}` : '';
-          showNativeNotification({
-            title: 'Контрольная дата ожидания',
-            body: `Проверьте: «${task.title}»${who}`,
-          });
-        }
+    // 1. Проверяем задачи с точным временем (уведомляем заранее — за 0..15 минут до наступления)
+    const timedTasks = dueTasks.filter((t) => t.scheduled_time || t.due_time);
+    for (const task of timedTasks) {
+      const timeStr = (task.scheduled_time || task.due_time)!;
+      const [hours, mins] = timeStr.split(':').map(Number);
+      if (isNaN(hours) || isNaN(mins)) continue;
+
+      const taskMinutesTotal = hours * 60 + mins;
+      const diffMin = taskMinutesTotal - curMinutesTotal;
+
+      // Уведомляем, если до задачи осталось от 0 до 15 минут, и для этого времени сегодня ещё не уведомляли
+      if (diffMin >= 0 && diffMin <= 15 && state.notifiedTaskTimes[task.id] !== timeStr) {
+        state.notifiedTaskTimes[task.id] = timeStr;
+        stateModified = true;
+
+        const timeNotice = diffMin === 0 ? 'прямо сейчас' : `через ${diffMin} мин`;
+        const countNotice = dueTasks.length > 1 ? ` (всего на сегодня: ${pluralizeTasks(dueTasks.length)})` : '';
+        
+        showNativeNotification({
+          title: 'Напоминание о задаче',
+          body: `У вас «${task.title}» ${timeNotice}${countNotice}`,
+        });
       }
     }
+
+    // 2. Общая утренняя/дневная сводка задач на сегодня (отправляется строго один раз в день)
+    if (!state.dailySummarySent && dueTasks.length > 0) {
+      // Ищем ближайшую задачу по времени
+      const nextTimed = timedTasks.find((t) => {
+        const timeStr = (t.scheduled_time || t.due_time)!;
+        const [h, m] = timeStr.split(':').map(Number);
+        return (h * 60 + m) >= curMinutesTotal;
+      });
+
+      let summaryBody = `У вас ${pluralizeTasks(dueTasks.length)} на сегодня.`;
+      if (nextTimed) {
+        const timeStr = (nextTimed.scheduled_time || nextTimed.due_time)!;
+        const [h, m] = timeStr.split(':').map(Number);
+        const diff = (h * 60 + m) - curMinutesTotal;
+        const timeNotice = diff > 0 ? `через ${diff} мин` : `в ${timeStr}`;
+        summaryBody += ` Ближайшая: «${nextTimed.title}» (${timeNotice}).`;
+      }
+
+      showNativeNotification({
+        title: 'Задачи на сегодня',
+        body: summaryBody,
+      });
+
+      state.dailySummarySent = true;
+      stateModified = true;
+    }
+
+    if (stateModified) {
+      saveNotificationState(state);
+    }
   } catch (err) {
-    // В некоторых тестах база может быть закрыта
+    // Безопасный перехват в фоновом процессе
   }
 }
 
@@ -144,12 +208,10 @@ export function checkReminders(): void {
  * Инициализация службы уведомлений и IPC
  */
 export function initNotificationService(): void {
-  // IPC для вызова уведомлений из renderer-процесса
   ipcMain.handle('system:showNotification', (_, options: { title: string; body: string; silent?: boolean }) => {
     return showNativeNotification(options);
   });
 
-  // Запуск фонового таймера проверки напоминаний (каждые 60 секунд)
   if (reminderInterval) clearInterval(reminderInterval);
   reminderInterval = setInterval(checkReminders, 60 * 1000);
 
