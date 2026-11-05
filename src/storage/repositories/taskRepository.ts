@@ -120,12 +120,26 @@ export class TaskRepository {
       completedAt = null;
     }
 
+    // Сохраняем исходный раздел при перемещении в мусор (например, someday)
+    let previousDest = updates.previous_destination !== undefined ? updates.previous_destination : existing.previous_destination;
+    let deletedAt = updates.deleted_at !== undefined ? updates.deleted_at : existing.deleted_at;
+
+    if (updates.destination === 'trash' && existing.destination !== 'trash') {
+      previousDest = existing.destination;
+      deletedAt = now;
+    } else if (updates.destination && updates.destination !== 'trash' && existing.destination === 'trash') {
+      previousDest = null;
+      deletedAt = null;
+    }
+
     const updatedTask: Task = {
       ...existing,
       ...updates,
       is_pinned: updates.is_pinned !== undefined ? (updates.is_pinned ? 1 : 0) : existing.is_pinned,
       updated_at: now,
       completed_at: completedAt,
+      previous_destination: previousDest || null,
+      deleted_at: deletedAt || null,
     };
 
     const stmt = this.db.prepare(`
@@ -198,7 +212,7 @@ export class TaskRepository {
       const now = new Date().toISOString();
       const prevDest = existing && existing.destination !== 'trash' ? existing.destination : null;
       const stmt = this.db.prepare(
-        "UPDATE tasks SET previous_destination = COALESCE(previous_destination, ?), destination = 'trash', is_pinned = 0, deleted_at = ?, updated_at = ? WHERE id = ?"
+        "UPDATE tasks SET previous_destination = COALESCE(?, previous_destination, 'inbox'), destination = 'trash', is_pinned = 0, deleted_at = ?, updated_at = ? WHERE id = ?"
       );
       const res = stmt.run(prevDest, now, now, id);
       return res.changes > 0;

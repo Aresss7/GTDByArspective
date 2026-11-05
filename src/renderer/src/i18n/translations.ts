@@ -10,7 +10,7 @@ export const translations = {
     navInbox: 'Корзина ГТД',
     navProjects: 'Проекты',
     navCalendar: 'Календарь',
-    navWaitingFor: 'Делегирование / Ожидание',
+    navWaitingFor: 'Делегированные',
     navSomeday: 'Когда-нибудь потом',
     navNotes: 'Заметки',
     navCompleted: 'Завершённые',

@@ -18,6 +18,7 @@ import { WindowTitleBar } from './components/WindowTitleBar';
 import { UpdateBanner } from './components/UpdateBanner';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DelegateTaskModal } from './components/DelegateTaskModal';
+import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { useToast } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
 import { Task, Project, TaskDestination, WindowCloseAction } from '@shared/types';
@@ -425,6 +426,8 @@ export const App: React.FC = () => {
 
   // Состояние модального окна делегирования
   const [taskToDelegate, setTaskToDelegate] = useState<Task | null>(null);
+  // Состояние модального окна планирования в календарь
+  const [taskToSchedule, setTaskToSchedule] = useState<Task | null>(null);
 
   const handleConfirmDelegate = async (
     taskId: string,
@@ -448,6 +451,21 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleConfirmSchedule = async (taskId: string, scheduledDate: string, scheduledTime?: string) => {
+    if (window.gtdApi) {
+      try {
+        await window.gtdApi.updateTask(taskId, {
+          destination: 'calendar',
+          scheduled_date: scheduledDate,
+          scheduled_time: scheduledTime || null,
+        });
+        await refreshData();
+      } catch (e) {
+        console.error('Failed to schedule task:', e);
+      }
+    }
+  };
+
   // Перемещение задачи в другое место назначения
   const handleMoveTaskDestination = async (task: Task, destination: TaskDestination) => {
     // При выборе делегирования открываем специальное окно с вводом «Кому» и выбором даты контроля
@@ -456,12 +474,28 @@ export const App: React.FC = () => {
       return;
     }
 
+    // При выборе календаря открываем специальное окно с обязательным выбором даты
+    if (destination === 'calendar') {
+      setTaskToSchedule(task);
+      return;
+    }
+
+    // При перемещении в корзину/мусор вызываем мягкое удаление, сохраняющее исходный раздел
+    if (destination === 'trash') {
+      if (window.gtdApi) {
+        try {
+          await window.gtdApi.deleteTask(task.id);
+          await refreshData();
+        } catch (e) {
+          console.error('Failed to move task to trash:', e);
+        }
+      }
+      return;
+    }
+
     if (window.gtdApi) {
       try {
         const updates: Partial<Task> = { destination };
-        if (destination === 'calendar' && !task.scheduled_date) {
-          updates.scheduled_date = new Date().toISOString().split('T')[0];
-        }
         // При перемещении в «Когда-нибудь потом», заметки или корзину — полностью убираем задачу из календаря
         if (destination === 'someday' || destination === 'notes' || destination === 'inbox') {
           updates.scheduled_date = null;
@@ -1044,6 +1078,15 @@ export const App: React.FC = () => {
         isOpen={Boolean(taskToDelegate)}
         onClose={() => setTaskToDelegate(null)}
         onDelegate={handleConfirmDelegate}
+        language={language}
+      />
+
+      {/* Окно обязательного выбора даты при переносе задачи в Календарь */}
+      <ScheduleTaskModal
+        task={taskToSchedule}
+        isOpen={Boolean(taskToSchedule)}
+        onClose={() => setTaskToSchedule(null)}
+        onSchedule={handleConfirmSchedule}
         language={language}
       />
 

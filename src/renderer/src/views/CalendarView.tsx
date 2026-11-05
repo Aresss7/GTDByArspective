@@ -11,6 +11,7 @@ import {
   Search
 } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 import { Checkbox } from '../components/Checkbox';
 import { Language, translations } from '../i18n/translations';
@@ -63,10 +64,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       t.destination !== 'waiting_for' &&
       (t.destination === 'calendar' || Boolean(t.scheduled_date))
   );
-  const activeCalendarTasks = allActiveCalendarTasks.filter((t) => {
-    if (!q) return true;
-    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
-  });
+  const activeCalendarTasks = allActiveCalendarTasks.filter((t) => matchesSearch(t, searchQuery));
   const selectedDateStr = formatDateKey(selectedDate);
 
   // Навигация по датам

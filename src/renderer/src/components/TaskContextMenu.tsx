@@ -74,7 +74,7 @@ export const TaskContextMenu: React.FC<TaskContextMenuProps> = ({
     { id: 'next_actions', label: 'Текущие действия', icon: CheckSquare },
     { id: 'inbox', label: 'Корзина ГТД', icon: Inbox },
     { id: 'calendar', label: 'Календарь (на сегодня)', icon: Calendar },
-    { id: 'waiting_for', label: 'Делегирование / Ожидание', icon: UserCheck },
+    { id: 'waiting_for', label: 'Делегированные', icon: UserCheck },
     { id: 'someday', label: 'Когда-нибудь потом', icon: Clock },
     { id: 'notes', label: 'Заметки', icon: FileText },
     { id: 'trash', label: 'Мусор', icon: Trash2 },

@@ -104,7 +104,7 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
     { id: 'next_actions', label: 'Текущие действия', icon: CheckSquare },
     { id: 'inbox', label: 'Корзина ГТД', icon: Inbox },
     { id: 'calendar', label: 'Календарь', icon: Calendar },
-    { id: 'waiting_for', label: 'Делегирование / Ожидание', icon: UserCheck },
+    { id: 'waiting_for', label: 'Делегированные', icon: UserCheck },
     { id: 'someday', label: 'Когда-нибудь потом', icon: Clock },
     { id: 'notes', label: 'Заметки', icon: FileText },
   ];

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, ArrowRight, Trash2, Plus, Edit2, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { Language, translations } from '../i18n/translations';
 
@@ -31,11 +32,7 @@ export const SomedayView: React.FC<SomedayViewProps> = ({
 
   const allSomedayTasks = tasks.filter((t) => t.destination === 'someday' && t.status === 'active' && !t.deleted_at);
 
-  const q = searchQuery.toLowerCase().trim();
-  const somedayTasks = allSomedayTasks.filter((t) => {
-    if (!q) return true;
-    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
-  });
+  const somedayTasks = allSomedayTasks.filter((t) => matchesSearch(t, searchQuery));
 
   const handleActivate = async (task: Task) => {
     if (!window.gtdApi) return;

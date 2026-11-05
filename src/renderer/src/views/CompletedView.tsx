@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, RotateCcw, Search, Check, FolderKanban, CheckSquare, FileCheck } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { useToast } from '../components/ToastNotification';
 import { Language, translations } from '../i18n/translations';
 import { ProjectDetailModal } from './ProjectDetailModal';
@@ -31,15 +32,8 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   const allCompletedTasks = tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash');
   const allCompletedProjects = projects.filter((p) => p.status === 'completed' && !p.deleted_at);
 
-  const completedTasks = allCompletedTasks.filter((t) => {
-    if (!q) return true;
-    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
-  });
-
-  const completedProjects = allCompletedProjects.filter((p) => {
-    if (!q) return true;
-    return p.title.toLowerCase().includes(q) || Boolean(p.description && p.description.toLowerCase().includes(q)) || Boolean(p.completion_criteria && p.completion_criteria.toLowerCase().includes(q));
-  });
+  const completedTasks = allCompletedTasks.filter((t) => matchesSearch(t, searchQuery));
+  const completedProjects = allCompletedProjects.filter((p) => matchesSearch(p, searchQuery));
 
   const getDestinationName = (destination: string) => {
     switch (destination) {
@@ -50,7 +44,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
       case 'calendar':
         return isEn ? '«Calendar»' : '«Календарь»';
       case 'waiting_for':
-        return isEn ? '«Waiting For»' : '«Делегирование / Ожидание»';
+        return isEn ? '«Waiting For»' : '«Делегированные»';
       case 'someday':
         return isEn ? '«Someday / Maybe»' : '«Когда-нибудь потом»';
       case 'notes':

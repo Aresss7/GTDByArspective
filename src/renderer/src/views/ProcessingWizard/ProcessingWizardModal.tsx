@@ -134,6 +134,56 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     initWizard();
   }, [isOpen, initialTask?.id]);
 
+  // Горячая клавиша Ctrl+Enter для утвердительного ответа на вопросы разбора
+  useEffect(() => {
+    if (!isOpen || !currentTask) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (currentQuestion === 'WHAT_IS_IT') {
+          const trimmed = taskNotes.trim();
+          const original = (currentTask.notes || '').trim();
+          const hasChanged = trimmed !== original;
+          handleStepAnswer('CONTINUE', {
+            notes: hasChanged ? (trimmed || undefined) : currentTask.notes,
+          });
+        } else if (['ACTIONABLE', 'FOR_ME', 'IS_NOW', 'IS_SINGLE_STEP'].includes(currentQuestion)) {
+          handleStepAnswer('YES');
+        } else if (currentQuestion === 'IS_TWO_MINUTES') {
+          handleStepAnswer('DONE');
+        } else if (currentQuestion === 'DELEGATE_FORM') {
+          if (delegatedTo.trim()) {
+            if (checkDate && checkDate < todayStr) return;
+            handleStepAnswer('SUBMIT_DELEGATION', {
+              delegatedTo: delegatedTo.trim(),
+              waitingFor: waitingFor.trim(),
+              delegatedDate: delegatedDate || undefined,
+              checkDate: checkDate || undefined,
+            });
+          }
+        } else if (currentQuestion === 'CALENDAR_FORM') {
+          if (scheduledDate) {
+            if (scheduledDate < todayStr) return;
+            handleStepAnswer('SUBMIT_CALENDAR', {
+              scheduledDate,
+              scheduledTime: scheduledTime || undefined,
+            });
+          }
+        } else if (currentQuestion === 'PROJECT_FORM') {
+          if (onCreateProjectRequested) {
+            onCreateProjectRequested(currentTask);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentTask, currentQuestion, taskNotes, delegatedTo, waitingFor, delegatedDate, checkDate, scheduledDate, scheduledTime, todayStr, onCreateProjectRequested]);
+
   if (!isOpen) return null;
 
   const handleStepAnswer = async (answer: GTDAnswer, payload?: any) => {
@@ -367,9 +417,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 </div>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{currentTask.title}</h2>
                 {currentTask.notes && (
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2 bg-white/70 dark:bg-zinc-800 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-700/50">
+                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-2 bg-white/70 dark:bg-zinc-800 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-700/50 max-h-24 overflow-y-auto whitespace-pre-wrap leading-relaxed custom-scrollbar">
                     {currentTask.notes}
-                  </p>
+                  </div>
                 )}
               </div>
 
@@ -406,7 +456,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         }}
                         className="py-3.5 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer text-center"
                       >
-                        Продолжить
+                        Продолжить <span className="text-[11px] font-normal opacity-80">(Ctrl + ↵)</span>
                       </button>
                       <button
                         onClick={() => handleStepAnswer('SKIP')}
@@ -423,9 +473,10 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
                       onClick={() => handleStepAnswer('YES')}
-                      className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                      className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2"
                     >
-                      Да
+                      <span>Да</span>
+                      <span className="text-xs font-normal opacity-70">(Ctrl + ↵)</span>
                     </button>
                     <button
                       onClick={() => handleStepAnswer('NO')}
@@ -530,7 +581,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                       disabled={!delegatedTo.trim()}
                       className="w-full py-3 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                     >
-                      Поместить в «Делегирование и ожидание»
+                      Поместить в «Делегированные»
                     </button>
                   </div>
                 )}
