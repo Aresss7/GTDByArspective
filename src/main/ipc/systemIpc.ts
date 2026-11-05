@@ -142,16 +142,45 @@ export function registerSystemIpc(): void {
         throw new Error(`Update installer file not found at ${filePath}`);
       }
 
-      // Launch the downloaded setup .exe with /S (silent update mode) to preserve taskbar pin
-      // When packaged, specify /D=<current_dir> so the update replaces the existing installation in-place (e.g. on D:\ drive)
-      const args = ['/S'];
-      if (app.isPackaged) {
-        args.push(`/D=${path.dirname(process.execPath)}`);
-      }
+      const appDir = path.dirname(process.execPath);
+      const appExe = process.execPath;
+      const exeName = path.basename(appExe);
 
-      const child = spawn(filePath, args, {
+      // Create a temporary batch runner that:
+      // 1. Waits for current app instance to exit completely
+      // 2. Runs the NSIS installer silently with --updated and --force-run to preserve shortcuts/pins
+      // 3. Verifies if app restarted, and if not, launches it directly
+      const tempDir = app.getPath('temp');
+      const runnerPath = path.join(tempDir, `gtd-updater-${Date.now()}.cmd`);
+
+      const cmdScript = `@echo off
+chcp 65001 >nul
+rem Wait for previous Electron process to terminate and release file locks
+timeout /t 2 /nobreak >nul
+
+rem Execute silent update with flags that guarantee shortcut preservation and auto-start
+start /wait "" "${filePath}" /S --updated --force-run /D=${appDir}
+
+rem Wait for installation to settle
+timeout /t 1 /nobreak >nul
+
+rem Ensure the application is started
+tasklist /fi "imagename eq ${exeName}" 2>nul | find /i "${exeName}" >nul
+if errorlevel 1 (
+  start "" "${appExe}"
+)
+
+rem Self-delete runner script
+del /f /q "%~f0" >nul 2>&1
+`;
+
+      fs.writeFileSync(runnerPath, cmdScript, 'utf8');
+
+      // Launch runner detached
+      const child = spawn('cmd.exe', ['/c', runnerPath], {
         detached: true,
         stdio: 'ignore',
+        windowsHide: true,
       });
       child.unref();
 
