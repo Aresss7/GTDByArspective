@@ -211,7 +211,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       key={t.id}
                       className={`text-[10px] truncate px-2 py-0.5 rounded-lg border font-medium ${
                         t.status === 'completed'
-                          ? 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 line-through border-transparent'
+                          ? 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border-transparent'
                           : 'bg-indigo-50 dark:bg-purple-950/50 text-indigo-900 dark:text-purple-200 border-indigo-200/50 dark:border-purple-800/50'
                       }`}
                       title={t.title}
@@ -309,7 +309,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           🕒 {t.scheduled_time}
                         </span>
                       )}
-                      <span className={`line-clamp-2 ${t.status === 'completed' ? 'line-through' : 'font-medium'}`}>
+                      <span className={`line-clamp-2 ${t.status === 'completed' ? 'text-zinc-400 dark:text-zinc-500' : 'font-medium'}`}>
                         {t.title}
                       </span>
                     </div>
@@ -372,7 +372,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       )}
                       <h4 className={`text-sm font-semibold ${
                         task.status === 'completed'
-                          ? 'line-through text-zinc-400 dark:text-zinc-500'
+                          ? 'text-zinc-400 dark:text-zinc-500'
                           : 'text-zinc-900 dark:text-zinc-100'
                       }`}>
                         {task.title}
@@ -508,7 +508,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                       <h4 className={`text-sm mt-1 font-semibold truncate ${
                         task.status === 'completed'
-                          ? 'line-through text-zinc-400 dark:text-zinc-500'
+                          ? 'text-zinc-400 dark:text-zinc-500'
                           : 'text-zinc-900 dark:text-zinc-100'
                       }`}>
                         {task.title}
@@ -713,7 +713,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         </div>
                         <h4 className={`text-sm mt-1 font-semibold truncate ${
                           task.status === 'completed'
-                            ? 'line-through text-zinc-400 dark:text-zinc-500'
+                            ? 'text-zinc-400 dark:text-zinc-500'
                             : 'text-zinc-900 dark:text-zinc-100'
                         }`}>
                           {task.title}
@@ -791,7 +791,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           )}
                           <span className={`font-semibold ${
                             task.status === 'completed'
-                              ? 'line-through text-zinc-400 dark:text-zinc-500'
+                              ? 'text-zinc-400 dark:text-zinc-500'
                               : 'text-zinc-800 dark:text-zinc-200'
                           }`}>
                             {task.title}

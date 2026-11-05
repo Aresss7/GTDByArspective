@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, CheckSquare, Inbox as InboxIcon, Play, Edit2, Trash2, Search } from 'lucide-react';
 import { Navigation, NavigationTab } from './components/Navigation';
 import { UniversalAddModal } from './components/UniversalAddModal';
@@ -593,6 +593,14 @@ export const App: React.FC = () => {
     }
   };
 
+  const completedTasksCount = useMemo(() => {
+    return tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash').length;
+  }, [tasks]);
+
+  const trashItemsCount = useMemo(() => {
+    return tasks.filter((t) => t.destination === 'trash' || t.deleted_at != null).length;
+  }, [tasks]);
+
   const getTabCount = () => {
     const t = translations[language];
     if (activeTab === 'projects') return `${projects.length} ${t.pcs}`;
@@ -600,6 +608,8 @@ export const App: React.FC = () => {
     if (activeTab === 'settings') return t.parameters;
     if (activeTab === 'inbox') return `${allInboxTasks.length} ${t.pcs}`;
     if (activeTab === 'next_actions') return `${allNextActions.length} ${t.pcs}`;
+    if (activeTab === 'completed') return `${completedTasksCount} ${t.pcs}`;
+    if (activeTab === 'trash') return `${trashItemsCount} ${t.pcs}`;
     return `${tasks.filter((t) => t.destination === activeTab && !t.deleted_at).length} ${t.pcs}`;
   };
 
@@ -631,6 +641,8 @@ export const App: React.FC = () => {
             activeTab={activeTab}
             onSelectTab={setActiveTab}
             inboxCount={allInboxTasks.length}
+            completedCount={completedTasksCount}
+            trashCount={trashItemsCount}
             onStartProcessing={() => {
               setWizardInitialTask(null);
               setIsProcessingOpen(true);
@@ -928,7 +940,7 @@ export const App: React.FC = () => {
                               <h4
                                 className={`text-sm font-semibold truncate ${
                                   task.status === 'completed'
-                                    ? 'line-through text-zinc-400 dark:text-zinc-500'
+                                    ? 'text-zinc-400 dark:text-zinc-500'
                                     : 'text-zinc-900 dark:text-zinc-100'
                                 }`}
                               >

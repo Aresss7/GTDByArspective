@@ -22,6 +22,8 @@ interface NavigationProps {
   activeTab: NavigationTab;
   onSelectTab: (tab: NavigationTab) => void;
   inboxCount: number;
+  completedCount?: number;
+  trashCount?: number;
   onStartProcessing: () => void;
   language?: Language;
 }
@@ -30,6 +32,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   activeTab,
   onSelectTab,
   inboxCount,
+  completedCount = 0,
+  trashCount = 0,
   onStartProcessing,
   language = 'ru',
 }) => {
@@ -52,8 +56,8 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'waiting_for', label: t.navWaitingFor, icon: UserCheck },
     { id: 'someday', label: t.navSomeday, icon: Clock },
     { id: 'notes', label: t.navNotes, icon: FileText },
-    { id: 'completed', label: t.navCompleted, icon: CheckCircle2 },
-    { id: 'trash', label: t.navTrash, icon: Trash2 },
+    { id: 'completed', label: t.navCompleted, icon: CheckCircle2, count: completedCount },
+    { id: 'trash', label: t.navTrash, icon: Trash2, count: trashCount },
     { id: 'settings', label: t.navSettings, icon: Settings },
   ];
 

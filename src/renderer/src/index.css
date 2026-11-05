@@ -119,17 +119,17 @@
   border-top: 1px solid rgba(120, 120, 120, 0.25) !important;
 }
 
-/* Чекбоксы в заметках — круглые, стильные */
+/* Чекбоксы в заметках — круглые, выровненные, #191919 в светлой теме и белые в тёмной */
 .ProseMirror ul[data-type="taskList"] {
   list-style: none !important;
-  padding-left: 0.25rem !important;
+  padding-left: 0.15rem !important;
   margin: 0.5rem 0 !important;
 }
 
 .ProseMirror ul[data-type="taskList"] li {
   display: flex !important;
   align-items: flex-start !important;
-  gap: 0.6rem !important;
+  gap: 0.65rem !important;
   margin: 0.35rem 0 !important;
   list-style: none !important;
 }
@@ -138,18 +138,21 @@
   flex: 0 0 auto !important;
   user-select: none !important;
   cursor: pointer !important;
-  margin-top: 0.2rem !important;
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: center !important;
+  height: 1.5rem !important; /* Ровное выравнивание с высотой строки текста */
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
   appearance: none !important;
   -webkit-appearance: none !important;
-  width: 1.15rem !important;
-  height: 1.15rem !important;
+  width: 1.18rem !important;
+  height: 1.18rem !important;
   border-radius: 9999px !important; /* КРУГЛЫЙ чекбокс */
-  border: 1.75px solid #71717a !important;
+  border: 1.75px solid #a1a1aa !important;
   outline: none !important;
   cursor: pointer !important;
   display: flex !important;
@@ -160,15 +163,33 @@
   margin: 0 !important;
 }
 
-.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:hover {
-  border-color: #10b981 !important;
-  background-color: rgba(16, 185, 129, 0.08) !important;
+.dark .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  border-color: #71717a !important;
 }
 
+.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:hover {
+  border-color: #191919 !important;
+}
+
+.dark .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:hover {
+  border-color: #ffffff !important;
+}
+
+/* Светлая тема: чекбокс #191919 с белой галочкой */
 .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
-  background-color: #10b981 !important;
-  border-color: #10b981 !important;
+  background-color: #191919 !important;
+  border-color: #191919 !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-size: 70% 70% !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Тёмная тема: чекбокс БЕЛЫЙ с галочкой #191919 */
+.dark .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  background-color: #ffffff !important;
+  border-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23191919' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") !important;
   background-size: 70% 70% !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
@@ -177,9 +198,50 @@
 .ProseMirror ul[data-type="taskList"] li > div {
   flex: 1 1 auto !important;
   min-width: 0 !important;
+  line-height: 1.5rem !important;
 }
 
+.ProseMirror ul[data-type="taskList"] li > div > p {
+  margin: 0 !important;
+  line-height: 1.5rem !important;
+}
+
+/* Завершённые задачи НЕ перечёркиваются, а становятся более серыми */
 .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
-  text-decoration: line-through !important;
+  text-decoration: none !important;
+  color: #71717a !important;
+  opacity: 0.6 !important;
+}
+
+.dark .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: #a1a1aa !important;
   opacity: 0.55 !important;
+}
+
+/* Яркая и четкая подсветка результатов поиска в тексте заметки */
+.search-match {
+  background-color: #fef08a !important; /* Яркий жёлтый */
+  color: #18181b !important;
+  border-radius: 3px !important;
+  padding: 1px 2px !important;
+  box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.45) !important;
+}
+
+.dark .search-match {
+  background-color: #854d0e !important; /* Тёмно-янтарный фон */
+  color: #fef08a !important; /* Яркий жёлтый текст */
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.45) !important;
+}
+
+.search-match-active {
+  background-color: #f97316 !important; /* Ярко-оранжевый фокус */
+  color: #ffffff !important;
+  font-weight: bold !important;
+  box-shadow: 0 0 0 2px #ea580c !important;
+}
+
+.dark .search-match-active {
+  background-color: #ea580c !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 2px #fb923c !important;
 }

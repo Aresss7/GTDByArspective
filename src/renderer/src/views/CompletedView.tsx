@@ -182,7 +182,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                           <Check className="w-4 h-4 stroke-[3]" />
                         </button>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 line-through leading-snug break-words">
+                          <h4 className="text-sm font-bold text-zinc-600 dark:text-zinc-300 leading-snug break-words">
                             {p.title}
                           </h4>
                           {p.description && (
@@ -203,7 +203,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                         <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-zinc-500 block mb-0.5">
                           {isEn ? '1st Step:' : '1-й шаг:'}
                         </span>
-                        <span className="text-zinc-500 dark:text-zinc-400 font-semibold line-through break-words whitespace-pre-wrap leading-relaxed block">
+                        <span className="text-zinc-500 dark:text-zinc-400 font-semibold break-words whitespace-pre-wrap leading-relaxed block">
                           {firstStep.title}
                         </span>
                       </div>
@@ -259,7 +259,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </button>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through truncate">
+                      <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 truncate">
                         {task.title}
                       </h4>
                       {task.completed_at && (
