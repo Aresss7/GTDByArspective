@@ -152,8 +152,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
           });
         } else if (['ACTIONABLE', 'FOR_ME', 'IS_NOW', 'IS_SINGLE_STEP'].includes(currentQuestion)) {
           handleStepAnswer('YES');
-        } else if (currentQuestion === 'IS_TWO_MINUTES') {
-          handleStepAnswer('DONE');
+        } else if (currentQuestion === 'DO_TWO_MINUTES') {
+          handleStepAnswer('COMPLETE_ACTION');
         } else if (currentQuestion === 'DELEGATE_FORM') {
           if (delegatedTo.trim()) {
             if (checkDate && checkDate < todayStr) return;
@@ -172,7 +172,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
               scheduledTime: scheduledTime || undefined,
             });
           }
-        } else if (currentQuestion === 'PROJECT_FORM') {
+        } else if (currentQuestion === 'CREATE_PROJECT_FORM') {
           if (onCreateProjectRequested) {
             onCreateProjectRequested(currentTask);
           }

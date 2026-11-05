@@ -73,7 +73,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           sourceTaskId: sourceTask?.id,
         });
 
-        await onProjectCreated(result);
+        if (result.firstStep) {
+          await onProjectCreated({ project: result.project, firstStep: result.firstStep });
+        }
         onClose();
       }
     } catch (err: any) {

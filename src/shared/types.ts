@@ -142,6 +142,13 @@ export interface SyncResult {
   };
 }
 
+export interface LinkPreviewData {
+  url: string;
+  title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+}
+
 // IPC API definition
 export interface GtdApi {
   // Tasks

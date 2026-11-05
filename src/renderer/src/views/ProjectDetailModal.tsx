@@ -203,7 +203,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     try {
       await window.gtdApi.updateProject(project.id, {
         title: projectTitleDraft.trim(),
-        description: projectDescDraft.trim() || null,
+        description: projectDescDraft.trim() || undefined,
         completion_criteria: projectCriteriaDraft.trim(),
       });
       setIsEditingProject(false);

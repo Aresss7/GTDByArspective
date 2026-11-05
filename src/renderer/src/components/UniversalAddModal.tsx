@@ -399,7 +399,9 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
           sourceTaskId: sourceTask?.id,
         });
 
-        await onProjectCreated(result);
+        if (result.firstStep) {
+          await onProjectCreated({ project: result.project, firstStep: result.firstStep });
+        }
         onClose();
       }
     } catch (err: any) {
@@ -488,7 +490,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
           {/* КОНТЕНТ: Режим 1 — Быстрая фиксация в Корзину */}
           {modalMode === 'quick' && (
             <div className="p-6 space-y-5 flex-1 flex flex-col justify-between">
-              <form onSubmit={handleRapidSubmit} className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleRapidSubmit(false, e); }} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
                     {isEn ? 'Quick capture thought to Inbox:' : 'Быстрая фиксация мысли в Корзину:'}

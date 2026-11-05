@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, NativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -61,7 +61,7 @@ export function setAppQuitting(val: boolean): void {
   isQuitting = val;
 }
 
-function resolveTrayIcon(): nativeImage {
+function resolveTrayIcon(): NativeImage {
   const possiblePaths = [
     path.join(__dirname, 'icon.ico'),
     path.join(__dirname, 'icon.png'),

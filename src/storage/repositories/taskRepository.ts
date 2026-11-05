@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { Task, TaskDestination, TaskStatus } from '../../shared/types';
-import { v4 as uuidv4 } from 'crypto';
+import { randomUUID } from 'crypto';
+const uuidv4 = () => randomUUID();
 
 export class TaskRepository {
   constructor(private db: Database.Database) {}
