@@ -532,7 +532,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start gap-2">
-                              <span className={`break-words whitespace-pre-wrap leading-relaxed ${step.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
+                              <span className={`break-words whitespace-pre-wrap leading-relaxed ${step.status === 'completed' ? 'text-zinc-400 dark:text-zinc-500' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
                                 {step.title}
                               </span>
                               {step.id === project.first_step_task_id && (

@@ -167,7 +167,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                       <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-zinc-500 block mb-0.5">
                         {isEn ? '1st Step:' : '1-й шаг:'}
                       </span>
-                      <span className={`break-words whitespace-pre-wrap leading-relaxed block ${firstStep.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200 font-semibold'}`}>
+                      <span className={`break-words whitespace-pre-wrap leading-relaxed block ${firstStep.status === 'completed' ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200 font-semibold'}`}>
                         {firstStep.title}
                       </span>
                     </div>

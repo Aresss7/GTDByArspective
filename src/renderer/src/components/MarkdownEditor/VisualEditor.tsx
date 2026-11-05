@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -10,6 +13,76 @@ import { Markdown } from 'tiptap-markdown';
 import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
 import { LinkPreviewCard } from './LinkPreviewCard';
+
+export const SearchHighlightKey = new PluginKey('searchHighlight');
+
+export const SearchHighlight = Extension.create({
+  name: 'searchHighlight',
+
+  addOptions() {
+    return {
+      searchTerm: '',
+      activeIndex: 0,
+    };
+  },
+
+  addProseMirrorPlugins() {
+    const extension = this;
+
+    return [
+      new Plugin({
+        key: SearchHighlightKey,
+        state: {
+          init() {
+            return DecorationSet.empty;
+          },
+          apply(tr, oldSet, oldState, newState) {
+            const meta = tr.getMeta(SearchHighlightKey);
+            const rawTerm = meta?.searchTerm !== undefined ? meta.searchTerm : extension.options.searchTerm;
+            const term = rawTerm ? rawTerm.trim().toLowerCase() : '';
+            const targetActive = meta?.activeIndex !== undefined ? meta.activeIndex : extension.options.activeIndex;
+
+            if (!term) {
+              return DecorationSet.empty;
+            }
+
+            const decorations: Decoration[] = [];
+            let matchIdx = 0;
+
+            newState.doc.descendants((node, pos) => {
+              if (node.isText && node.text) {
+                const text = node.text.toLowerCase();
+                let index = text.indexOf(term);
+
+                while (index !== -1) {
+                  const from = pos + index;
+                  const to = from + term.length;
+                  const isActive = matchIdx === targetActive;
+
+                  decorations.push(
+                    Decoration.inline(from, to, {
+                      class: isActive ? 'search-match search-match-active' : 'search-match',
+                    })
+                  );
+
+                  matchIdx++;
+                  index = text.indexOf(term, index + term.length);
+                }
+              }
+            });
+
+            return DecorationSet.create(newState.doc, decorations);
+          },
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          },
+        },
+      }),
+    ];
+  },
+});
 
 // Кастомный перенос строки без обратного слэша "\" при сохранении в Markdown
 export const CustomHardBreak = HardBreak.extend({
@@ -43,6 +116,8 @@ interface VisualEditorProps {
   onChange: (markdown: string) => void;
   onSave?: () => void;
   placeholder?: string;
+  searchTerm?: string;
+  activeMatchIndex?: number;
 }
 
 export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
@@ -50,6 +125,8 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
   onChange,
   onSave,
   placeholder = 'Начните вводить текст заметки... Для форматирования нажмите правую кнопку мыши.',
+  searchTerm,
+  activeMatchIndex,
 }, ref) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
     x: 0,
@@ -121,6 +198,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         transformPastedText: true,
         transformCopiedText: true,
       }),
+      SearchHighlight,
     ],
     content: initialMarkdown,
     editorProps: {
@@ -171,6 +249,33 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
       onChange(md);
     },
   });
+
+  // Обновление подсветки поиска и скролл к активному совпадению
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
+    editor.extensionManager.extensions.forEach((ext) => {
+      if (ext.name === 'searchHighlight') {
+        ext.options.searchTerm = searchTerm || '';
+        ext.options.activeIndex = activeMatchIndex || 0;
+      }
+    });
+
+    const { tr } = editor.state;
+    editor.view.dispatch(tr.setMeta(SearchHighlightKey, {
+      searchTerm: searchTerm || '',
+      activeIndex: activeMatchIndex || 0,
+    }));
+
+    if (searchTerm?.trim()) {
+      setTimeout(() => {
+        const activeEl = editor.view.dom.querySelector('.search-match-active');
+        if (activeEl) {
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 40);
+    }
+  }, [searchTerm, activeMatchIndex, editor]);
 
   useImperativeHandle(ref, () => ({
     getMarkdown: () => {

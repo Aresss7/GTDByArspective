@@ -276,7 +276,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
-                          <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 line-through truncate">
+                          <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 truncate">
                             {task.title}
                           </h4>
                           {task.previous_destination && (
@@ -348,7 +348,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                         <FolderKanban className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-zinc-600 dark:text-zinc-300 line-through truncate">
+                        <h4 className="text-sm font-bold text-zinc-600 dark:text-zinc-300 truncate">
                           {project.title}
                         </h4>
                         {project.description && (
@@ -416,7 +416,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                         <FileText className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 line-through truncate">
+                        <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 truncate">
                           {note.title}
                         </h4>
                         {note.notes && (

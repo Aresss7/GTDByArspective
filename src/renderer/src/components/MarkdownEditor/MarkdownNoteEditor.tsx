@@ -8,6 +8,8 @@ interface MarkdownNoteEditorProps {
   onChange: (val: string) => void;
   onSave?: () => void;
   placeholder?: string;
+  searchTerm?: string;
+  activeMatchIndex?: number;
 }
 
 export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
@@ -15,6 +17,8 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
   onChange,
   onSave,
   placeholder,
+  searchTerm,
+  activeMatchIndex,
 }) => {
   // Always start in visual mode when opening a note
   const [mode, setMode] = useState<'visual' | 'source'>('visual');
@@ -100,6 +104,8 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
           onChange={handleContentChange}
           onSave={onSave}
           placeholder={placeholder}
+          searchTerm={searchTerm}
+          activeMatchIndex={activeMatchIndex}
         />
       ) : (
         <SourceEditor
@@ -108,6 +114,8 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
           onChange={handleContentChange}
           onSave={onSave}
           placeholder={placeholder}
+          searchTerm={searchTerm}
+          activeMatchIndex={activeMatchIndex}
         />
       )}
     </div>

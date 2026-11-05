@@ -58,6 +58,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   // Поиск внутри открытой заметки (Ctrl+F)
   const [inNoteSearchOpen, setInNoteSearchOpen] = useState(false);
   const [inNoteQuery, setInNoteQuery] = useState('');
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
   const inNoteSearchInputRef = useRef<HTMLInputElement>(null);
 
   const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
@@ -149,27 +150,19 @@ export const NotesView: React.FC<NotesViewProps> = ({
     return count;
   }, [inNoteQuery, draftTitle, draftContent]);
 
-  const executeInNoteFind = (query: string, backwards: boolean = false) => {
-    if (!query.trim()) return;
-    const input = inNoteSearchInputRef.current;
-    const start = input?.selectionStart ?? query.length;
-    const end = input?.selectionEnd ?? query.length;
+  const handleQueryChange = (val: string) => {
+    setInNoteQuery(val);
+    setActiveMatchIndex(0);
+  };
 
-    if (typeof window.find === 'function') {
-      window.find(query, false, backwards, true, false, false, false);
-    }
+  const handleNextMatch = () => {
+    if (inNoteMatchesCount <= 0) return;
+    setActiveMatchIndex((prev) => (prev + 1) % inNoteMatchesCount);
+  };
 
-    // Сохраняем фокус и каретку строго в поле ввода, чтобы ввод не прерывался
-    if (input) {
-      input.focus();
-      input.setSelectionRange(start, end);
-      requestAnimationFrame(() => {
-        if (document.activeElement !== input) {
-          input.focus();
-          input.setSelectionRange(start, end);
-        }
-      });
-    }
+  const handlePrevMatch = () => {
+    if (inNoteMatchesCount <= 0) return;
+    setActiveMatchIndex((prev) => (prev - 1 + inNoteMatchesCount) % inNoteMatchesCount);
   };
 
   // Закреплённые активные заметки идут первыми в списке
@@ -387,17 +380,15 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 ref={inNoteSearchInputRef}
                 type="text"
                 value={inNoteQuery}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setInNoteQuery(val);
-                  if (val.trim()) {
-                    executeInNoteFind(val, false);
-                  }
-                }}
+                onChange={(e) => handleQueryChange(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    executeInNoteFind(inNoteQuery, e.shiftKey);
+                    if (e.shiftKey) {
+                      handlePrevMatch();
+                    } else {
+                      handleNextMatch();
+                    }
                   } else if (e.key === 'Escape') {
                     e.preventDefault();
                     setInNoteSearchOpen(false);
@@ -413,7 +404,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <span className="text-[11px] text-zinc-400 font-mono">
                 {inNoteQuery.trim()
                   ? inNoteMatchesCount > 0
-                    ? `${inNoteMatchesCount} ${isEn ? 'found' : 'совп.'}`
+                    ? `${activeMatchIndex + 1} из ${inNoteMatchesCount}`
                     : isEn
                       ? 'Not found'
                       : 'Не найдено'
@@ -421,7 +412,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               </span>
               <button
                 type="button"
-                onClick={() => executeInNoteFind(inNoteQuery, true)}
+                onClick={handlePrevMatch}
                 disabled={!inNoteQuery.trim() || inNoteMatchesCount === 0}
                 className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
                 title={isEn ? 'Previous (Shift+Enter)' : 'Предыдущее (Shift+Enter)'}
@@ -430,7 +421,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => executeInNoteFind(inNoteQuery, false)}
+                onClick={handleNextMatch}
                 disabled={!inNoteQuery.trim() || inNoteMatchesCount === 0}
                 className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
                 title={isEn ? 'Next (Enter)' : 'Следующее (Enter)'}
@@ -475,6 +466,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
               onChange={(val) => setDraftContent(val)}
               onSave={handleSaveNote}
               placeholder={t.notesContentPlaceholder}
+              searchTerm={inNoteSearchOpen ? inNoteQuery : ''}
+              activeMatchIndex={activeMatchIndex}
             />
           </div>
         </div>

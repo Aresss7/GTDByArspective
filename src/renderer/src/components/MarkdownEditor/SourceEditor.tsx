@@ -14,6 +14,8 @@ interface SourceEditorProps {
   onChange: (val: string) => void;
   onSave?: () => void;
   placeholder?: string;
+  searchTerm?: string;
+  activeMatchIndex?: number;
 }
 
 export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
@@ -21,6 +23,8 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
   onChange,
   onSave,
   placeholder = 'Введите текст в формате Markdown...',
+  searchTerm,
+  activeMatchIndex,
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
@@ -47,6 +51,27 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
       end: textareaRef.current?.selectionEnd || 0,
     }),
   }));
+
+  // Переход и подсветка совпадения в textarea
+  useEffect(() => {
+    if (!searchTerm?.trim() || !textareaRef.current) return;
+    const val = textareaRef.current.value.toLowerCase();
+    const term = searchTerm.toLowerCase();
+    let count = 0;
+    let pos = 0;
+    let foundIndex = -1;
+    while ((pos = val.indexOf(term, pos)) !== -1) {
+      if (count === (activeMatchIndex || 0)) {
+        foundIndex = pos;
+        break;
+      }
+      count++;
+      pos += term.length;
+    }
+    if (foundIndex !== -1) {
+      textareaRef.current.setSelectionRange(foundIndex, foundIndex + term.length);
+    }
+  }, [searchTerm, activeMatchIndex]);
 
   // Context Menu opener
   const handleContextMenu = (e: React.MouseEvent) => {

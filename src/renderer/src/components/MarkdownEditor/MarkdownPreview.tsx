@@ -88,13 +88,13 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
               <span
                 className={`w-3.5 h-3.5 mt-0.5 rounded-full flex items-center justify-center shrink-0 border ${
                   isChecked
-                    ? 'bg-emerald-600 dark:bg-emerald-500 border-emerald-600 dark:border-emerald-500 text-white text-[9px] font-black'
+                    ? 'bg-[#191919] dark:bg-white border-[#191919] dark:border-white text-white dark:text-[#191919] text-[9px] font-black'
                     : 'border-zinc-300 dark:border-zinc-600 bg-white/50 dark:bg-zinc-800/50'
                 }`}
               >
                 {isChecked ? '✓' : ''}
               </span>
-              <span className={`break-words ${isChecked ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>
+              <span className={`break-words ${isChecked ? 'text-zinc-400 dark:text-zinc-500' : ''}`}>
                 {parseInline(taskText)}
               </span>
             </div>
