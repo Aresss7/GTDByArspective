@@ -26,7 +26,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   searchQuery = '',
   language = 'ru',
 }) => {
-  const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
@@ -42,13 +41,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   const effectiveSearch = localSearch.trim() || searchQuery.trim();
 
-  const filteredProjects = projects.filter((p) => {
-    let matchFilter = true;
-    if (filter === 'active') matchFilter = p.status === 'active';
-    else if (filter === 'completed') matchFilter = p.status === 'completed';
+  // В разделе «Проекты» отображаются только активные проекты
+  const activeProjects = projects.filter((p) => p.status === 'active' && !p.deleted_at);
 
-    if (!matchFilter) return false;
-
+  const filteredProjects = activeProjects.filter((p) => {
     if (effectiveSearch) {
       const q = effectiveSearch.toLowerCase();
       const inTitle = p.title.toLowerCase().includes(q);
@@ -120,42 +116,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         </div>
       </div>
 
-      {/* Панель фильтров статуса */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-[#222222] p-1 rounded-2xl text-xs font-bold border border-zinc-200 dark:border-zinc-800">
-          <button
-            onClick={() => setFilter('active')}
-            className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
-              filter === 'active' 
-                ? 'bg-white dark:bg-[#303030] text-zinc-900 dark:text-white shadow-xs' 
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            {t.projectsFilterActive} ({projects.filter((p) => p.status === 'active').length})
-          </button>
-          <button
-            onClick={() => setFilter('completed')}
-            className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
-              filter === 'completed' 
-                ? 'bg-white dark:bg-[#303030] text-zinc-900 dark:text-white shadow-xs' 
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            {t.projectsFilterCompleted} ({projects.filter((p) => p.status === 'completed').length})
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-1.5 rounded-xl transition-all cursor-pointer ${
-              filter === 'all' 
-                ? 'bg-white dark:bg-[#303030] text-zinc-900 dark:text-white shadow-xs' 
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            {t.projectsFilterAll} ({projects.length})
-          </button>
-        </div>
-      </div>
-
       {/* Сетка проектов */}
       {filteredProjects.length === 0 ? (
         <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
@@ -163,10 +123,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             <FolderKanban className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-            {filter === 'completed' ? t.projectsEmptyCompletedTitle : t.projectsEmptyActiveTitle}
+            {effectiveSearch ? t.notFoundTitle : t.projectsEmptyActiveTitle}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            {t.projectsEmptyDesc}
+            {effectiveSearch ? t.notFoundDesc : t.projectsEmptyActiveDesc}
           </p>
         </div>
       ) : (

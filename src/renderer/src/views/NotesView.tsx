@@ -386,10 +386,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
           />
         </div>
 
-        {activePinnedIds.length > 0 && (
+        {noteItems.filter((n) => Boolean(n.is_pinned)).length > 0 && (
           <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 flex items-center space-x-1.5 shadow-xs">
             <Pin className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-            <span>{isEn ? `Pinned: ${activePinnedIds.length}/4` : `Закреплено: ${activePinnedIds.length}/4`}</span>
+            <span>{isEn ? `Pinned: ${noteItems.filter((n) => Boolean(n.is_pinned)).length}/4` : `Закреплено: ${noteItems.filter((n) => Boolean(n.is_pinned)).length}/4`}</span>
           </span>
         )}
       </div>
