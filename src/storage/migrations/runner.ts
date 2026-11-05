@@ -178,6 +178,13 @@ export const migrations: Migration[] = [
       }
     },
   },
+  {
+    id: 5,
+    name: '005_clean_pinned_trash',
+    up: (db: Database.Database) => {
+      db.exec("UPDATE tasks SET is_pinned = 0 WHERE destination = 'trash' OR deleted_at IS NOT NULL;");
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

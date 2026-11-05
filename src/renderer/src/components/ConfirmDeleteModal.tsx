@@ -7,6 +7,8 @@ interface ConfirmDeleteModalProps {
   onConfirm: () => void;
   title: string;
   isPermanent?: boolean;
+  description?: string;
+  confirmText?: string;
 }
 
 export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
@@ -15,6 +17,8 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   onConfirm,
   title,
   isPermanent = false,
+  description,
+  confirmText,
 }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -55,9 +59,9 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
                 {isPermanent ? 'Удалить навсегда?' : 'Переместить в Мусор?'}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {isPermanent 
+                {description || (isPermanent 
                   ? 'Элемент будет удалён без возможности восстановления' 
-                  : 'Задачу можно будет восстановить из раздела «Мусор»'}
+                  : 'Элемент можно будет восстановить из раздела «Мусор»')}
               </p>
             </div>
           </div>
@@ -87,7 +91,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             onClick={onConfirm}
             className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
           >
-            {isPermanent ? 'Удалить навсегда' : 'Переместить в Мусор'}
+            {confirmText || (isPermanent ? 'Удалить навсегда' : 'Переместить в Мусор')}
           </button>
         </div>
       </div>

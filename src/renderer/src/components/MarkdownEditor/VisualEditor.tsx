@@ -4,6 +4,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import HardBreak from '@tiptap/extension-hard-break';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { Markdown } from 'tiptap-markdown';
 import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
@@ -96,6 +98,17 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
       }),
       CustomHardBreak,
       Underline,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'task-item',
+        },
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -281,6 +294,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
           codeBlock: editor.isActive('codeBlock'),
           bulletList: editor.isActive('bulletList'),
           orderedList: editor.isActive('orderedList'),
+          taskList: editor.isActive('taskList'),
         }}
         onToggleBold={() => editor.chain().focus().toggleBold().run()}
         onToggleItalic={() => editor.chain().focus().toggleItalic().run()}
@@ -293,6 +307,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         onToggleCodeBlock={() => editor.chain().focus().toggleCodeBlock().run()}
         onToggleBulletList={() => editor.chain().focus().toggleBulletList().run()}
         onToggleOrderedList={() => editor.chain().focus().toggleOrderedList().run()}
+        onToggleTaskList={() => editor.chain().focus().toggleTaskList().run()}
         onInsertHorizontalRule={() => editor.chain().focus().setHorizontalRule().run()}
         onInsertOrEditLink={handleOpenLinkModal}
         onRemoveLink={handleRemoveLink}

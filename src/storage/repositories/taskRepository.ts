@@ -198,7 +198,7 @@ export class TaskRepository {
       const now = new Date().toISOString();
       const prevDest = existing && existing.destination !== 'trash' ? existing.destination : null;
       const stmt = this.db.prepare(
-        "UPDATE tasks SET previous_destination = COALESCE(previous_destination, ?), destination = 'trash', deleted_at = ?, updated_at = ? WHERE id = ?"
+        "UPDATE tasks SET previous_destination = COALESCE(previous_destination, ?), destination = 'trash', is_pinned = 0, deleted_at = ?, updated_at = ? WHERE id = ?"
       );
       const res = stmt.run(prevDest, now, now, id);
       return res.changes > 0;

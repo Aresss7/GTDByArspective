@@ -12,6 +12,7 @@ import { registerProcessingIpc } from './ipc/processingIpc';
 import { registerSystemIpc } from './ipc/systemIpc';
 import { registerSyncIpc } from './ipc/syncIpc';
 import { registerPreviewIpc } from './ipc/previewIpc';
+import { initNotificationService, stopNotificationService } from './notifications';
 import { SyncServer } from './sync/syncServer';
 import { createAppTray, loadCloseAction, getCloseAction, isAppQuitting, setAppQuitting } from './tray';
 
@@ -99,6 +100,7 @@ app.whenReady().then(() => {
   registerSystemIpc();
   registerSyncIpc();
   registerPreviewIpc();
+  initNotificationService();
 
   // Запуск локального сервера синхронизации в домашней сети
   SyncServer.getInstance().start().catch((err) => {
@@ -127,6 +129,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', async () => {
   setAppQuitting(true);
+  stopNotificationService();
   await SyncServer.getInstance().stop();
   closeDatabase();
 });
