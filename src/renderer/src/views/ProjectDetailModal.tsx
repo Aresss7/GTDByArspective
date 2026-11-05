@@ -233,6 +233,31 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
   const completedStepsCount = steps.filter((s) => s.status === 'completed').length;
 
+  const sortedSteps = [...steps].sort((a, b) => {
+    const aIsFirst = a.id === project.first_step_task_id;
+    const bIsFirst = b.id === project.first_step_task_id;
+    const aCompleted = a.status === 'completed';
+    const bCompleted = b.status === 'completed';
+
+    // 1. Невыполненный 1-й шаг всегда на самом верху
+    if (aIsFirst && !aCompleted) return -1;
+    if (bIsFirst && !bCompleted) return 1;
+
+    // 2. Невыполненные задачи выше выполненных
+    if (!aCompleted && bCompleted) return -1;
+    if (aCompleted && !bCompleted) return 1;
+
+    // 3. Выполненный 1-й шаг во главе списка выполненных
+    if (aIsFirst && aCompleted && bCompleted) return -1;
+    if (bIsFirst && aCompleted && bCompleted) return 1;
+
+    // 4. Порядок создания/следования
+    if (a.project_order !== b.project_order) {
+      return (a.project_order || 0) - (b.project_order || 0);
+    }
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-fadeIn select-none p-4">
@@ -449,7 +474,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
             {/* Список шагов */}
             <div className="space-y-2">
-              {steps.map((step) => {
+              {sortedSteps.map((step) => {
                 const isEditing = editingStepId === step.id;
 
                 return (
@@ -461,7 +486,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                       setContextMenuPos({ x: e.clientX, y: e.clientY });
                       setContextMenuTask(step);
                     }}
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs transition-colors group cursor-context-menu ${
+                    className={`p-3.5 rounded-2xl border flex items-start justify-between text-xs transition-colors group cursor-context-menu ${
                       step.status === 'completed'
                         ? 'bg-zinc-50 dark:bg-[#191919] border-zinc-200 dark:border-zinc-800/80 text-zinc-400 dark:text-zinc-500'
                         : 'bg-white dark:bg-[#222222] border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600'
@@ -497,25 +522,34 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center space-x-3.5 flex-1 min-w-0 mr-2">
-                          <Checkbox
-                            checked={step.status === 'completed'}
-                            onChange={() => handleToggleStep(step)}
-                            title="Отметить выполненным"
-                          />
-                          <div className="flex items-center space-x-2 flex-1 min-w-0">
-                            <span className={`break-words whitespace-pre-wrap leading-relaxed ${step.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'font-semibold'}`}>
-                              {step.title}
-                            </span>
-                            {step.id === project.first_step_task_id && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold shrink-0 self-start mt-0.5">
-                                1-й шаг
+                        <div className="flex items-start space-x-3.5 flex-1 min-w-0 mr-2">
+                          <div className="pt-0.5 shrink-0">
+                            <Checkbox
+                              checked={step.status === 'completed'}
+                              onChange={() => handleToggleStep(step)}
+                              title="Отметить выполненным"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2">
+                              <span className={`break-words whitespace-pre-wrap leading-relaxed ${step.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
+                                {step.title}
                               </span>
+                              {step.id === project.first_step_task_id && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold shrink-0 self-start mt-0.5">
+                                  1-й шаг
+                                </span>
+                              )}
+                            </div>
+                            {step.notes && (
+                              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 break-words whitespace-pre-wrap leading-relaxed">
+                                {step.notes}
+                              </p>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-2 shrink-0">
+                        <div className="flex items-center space-x-2 shrink-0 pt-0.5">
                           {step.destination === 'inbox' && (
                             <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 text-[10px] font-bold">
                               <Inbox className="w-3 h-3" />

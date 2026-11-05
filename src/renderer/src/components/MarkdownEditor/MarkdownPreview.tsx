@@ -86,9 +86,9 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
           return (
             <div key={idx} className="flex items-start space-x-1.5 text-[11px] leading-tight">
               <span
-                className={`w-3.5 h-3.5 mt-0.5 rounded flex items-center justify-center shrink-0 border ${
+                className={`w-3.5 h-3.5 mt-0.5 rounded-full flex items-center justify-center shrink-0 border ${
                   isChecked
-                    ? 'bg-zinc-800 dark:bg-zinc-200 border-zinc-800 dark:border-zinc-200 text-white dark:text-zinc-900 text-[9px] font-black'
+                    ? 'bg-emerald-600 dark:bg-emerald-500 border-emerald-600 dark:border-emerald-500 text-white text-[9px] font-black'
                     : 'border-zinc-300 dark:border-zinc-600 bg-white/50 dark:bg-zinc-800/50'
                 }`}
               >

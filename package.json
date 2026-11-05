@@ -1,7 +1,7 @@
 {
   "name": "arspective-gtd",
   "productName": "Arspective GTD",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Arspective GTD application for Windows",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -25,6 +25,8 @@
   "license": "MIT",
   "dependencies": {
     "@tiptap/extension-link": "^3.32.2",
+    "@tiptap/extension-task-item": "^3.32.2",
+    "@tiptap/extension-task-list": "^3.32.2",
     "@tiptap/extension-underline": "^3.32.2",
     "@tiptap/react": "^3.32.2",
     "@tiptap/starter-kit": "^3.32.2",

@@ -190,6 +190,7 @@ export interface GtdApi {
   // Links & Preview
   fetchLinkPreview: (url: string) => Promise<LinkPreviewData>;
   openExternalUrl: (url: string) => Promise<boolean>;
+  showNotification: (options: { title: string; body: string; silent?: boolean }) => Promise<boolean>;
 
   // System
   getAppVersion: () => Promise<string>;

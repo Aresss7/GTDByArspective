@@ -238,25 +238,53 @@ export class SyncRepository {
     let conflictsResolved = 0;
 
     const tx = this.db.transaction(() => {
-      // 1. Применяем метки удаления (tombstones)
+      // 1. Применяем метки удаления (tombstones) с поддержкой camelCase и snake_case
       if (clientChanges.tombstones && clientChanges.tombstones.length > 0) {
-        for (const t of clientChanges.tombstones) {
-          if (t.entity_type === 'task') {
-            const res = this.db.prepare('DELETE FROM tasks WHERE id = ?').run(t.entity_id);
+        for (const rawT of clientChanges.tombstones) {
+          const t = rawT as any;
+          const entityType = t.entity_type || t.entityType;
+          const entityId = t.entity_id || t.entityId;
+          const deletedAt = t.deleted_at || t.deletedAt || new Date().toISOString();
+
+          if (entityType === 'task') {
+            const res = this.db.prepare('DELETE FROM tasks WHERE id = ?').run(entityId);
             if (res.changes > 0) appliedTombstones++;
-            this.recordTombstone('task', t.entity_id, t.deleted_at);
-          } else if (t.entity_type === 'project') {
-            const res = this.db.prepare('DELETE FROM projects WHERE id = ?').run(t.entity_id);
+            this.recordTombstone('task', entityId, deletedAt);
+          } else if (entityType === 'project') {
+            const res = this.db.prepare('DELETE FROM projects WHERE id = ?').run(entityId);
             if (res.changes > 0) appliedTombstones++;
-            this.recordTombstone('project', t.entity_id, t.deleted_at);
+            this.recordTombstone('project', entityId, deletedAt);
           }
         }
       }
 
-      // 2. Применяем изменения проектов
+      // 2. Применяем изменения проектов с защитой от воскрешения удалённых проектов
       if (clientChanges.projects && clientChanges.projects.length > 0) {
-        for (const p of clientChanges.projects) {
-          const local = this.projectRepo.getById(p.id);
+        for (const rawP of clientChanges.projects) {
+          const p = rawP as any;
+          const projectId = p.id;
+          const pTitle = p.title;
+          const pDesc = p.description || null;
+          const pFirstStep = p.first_step_task_id || p.firstStepTaskId || null;
+          const pPlan = p.approximate_plan || p.approximatePlan || null;
+          const pCriteria = p.completion_criteria || p.completionCriteria || null;
+          const pStatus = p.status || 'active';
+          const pCreatedAt = p.created_at || p.createdAt || new Date().toISOString();
+          const pUpdatedAt = p.updated_at || p.updatedAt || new Date().toISOString();
+          const pCompletedAt = p.completed_at || p.completedAt || null;
+          const pDeletedAt = p.deleted_at || p.deletedAt || null;
+
+          // Проверяем наличие метки удаления (tombstone) для проекта
+          const tombstone = this.db.prepare(
+            'SELECT deleted_at FROM sync_tombstones WHERE entity_type = ? AND entity_id = ?'
+          ).get('project', projectId) as { deleted_at: string } | undefined;
+
+          if (tombstone && (!pUpdatedAt || tombstone.deleted_at >= pUpdatedAt)) {
+            // Проект был окончательно удален — не воскрешаем его!
+            continue;
+          }
+
+          const local = this.projectRepo.getById(projectId);
           if (!local) {
             // Новый проект с телефона
             this.db.prepare(`
@@ -265,75 +293,132 @@ export class SyncRepository {
                 completion_criteria, status, created_at, updated_at, completed_at, deleted_at
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
-              p.id,
-              p.title,
-              p.description || null,
-              p.first_step_task_id || null,
-              p.approximate_plan || null,
-              p.completion_criteria || null,
-              p.status || 'active',
-              p.created_at,
-              p.updated_at,
-              p.completed_at || null,
-              p.deleted_at || null
+              projectId,
+              pTitle,
+              pDesc,
+              pFirstStep,
+              pPlan,
+              pCriteria,
+              pStatus,
+              pCreatedAt,
+              pUpdatedAt,
+              pCompletedAt,
+              pDeletedAt
             );
             appliedProjects++;
           } else {
             // Проект уже существует: сравниваем даты обновления
-            if (p.updated_at > local.updated_at) {
-              this.projectRepo.update(p.id, p);
+            if (pUpdatedAt > local.updated_at) {
+              const mergedDeletedAt = pDeletedAt !== null ? pDeletedAt : (pStatus === 'trash' ? (local.deleted_at || pUpdatedAt) : local.deleted_at);
+              this.db.prepare(`
+                UPDATE projects SET
+                  title = @title,
+                  description = @description,
+                  first_step_task_id = @first_step_task_id,
+                  approximate_plan = @approximate_plan,
+                  completion_criteria = @completion_criteria,
+                  status = @status,
+                  updated_at = @updated_at,
+                  completed_at = @completed_at,
+                  deleted_at = @deleted_at
+                WHERE id = @id
+              `).run({
+                id: projectId,
+                title: pTitle,
+                description: pDesc,
+                first_step_task_id: pFirstStep,
+                approximate_plan: pPlan,
+                completion_criteria: pCriteria,
+                status: pStatus,
+                updated_at: pUpdatedAt,
+                completed_at: pCompletedAt,
+                deleted_at: mergedDeletedAt,
+              });
               appliedProjects++;
             }
           }
         }
       }
 
-      // 3. Применяем изменения задач
+      // 3. Применяем изменения задач с защитой от воскрешения удалённых задач
       if (clientChanges.tasks && clientChanges.tasks.length > 0) {
-        for (const t of clientChanges.tasks) {
-          const local = this.taskRepo.getById(t.id);
+        for (const rawT of clientChanges.tasks) {
+          const t = rawT as any;
+          const taskId = t.id;
+          const tTitle = t.title;
+          const tNotes = t.notes || null;
+          const tDestination = t.destination;
+          const tStatus = t.status;
+          const tProjectId = t.project_id || t.projectId || null;
+          const tProjectOrder = t.project_order || t.projectOrder || 0;
+          const tDueDate = t.due_date || t.dueDate || null;
+          const tDueTime = t.due_time || t.dueTime || null;
+          const tScheduledDate = t.scheduled_date || t.scheduledDate || null;
+          const tScheduledTime = t.scheduled_time || t.scheduledTime || null;
+          const tDelegatedTo = t.delegated_to || t.delegatedTo || null;
+          const tDelegatedDate = t.delegated_date || t.delegatedDate || null;
+          const tWaitingFor = t.waiting_for || t.waitingFor || null;
+          const tCheckDate = t.check_date || t.checkDate || null;
+          const tIsPinned = t.is_pinned !== undefined ? (t.is_pinned ? 1 : 0) : (t.isPinned !== undefined ? (t.isPinned ? 1 : 0) : 0);
+          const tPreviousDestination = t.previous_destination || t.previousDestination || null;
+          const tCreatedAt = t.created_at || t.createdAt || new Date().toISOString();
+          const tUpdatedAt = t.updated_at || t.updatedAt || new Date().toISOString();
+          const tCompletedAt = t.completed_at || t.completedAt || null;
+          const tDeletedAt = t.deleted_at || t.deletedAt || null;
+
+          // Проверяем наличие метки удаления (tombstone) для задачи
+          const taskTombstone = this.db.prepare(
+            'SELECT deleted_at FROM sync_tombstones WHERE entity_type = ? AND entity_id = ?'
+          ).get('task', taskId) as { deleted_at: string } | undefined;
+
+          if (taskTombstone && (!tUpdatedAt || taskTombstone.deleted_at >= tUpdatedAt)) {
+            // Задача была окончательно удалена — не воскрешаем её!
+            continue;
+          }
+
+          const local = this.taskRepo.getById(taskId);
           if (!local) {
             // Новая задача с телефона
             this.taskRepo.create({
-              id: t.id,
-              title: t.title,
-              notes: t.notes || undefined,
-              destination: t.destination,
-              status: t.status,
-              project_id: t.project_id || undefined,
-              project_order: t.project_order || 0,
-              due_date: t.due_date || undefined,
-              due_time: t.due_time || undefined,
-              scheduled_date: t.scheduled_date || undefined,
-              scheduled_time: t.scheduled_time || undefined,
-              delegated_to: t.delegated_to || undefined,
-              delegated_date: t.delegated_date || undefined,
-              waiting_for: t.waiting_for || undefined,
-              check_date: t.check_date || undefined,
-              is_pinned: t.is_pinned ? 1 : 0,
-              previous_destination: t.previous_destination || undefined,
+              id: taskId,
+              title: tTitle,
+              notes: tNotes || undefined,
+              destination: tDestination,
+              status: tStatus,
+              project_id: tProjectId || undefined,
+              project_order: tProjectOrder,
+              due_date: tDueDate || undefined,
+              due_time: tDueTime || undefined,
+              scheduled_date: tScheduledDate || undefined,
+              scheduled_time: tScheduledTime || undefined,
+              delegated_to: tDelegatedTo || undefined,
+              delegated_date: tDelegatedDate || undefined,
+              waiting_for: tWaitingFor || undefined,
+              check_date: tCheckDate || undefined,
+              is_pinned: tIsPinned,
+              previous_destination: tPreviousDestination || undefined,
             });
             // Фиксируем исходные даты создания/обновления с клиента
             this.db.prepare(`
               UPDATE tasks 
               SET created_at = ?, updated_at = ?, completed_at = ?, deleted_at = ?
               WHERE id = ?
-            `).run(t.created_at, t.updated_at, t.completed_at || null, t.deleted_at || null, t.id);
+            `).run(tCreatedAt, tUpdatedAt, tCompletedAt, tDeletedAt, taskId);
 
             appliedTasks++;
           } else {
             // Задача существует на обоих устройствах
-            if (t.updated_at > local.updated_at) {
+            if (tUpdatedAt > local.updated_at) {
               // Версия клиента новее. Проверяем, не было ли значимого конфликта заметок/описания
-              let mergedNotes = t.notes || null;
+              let mergedNotes = tNotes;
               if (
                 local.notes && 
-                t.notes && 
-                local.notes.trim() !== t.notes.trim() &&
-                !t.notes.includes(local.notes)
+                tNotes && 
+                local.notes.trim() !== tNotes.trim() &&
+                !tNotes.includes(local.notes)
               ) {
                 // Обе стороны правили заметки в офлайне: сохраняем обе части без потерь!
-                mergedNotes = `${t.notes}\n\n[Версия с компьютера (${local.updated_at})]:\n${local.notes}`;
+                mergedNotes = `${tNotes}\n\n[Версия с компьютера (${local.updated_at})]:\n${local.notes}`;
                 conflictsResolved++;
               }
 
@@ -360,30 +445,30 @@ export class SyncRepository {
                   deleted_at = @deleted_at
                 WHERE id = @id
               `).run({
-                id: t.id,
-                title: t.title,
+                id: taskId,
+                title: tTitle,
                 notes: mergedNotes,
-                destination: t.destination,
-                status: t.status,
-                project_id: t.project_id || null,
-                project_order: t.project_order || 0,
-                due_date: t.due_date || null,
-                due_time: t.due_time || null,
-                scheduled_date: t.scheduled_date || null,
-                scheduled_time: t.scheduled_time || null,
-                delegated_to: t.delegated_to || null,
-                delegated_date: t.delegated_date || null,
-                waiting_for: t.waiting_for || null,
-                check_date: t.check_date || null,
-                is_pinned: t.is_pinned !== undefined ? (t.is_pinned ? 1 : 0) : (local.is_pinned ? 1 : 0),
-                previous_destination: t.previous_destination || local.previous_destination || null,
-                updated_at: t.updated_at,
-                completed_at: t.completed_at || null,
-                deleted_at: t.deleted_at || null,
+                destination: tDestination,
+                status: tStatus,
+                project_id: tProjectId,
+                project_order: tProjectOrder,
+                due_date: tDueDate,
+                due_time: tDueTime,
+                scheduled_date: tScheduledDate,
+                scheduled_time: tScheduledTime,
+                delegated_to: tDelegatedTo,
+                delegated_date: tDelegatedDate,
+                waiting_for: tWaitingFor,
+                check_date: tCheckDate,
+                is_pinned: tIsPinned !== undefined ? tIsPinned : (local.is_pinned ? 1 : 0),
+                previous_destination: tPreviousDestination || local.previous_destination || null,
+                updated_at: tUpdatedAt,
+                completed_at: tCompletedAt,
+                deleted_at: tDeletedAt,
               });
 
               appliedTasks++;
-            } else if (local.updated_at > t.updated_at) {
+            } else if (local.updated_at > tUpdatedAt) {
               // Версия на компьютере новее — компьютерные изменения вернутся клиенту в serverChanges
             }
           }

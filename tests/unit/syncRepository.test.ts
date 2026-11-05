@@ -127,5 +127,54 @@ describe('SyncRepository', () => {
       expect(updated.notes).toContain('Безлактозное 1.5% и хлеб');
       expect(updated.notes).toContain('Фермерское 3.2%');
     });
+
+    it('should NOT resurrect deleted project if tombstone exists', () => {
+      const device = syncRepo.registerDevice('Pixel 9', 'token-pixel-9');
+      const { project } = projectRepo.createWithFirstStep({
+        title: 'Project to delete permanently',
+        firstStepTitle: 'Step 1',
+        completionCriteria: 'All done',
+      });
+
+      // Удаляем проект навсегда (создаётся tombstone)
+      projectRepo.delete(project.id, true);
+
+      // Проверяем, что проект удален
+      expect(projectRepo.getById(project.id)).toBeNull();
+
+      // Телефон присылает старую копию проекта
+      const result = syncRepo.applyClientChanges(
+        {
+          projects: [
+            {
+              ...project,
+              updated_at: new Date(Date.now() - 10000).toISOString(),
+            },
+          ],
+        },
+        device.id
+      );
+
+      // Проект НЕ должен быть воскрешён!
+      expect(result.appliedProjects).toBe(0);
+      expect(projectRepo.getById(project.id)).toBeNull();
+    });
+
+    it('should unpin note/task when moved to trash', () => {
+      const task = taskRepo.create({
+        title: 'Important Note',
+        destination: 'notes',
+        is_pinned: 1,
+      });
+
+      expect(taskRepo.getById(task.id)?.is_pinned).toBe(1);
+
+      // Удаляем в корзину (soft delete)
+      taskRepo.delete(task.id, false);
+
+      const inTrash = taskRepo.getById(task.id);
+      expect(inTrash?.destination).toBe('trash');
+      expect(inTrash?.is_pinned).toBe(0);
+    });
   });
 });

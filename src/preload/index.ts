@@ -91,6 +91,8 @@ const api: GtdApi = {
     ipcRenderer.invoke('system:openExternalUrl', url),
   fetchLinkPreview: (url: string) =>
     ipcRenderer.invoke('system:fetchLinkPreview', url),
+  showNotification: (options: { title: string; body: string; silent?: boolean }) =>
+    ipcRenderer.invoke('system:showNotification', options),
 
   // Window Controls
   minimizeWindow: () =>

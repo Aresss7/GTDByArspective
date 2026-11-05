@@ -86,19 +86,34 @@ export function registerPreviewIpc(): void {
 
       const html = await response.text();
 
-      // Извлекаем OpenGraph теги и базовые HTML теги
-      const titleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
-                         html.match(/<meta\s+name=["']twitter:title["']\s+content=["'](.*?)["']/i) ||
-                         html.match(/<title[^>]*>(.*?)<\/title>/i);
+      // Универсальный поиск мета-тегов независимо от порядка атрибутов
+      const extractMeta = (keys: string[]): string | null => {
+        for (const key of keys) {
+          const escaped = key.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&');
+          const re1 = new RegExp(`<meta[^>]+?(?:property|name)=["']${escaped}["'][^>]+?content=["']([^"']*)["']`, 'i');
+          const m1 = html.match(re1);
+          if (m1 && m1[1]) return m1[1];
+          const re2 = new RegExp(`<meta[^>]+?content=["']([^"']*)["'][^>]+?(?:property|name)=["']${escaped}["']`, 'i');
+          const m2 = html.match(re2);
+          if (m2 && m2[1]) return m2[1];
+        }
+        return null;
+      };
+
+      const rawTitle = extractMeta(['og:title', 'twitter:title', 'title']) ||
+                       html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
       
-      const descMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i) ||
-                        html.match(/<meta\s+name=["']description["']\s+content=["'](.*?)["']/i) ||
-                        html.match(/<meta\s+name=["']twitter:description["']\s+content=["'](.*?)["']/i);
+      const rawDesc = extractMeta(['og:description', 'twitter:description', 'description']);
 
-      const imgMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i) ||
-                       html.match(/<meta\s+name=["']twitter:image["']\s+content=["'](.*?)["']/i);
+      let rawImage = extractMeta(['og:image', 'twitter:image', 'og:image:url', 'twitter:image:src', 'image']);
 
-      const cleanText = (str: string | undefined): string | null => {
+      // Специальная поддержка обложек YouTube (видео и трансляции)
+      const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+      if (!rawImage && ytMatch && ytMatch[1]) {
+        rawImage = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+      }
+
+      const cleanText = (str: string | undefined | null): string | null => {
         if (!str) return null;
         return str
           .replace(/&amp;/g, '&')
@@ -106,13 +121,17 @@ export function registerPreviewIpc(): void {
           .replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
+          .replace(/&ndash;/g, '–')
+          .replace(/&mdash;/g, '—')
+          .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+          .replace(/&#([0-9]+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
           .trim()
           .slice(0, 300); // Ограничиваем длину
       };
 
-      const title = cleanText(titleMatch?.[1]) || validUrl.hostname;
-      const description = cleanText(descMatch?.[1]);
-      let imageUrl = imgMatch?.[1]?.trim() || null;
+      const title = cleanText(rawTitle) || validUrl.hostname;
+      const description = cleanText(rawDesc);
+      let imageUrl = rawImage ? rawImage.trim() : null;
 
       // Нормализуем относительные ссылки на картинку
       if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {

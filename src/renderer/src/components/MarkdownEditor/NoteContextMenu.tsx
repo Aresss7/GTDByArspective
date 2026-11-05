@@ -19,7 +19,8 @@ import {
   RotateCw,
   ExternalLink,
   SquareCode,
-  Search
+  Search,
+  CheckSquare
 } from 'lucide-react';
 
 export interface NoteContextMenuProps {
@@ -45,6 +46,7 @@ export interface NoteContextMenuProps {
     codeBlock?: boolean;
     bulletList?: boolean;
     orderedList?: boolean;
+    taskList?: boolean;
   };
   // Actions
   onToggleBold: () => void;
@@ -58,6 +60,7 @@ export interface NoteContextMenuProps {
   onToggleCodeBlock: () => void;
   onToggleBulletList: () => void;
   onToggleOrderedList: () => void;
+  onToggleTaskList?: () => void;
   onInsertHorizontalRule: () => void;
   onInsertOrEditLink: () => void;
   onRemoveLink?: () => void;
@@ -86,6 +89,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
   onToggleCodeBlock,
   onToggleBulletList,
   onToggleOrderedList,
+  onToggleTaskList,
   onInsertHorizontalRule,
   onInsertOrEditLink,
   onRemoveLink,
@@ -264,6 +268,9 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
 
         {/* Blocks */}
         <div className="space-y-0.5">
+          {onToggleTaskList && (
+            <Item icon={CheckSquare} label="Список с чекбоксами" active={activeFormats.taskList} onClick={onToggleTaskList} />
+          )}
           <Item icon={List} label="Маркированный список" active={activeFormats.bulletList} onClick={onToggleBulletList} />
           <Item icon={ListOrdered} label="Нумерованный список" active={activeFormats.orderedList} onClick={onToggleOrderedList} />
           <Item icon={Quote} label="Цитата" active={activeFormats.blockquote} onClick={onToggleBlockquote} />

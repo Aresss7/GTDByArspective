@@ -10,7 +10,8 @@ import {
   Save, 
   Calendar,
   Clock, 
-  Pin
+  Pin,
+  X
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
@@ -49,6 +50,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
   // Закреплённые заметки (до 4 заметок одновременно)
   const [isPinLimitOpen, setIsPinLimitOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
 
@@ -155,6 +157,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
     setSelectedNote(null);
   };
 
+  // Выход без сохранения изменений
+  const handleExitWithoutSaving = () => {
+    draftTitleRef.current = '';
+    draftContentRef.current = '';
+    selectedNoteRef.current = null;
+    setSelectedNote(null);
+  };
+
   // Сохранение изменений в заметке
   const handleSaveNote = async () => {
     if (!window.gtdApi || !selectedNote || !draftTitle.trim()) return;
@@ -209,6 +219,24 @@ export const NotesView: React.FC<NotesViewProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNote, draftTitle, draftContent, noteToDelete]);
+
+  // Горячая клавиша Ctrl+F / Cmd+F для фокуса строки поиска заметок
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А')) {
+        e.preventDefault();
+        if (selectedNote) {
+          handleCloseNote();
+        }
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        }, 50);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNote, draftTitle, draftContent]);
 
   // ЕСЛИ ОТКРЫТА СТРАНИЦА ЗАМЕТКИ
   if (selectedNote) {
@@ -272,6 +300,17 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <span>{saveSuccess ? t.notesSaved : isSaving ? t.notesSaving : t.notesSave}</span>
             </button>
 
+            {/* Кнопка выйти без сохранения */}
+            <button
+              type="button"
+              onClick={handleExitWithoutSaving}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 hover:border-rose-300 dark:hover:bg-rose-950/40 dark:hover:border-rose-900 text-xs font-semibold text-zinc-600 hover:text-rose-600 dark:text-zinc-300 dark:hover:text-rose-400 transition-all cursor-pointer shadow-xs active:scale-95"
+              title={isEn ? 'Discard changes and exit' : 'Выйти без сохранения изменений'}
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Discard' : 'Выйти без сохранения'}</span>
+            </button>
+
             {/* Кнопка удаления в корзину */}
             <button
               onClick={() => setNoteToDelete(selectedNote)}
@@ -314,8 +353,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
         <ConfirmDeleteModal
           isOpen={Boolean(noteToDelete)}
           title={noteToDelete?.title || ''}
-          description="Заметка будет перемещена в раздел «Мусор»."
-          confirmText="Удалить в корзину"
+          description={isEn ? 'The note will be moved to Trash.' : 'Заметка будет перемещена в раздел «Мусор».'}
+          confirmText={isEn ? 'Move to Trash' : 'Переместить в Мусор'}
           onClose={() => setNoteToDelete(null)}
           onConfirm={handleConfirmDelete}
         />
@@ -338,6 +377,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
