@@ -11,7 +11,8 @@ import {
   CornerDownLeft, 
   AlertCircle, 
   ArrowRight,
-  ListPlus
+  ListPlus,
+  AlertTriangle
 } from 'lucide-react';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { CustomDatePicker } from './CustomDatePicker';
@@ -83,12 +84,37 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
+  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
   const rapidInputRef = useRef<HTMLInputElement>(null);
   const fullInputRef = useRef<HTMLInputElement>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isProjectsTab = currentTab === 'projects' || Boolean(sourceTask);
+
+  const hasFilledText = Boolean(
+    (modalMode === 'quick' && rapidTitle.trim()) ||
+    (modalMode === 'full' && isProjectsTab && (
+      projectTitle.trim() || projectFirstStepTitle.trim() || projectCriteria.trim() || projectDescription.trim() || projectPlan.trim()
+    )) ||
+    (modalMode === 'full' && !isProjectsTab && (
+      taskTitle.trim() || taskNotes.trim() || delegatedTo.trim() || waitingFor.trim()
+    ))
+  );
+
+  const handleRequestClose = () => {
+    if (hasFilledText) {
+      setIsDiscardConfirmOpen(true);
+    } else {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsDiscardConfirmOpen(false);
+    }
+  }, [isOpen]);
 
   // Синхронизированное обновление текста при вводе во всех вкладках
   const handleUpdateTitle = (newTitle: string) => {
@@ -232,8 +258,13 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       if (isSubmittingRef.current) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        if (isDiscardConfirmOpen) {
+          setIsDiscardConfirmOpen(false);
+        } else {
+          handleRequestClose();
+        }
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (isDiscardConfirmOpen) return;
         e.preventDefault();
         if (modalMode === 'quick') {
           handleRapidSubmit(true);
@@ -247,7 +278,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, modalMode, rapidTitle, isProjectsTab, projectTitle, projectFirstStepTitle, projectCriteria, projectDescription, projectPlan, taskTitle, taskNotes, destination, projectId, scheduledDate, scheduledTime, dueDate, delegatedTo, delegatedDate, waitingFor, checkDate]);
+  }, [isOpen, onClose, modalMode, rapidTitle, isProjectsTab, projectTitle, projectFirstStepTitle, projectCriteria, projectDescription, projectPlan, taskTitle, taskNotes, destination, projectId, scheduledDate, scheduledTime, dueDate, delegatedTo, delegatedDate, waitingFor, checkDate, isDiscardConfirmOpen, hasFilledText]);
 
   if (!isOpen) return null;
 
@@ -407,7 +438,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       {/* Оверлей и модальное окно: строгий монохром #191919 / #222222, без фиолетовых оттенков */}
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 select-none p-4"
-        onClick={onClose}
+        onClick={handleRequestClose}
       >
         <div
           className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800"
@@ -446,7 +477,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
             </div>
 
             <button
-              onClick={onClose}
+              onClick={handleRequestClose}
               className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
               title={isEn ? 'Close (Esc)' : 'Закрыть (Esc)'}
             >
@@ -498,7 +529,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   <div className="flex items-center space-x-2 shrink-0 ml-auto">
                     <button
                       type="button"
-                      onClick={onClose}
+                      onClick={handleRequestClose}
                       className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
@@ -620,7 +651,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
               <div className="flex items-center justify-end space-x-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleRequestClose}
                   className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
@@ -826,10 +857,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
               <div className="flex items-center justify-end space-x-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleRequestClose}
                   className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  {isEn ? 'Cancel' : 'Отмена'}
+                  {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
                 </button>
                 <button
                   type="submit"
@@ -843,6 +874,53 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Модальное окно подтверждения сброса несохранённого текста */}
+      {isDiscardConfirmOpen && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs select-none p-4"
+          onClick={() => setIsDiscardConfirmOpen(false)}
+        >
+          <div 
+            className="bg-white dark:bg-[#222222] text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-sm p-6 border border-zinc-200 dark:border-zinc-700 space-y-4 animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start space-x-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  {isEn ? 'Discard unsaved changes?' : 'Отменить без сохранения?'}
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  {isEn ? 'You have entered text that will be lost. Discard and close?' : 'Вы ввели текст, который не был сохранён. Точно закрыть без сохранения?'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDiscardConfirmOpen(false)}
+                className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                {isEn ? 'Keep editing' : 'Продолжить ввод'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDiscardConfirmOpen(false);
+                  onClose();
+                }}
+                className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                {isEn ? 'Discard & Close' : 'Сбросить и закрыть'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
