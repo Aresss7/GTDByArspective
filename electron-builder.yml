@@ -19,6 +19,11 @@ win:
     - target: portable
       arch:
         - x64
+extraResources:
+  - from: build/GTD.ico
+    to: icon.ico
+  - from: build/icon.png
+    to: icon.png
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

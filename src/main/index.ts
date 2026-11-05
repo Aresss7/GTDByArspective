@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, nativeImage, NativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -36,10 +36,38 @@ if (!gotTheLock) {
   });
 }
 
+export function resolveAppIcon(): NativeImage | undefined {
+  const possiblePaths = [
+    path.join(process.resourcesPath, 'icon.ico'),
+    path.join(process.resourcesPath, 'GTD.ico'),
+    path.join(process.resourcesPath, 'icon.png'),
+    path.join(__dirname, '../../build/GTD.ico'),
+    path.join(__dirname, '../../build/icon.ico'),
+    path.join(__dirname, '../../build/icon.png'),
+    path.join(app.getAppPath(), 'build/GTD.ico'),
+    path.join(app.getAppPath(), 'build/icon.ico'),
+    path.join(app.getAppPath(), 'build/icon.png'),
+  ];
+
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const img = nativeImage.createFromPath(p);
+        if (!img.isEmpty()) {
+          return img;
+        }
+      }
+    } catch {}
+  }
+  return undefined;
+}
+
 function createWindow() {
+  const appIcon = resolveAppIcon();
+
   mainWindow = new BrowserWindow({
     title: 'Arspective GTD',
-    icon: path.join(__dirname, '../../build/GTD.ico'),
+    icon: appIcon,
     width: 1200,
     height: 800,
     minWidth: 980,
@@ -55,6 +83,10 @@ function createWindow() {
     },
     autoHideMenuBar: true,
   });
+
+  if (appIcon) {
+    mainWindow.setIcon(appIcon);
+  }
 
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     try {
