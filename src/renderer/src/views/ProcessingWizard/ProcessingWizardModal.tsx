@@ -10,6 +10,7 @@ import {
   UserCheck, 
   Zap, 
   Sparkles,
+  SkipForward,
 } from 'lucide-react';
 import { Task, GTDQuestionId, Project } from '@shared/types';
 import { GTDStateMachine } from '@domain/gtd/stateMachine';
@@ -37,19 +38,24 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   onTaskUpdated,
   onCreateProjectRequested,
 }) => {
+  const todayStr = new Date().toISOString().split('T')[0];
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState<GTDQuestionId>('ACTIONABLE');
+  const [currentQuestion, setCurrentQuestion] = useState<GTDQuestionId>('WHAT_IS_IT');
   const [historyStack, setHistoryStack] = useState<GTDQuestionId[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [skippedTaskIds, setSkippedTaskIds] = useState<string[]>([]);
+
+  // Состояние поля заметок для шага «Что это?»
+  const [taskNotes, setTaskNotes] = useState('');
 
   // Состояния для форм
   const [delegatedTo, setDelegatedTo] = useState('');
   const [waitingFor, setWaitingFor] = useState('');
+  const [delegatedDate, setDelegatedDate] = useState(todayStr);
   const [checkDate, setCheckDate] = useState('');
 
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
-  const todayStr = new Date().toISOString().split('T')[0];
 
   const isInitializedRef = useRef(false);
 
@@ -57,6 +63,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       isInitializedRef.current = false;
+      setSkippedTaskIds([]);
       return;
     }
 
@@ -70,7 +77,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
       // Если передан конкретный initialTask (по выбору пользователя или первый шаг проекта)
       if (initialTask) {
         setCurrentTask(initialTask);
-        setCurrentQuestion(initialQuestion || (initialTask.project_id ? 'FOR_ME' : 'ACTIONABLE'));
+        setTaskNotes(initialTask.notes || '');
+        setCurrentQuestion(initialQuestion || (initialTask.project_id ? 'FOR_ME' : 'WHAT_IS_IT'));
         setHistoryStack([]);
         if (window.gtdApi) {
           try {
@@ -91,7 +99,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
             const task = await window.gtdApi.getTaskById(activeSession.current_task_id);
             if (task && task.status === 'active' && (task.destination === 'inbox' || task.project_id)) {
               setCurrentTask(task);
-              setCurrentQuestion(activeSession.current_question || 'ACTIONABLE');
+              setTaskNotes(task.notes || '');
+              setCurrentQuestion(activeSession.current_question || 'WHAT_IS_IT');
               setSessionId(activeSession.id);
               setHistoryStack([]);
               return;
@@ -102,14 +111,16 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         }
       }
 
-      // Если нет сохраненной сессии, берем первую задачу из входящих
-      if (inboxTasks.length > 0) {
-        setCurrentTask(inboxTasks[0]);
-        setCurrentQuestion('ACTIONABLE');
+      // Если нет сохраненной сессии, берем первую незавершенную и непропущенную задачу из входящих
+      const available = inboxTasks.filter((t) => !skippedTaskIds.includes(t.id));
+      if (available.length > 0) {
+        setCurrentTask(available[0]);
+        setTaskNotes(available[0].notes || '');
+        setCurrentQuestion('WHAT_IS_IT');
         setHistoryStack([]);
         if (window.gtdApi) {
           try {
-            const sess = await window.gtdApi.startSession(inboxTasks[0].id);
+            const sess = await window.gtdApi.startSession(available[0].id);
             if (sess) setSessionId(sess.id);
           } catch (e) {
             console.warn(e);
@@ -163,6 +174,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         // Сброс полей ввода
         setDelegatedTo('');
         setWaitingFor('');
+        setDelegatedDate(todayStr);
         setCheckDate('');
         setScheduledDate('');
         setScheduledTime('');
@@ -173,12 +185,13 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
           return;
         }
 
-        // Переходим к следующей задаче из корзины
-        const remaining = inboxTasks.filter((t) => t.id !== currentTask.id);
+        // Переходим к следующей задаче из корзины (исключая пропущенные в текущей сессии)
+        const remaining = inboxTasks.filter((t) => t.id !== currentTask.id && !skippedTaskIds.includes(t.id));
         if (remaining.length > 0) {
           const next = remaining[0];
           setCurrentTask(next);
-          setCurrentQuestion('ACTIONABLE');
+          setTaskNotes(next.notes || '');
+          setCurrentQuestion('WHAT_IS_IT');
           setHistoryStack([]);
           if (window.gtdApi) {
             const newSess = await window.gtdApi.startSession(next.id);
@@ -188,6 +201,15 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
           setCurrentTask(null);
         }
       } else if (result.nextQuestion !== 'COMPLETED') {
+        // Если шаг вернул обновления задачи (например сохранение описания в «Что это?»)
+        if (result.taskUpdates) {
+          if (window.gtdApi) {
+            await window.gtdApi.updateTask(currentTask.id, result.taskUpdates);
+          }
+          Object.assign(currentTask, result.taskUpdates);
+          await onTaskUpdated();
+        }
+
         // Переход к следующему вопросу внутри той же задачи
         setHistoryStack((prev) => [...prev, currentQuestion]);
         setCurrentQuestion(result.nextQuestion);
@@ -201,6 +223,39 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
       }
     } catch (err: any) {
       alert(err.message || 'Ошибка при обработке шага');
+    }
+  };
+
+  const handleSkipCurrentTask = async () => {
+    if (!currentTask) return;
+    const nextSkipped = [...skippedTaskIds, currentTask.id];
+    setSkippedTaskIds(nextSkipped);
+
+    // Сброс полей
+    setDelegatedTo('');
+    setWaitingFor('');
+    setDelegatedDate(todayStr);
+    setCheckDate('');
+    setScheduledDate('');
+    setScheduledTime('');
+
+    const remaining = inboxTasks.filter((t) => t.id !== currentTask.id && !nextSkipped.includes(t.id));
+    if (remaining.length > 0) {
+      const next = remaining[0];
+      setCurrentTask(next);
+      setTaskNotes(next.notes || '');
+      setCurrentQuestion('WHAT_IS_IT');
+      setHistoryStack([]);
+      if (window.gtdApi) {
+        try {
+          const newSess = await window.gtdApi.startSession(next.id);
+          if (newSess) setSessionId(newSess.id);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    } else {
+      setCurrentTask(null);
     }
   };
 
@@ -250,8 +305,18 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
           <div className="flex items-center space-x-3">
             {currentTask && !currentTask.project_id && !initialTask && (
               <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                Осталось: {inboxTasks.length}
+                Осталось: {inboxTasks.filter((t) => !skippedTaskIds.includes(t.id)).length}
               </span>
+            )}
+            {currentTask && !currentTask.project_id && !initialTask && (
+              <button
+                onClick={handleSkipCurrentTask}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Пропустить задачу в текущем сеансе разбора"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+                <span>Пропустить</span>
+              </button>
             )}
             <button
               onClick={handlePause}
@@ -313,6 +378,45 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 <h3 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-8 leading-tight">
                   {questionTitle}
                 </h3>
+
+                {/* 0. Вводный вопрос: «Что это?» */}
+                {currentQuestion === 'WHAT_IS_IT' && (
+                  <div className="w-full space-y-5 max-w-lg mx-auto text-left">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                      Разберись, что это, и добавь пояснение, если нужно.
+                    </p>
+                    <div>
+                      <textarea
+                        value={taskNotes}
+                        onChange={(e) => setTaskNotes(e.target.value)}
+                        placeholder="Пояснение, детали, ссылки или критерии..."
+                        rows={4}
+                        className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 dark:focus:ring-purple-500 focus:outline-none resize-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button
+                        onClick={() => {
+                          const trimmed = taskNotes.trim();
+                          const original = (currentTask.notes || '').trim();
+                          const hasChanged = trimmed !== original;
+                          handleStepAnswer('CONTINUE', {
+                            notes: hasChanged ? (trimmed || undefined) : currentTask.notes,
+                          });
+                        }}
+                        className="py-3.5 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer text-center"
+                      >
+                        Продолжить
+                      </button>
+                      <button
+                        onClick={() => handleStepAnswer('SKIP')}
+                        className="py-3.5 px-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold text-sm transition-all active:scale-[0.98] cursor-pointer text-center"
+                      >
+                        Пропустить
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* 1. Бинарные вопросы: ACTIONABLE, FOR_ME, IS_NOW, IS_SINGLE_STEP */}
                 {['ACTIONABLE', 'FOR_ME', 'IS_NOW', 'IS_SINGLE_STEP'].includes(currentQuestion) && (
@@ -387,16 +491,28 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         className="w-full px-4 py-2 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
-                        Дата проверки выполнения
-                      </label>
-                      <CustomDatePicker
-                        value={checkDate}
-                        onChange={setCheckDate}
-                        minDate={todayStr}
-                        placeholder="Выберите дату проверки"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                          Дата от
+                        </label>
+                        <CustomDatePicker
+                          value={delegatedDate}
+                          onChange={setDelegatedDate}
+                          placeholder="Дата начала"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                          Дата проверки
+                        </label>
+                        <CustomDatePicker
+                          value={checkDate}
+                          onChange={setCheckDate}
+                          minDate={todayStr}
+                          placeholder="Выберите дату"
+                        />
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -407,6 +523,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         handleStepAnswer('SUBMIT_DELEGATION', {
                           delegatedTo: delegatedTo.trim(),
                           waitingFor: waitingFor.trim(),
+                          delegatedDate: delegatedDate || undefined,
                           checkDate: checkDate || undefined,
                         });
                       }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RotateCcw, FolderKanban, CheckSquare, Search } from 'lucide-react';
+import { Trash2, RotateCcw, FolderKanban, CheckSquare, Search, FileText } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useToast } from '../components/ToastNotification';
@@ -19,8 +19,11 @@ export const TrashView: React.FC<TrashViewProps> = ({
   language = 'ru'
 }) => {
   const { showToast } = useToast();
-  const t = translations[language];
+  const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'projects' | 'notes'>('tasks');
   const [trashProjects, setTrashProjects] = useState<Project[]>([]);
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
@@ -49,8 +52,15 @@ export const TrashView: React.FC<TrashViewProps> = ({
 
   const allTrashTasks = tasks.filter((t) => t.destination === 'trash' || t.deleted_at != null);
 
+  // Разделение удалённых элементов на Задачи и Заметки
+  const isNoteItem = (t: Task) => t.destination === 'notes' || t.previous_destination === 'notes';
+
+  const allTrashNotes = allTrashTasks.filter((t) => isNoteItem(t));
+  const allTrashActionTasks = allTrashTasks.filter((t) => !isNoteItem(t));
+
   const q = searchQuery.toLowerCase().trim();
-  const trashTasks = allTrashTasks.filter((t) => {
+
+  const filteredTrashTasks = allTrashActionTasks.filter((t) => {
     if (!q) return true;
     return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
   });
@@ -60,19 +70,48 @@ export const TrashView: React.FC<TrashViewProps> = ({
     return p.title.toLowerCase().includes(q) || Boolean(p.description && p.description.toLowerCase().includes(q));
   });
 
+  const filteredTrashNotes = allTrashNotes.filter((t) => {
+    if (!q) return true;
+    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
+  });
+
   const totalTrashCount = allTrashTasks.length + trashProjects.length;
+
+  const getDestinationName = (dest?: string | null) => {
+    switch (dest) {
+      case 'next_actions':
+        return isEn ? '«Next Actions»' : '«Текущие действия»';
+      case 'inbox':
+        return isEn ? '«GTD Inbox»' : '«Корзина ГТД»';
+      case 'calendar':
+        return isEn ? '«Calendar»' : '«Календарь»';
+      case 'waiting_for':
+        return isEn ? '«Waiting For»' : '«Делегирование / Ожидание»';
+      case 'someday':
+        return isEn ? '«Someday / Maybe»' : '«Когда-нибудь потом»';
+      case 'notes':
+        return isEn ? '«Notes»' : '«Заметки»';
+      default:
+        return isEn ? 'original list' : 'исходный раздел';
+    }
+  };
 
   const handleRestoreTask = async (task: Task) => {
     if (!window.gtdApi) return;
     try {
-      await window.gtdApi.updateTask(task.id, {
-        destination: 'inbox',
-        deleted_at: null,
-        status: 'active',
-      });
+      const restored = await window.gtdApi.restoreTask(task.id);
       await onTaskUpdated();
       await loadTrashProjects();
-      showToast(`Задача «${task.title}» восстановлена в «Корзина ГТД»`, 'restore');
+
+      const targetDest = restored?.destination || task.previous_destination || 'inbox';
+      const isNote = targetDest === 'notes';
+
+      showToast(
+        isNote
+          ? (isEn ? `Note "${task.title}" restored to Notes` : `Заметка «${task.title}» восстановлена в «Заметки»`)
+          : (isEn ? `Task "${task.title}" restored to ${getDestinationName(targetDest)}` : `Задача «${task.title}» восстановлена в ${getDestinationName(targetDest)}`),
+        'restore'
+      );
     } catch (e) {
       console.error(e);
     }
@@ -84,7 +123,10 @@ export const TrashView: React.FC<TrashViewProps> = ({
       await window.gtdApi.restoreProject(project.id);
       await onTaskUpdated();
       await loadTrashProjects();
-      showToast(`Проект «${project.title}» успешно восстановлен`, 'restore');
+      showToast(
+        isEn ? `Project "${project.title}" restored to Projects` : `Проект «${project.title}» успешно восстановлен в «Проекты»`,
+        'restore'
+      );
     } catch (e) {
       console.error(e);
     }
@@ -134,34 +176,82 @@ export const TrashView: React.FC<TrashViewProps> = ({
   return (
     <>
       <div className="space-y-6 w-full max-w-6xl mx-auto animate-fadeIn">
-        {/* Панель поиска и очистки в стиле NotesView */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t.trashSearchPlaceholder}
-              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
-            />
+        {/* Верхняя панель: Переключатель Задачи / Проекты / Заметки + Поиск + Очистить всё */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Переключатель вкладок: Задачи / Проекты / Заметки */}
+          <div className="flex items-center p-1 bg-zinc-100 dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setActiveTab('tasks')}
+              className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'tasks'
+                  ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs border border-zinc-200/80 dark:border-zinc-700'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Tasks' : 'Задачи'} ({filteredTrashTasks.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('projects')}
+              className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'projects'
+                  ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs border border-zinc-200/80 dark:border-zinc-700'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              <FolderKanban className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Projects' : 'Проекты'} ({filteredTrashProjects.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('notes')}
+              className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'notes'
+                  ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs border border-zinc-200/80 dark:border-zinc-700'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Notes' : 'Заметки'} ({filteredTrashNotes.length})</span>
+            </button>
           </div>
 
-          {totalTrashCount > 0 && (
-            <button
-              onClick={() =>
-                setDeleteModalState({
-                  isOpen: true,
-                  type: 'all',
-                  title: `${totalTrashCount} ${t.pcs}`,
-                })
-              }
-              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-full border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{t.trashEmptyAllBtn}</span>
-            </button>
-          )}
+          <div className="flex items-center space-x-3 flex-1 max-w-md ml-auto">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  activeTab === 'projects'
+                    ? (isEn ? 'Search deleted projects...' : 'Поиск удалённых проектов...')
+                    : activeTab === 'notes'
+                    ? (isEn ? 'Search deleted notes...' : 'Поиск удалённых заметок...')
+                    : t.trashSearchPlaceholder
+                }
+                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
+              />
+            </div>
+
+            {totalTrashCount > 0 && (
+              <button
+                onClick={() =>
+                  setDeleteModalState({
+                    isOpen: true,
+                    type: 'all',
+                    title: `${totalTrashCount} ${t.pcs}`,
+                  })
+                }
+                className="flex items-center space-x-1.5 px-4 py-2.5 rounded-full border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{t.trashEmptyAllBtn}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="pb-1">
@@ -170,24 +260,94 @@ export const TrashView: React.FC<TrashViewProps> = ({
           </p>
         </div>
 
-        {totalTrashCount === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
-              <Trash2 className="w-7 h-7" />
-            </div>
-            <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">{t.trashEmptyTitle}</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-              {t.trashEmptyDesc}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Удаленные Проекты */}
-            {filteredTrashProjects.length > 0 && (
-              <div className="space-y-2.5">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  {t.trashDeletedProjects} ({filteredTrashProjects.length})
+        {/* Контент активной вкладки */}
+        {activeTab === 'tasks' && (
+          <div className="space-y-3">
+            {filteredTrashTasks.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
+                  <CheckSquare className="w-7 h-7" />
                 </div>
+                <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">{isEn ? 'No deleted tasks' : 'Удалённых задач нет'}</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+                  {searchQuery ? t.notFoundDesc : (isEn ? 'Trash has no deleted tasks.' : 'В корзине нет удалённых задач.')}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredTrashTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
+                  >
+                    <div className="flex items-center space-x-3.5 flex-1 min-w-0 pr-4">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-[#282828] text-zinc-400 flex items-center justify-center shrink-0">
+                        <CheckSquare className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 line-through truncate">
+                            {task.title}
+                          </h4>
+                          {task.previous_destination && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-medium">
+                              {getDestinationName(task.previous_destination)}
+                            </span>
+                          )}
+                        </div>
+                        {task.notes && (
+                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{task.notes}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => handleRestoreTask(task)}
+                        className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
+                        title={t.trashRestoreTask}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                        <span>{t.trashRestoreTask}</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          setDeleteModalState({
+                            isOpen: true,
+                            type: 'task',
+                            targetId: task.id,
+                            title: task.title,
+                          })
+                        }
+                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        title={t.trashDeletePermanent}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Вкладка: Проекты */}
+        {activeTab === 'projects' && (
+          <div className="space-y-3">
+            {filteredTrashProjects.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
+                  <FolderKanban className="w-7 h-7" />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">{isEn ? 'No deleted projects' : 'Удалённых проектов нет'}</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+                  {searchQuery ? t.notFoundDesc : (isEn ? 'Trash has no deleted projects.' : 'В корзине нет удалённых проектов.')}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
                 {filteredTrashProjects.map((project) => (
                   <div
                     key={project.id}
@@ -238,40 +398,51 @@ export const TrashView: React.FC<TrashViewProps> = ({
                 ))}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Удаленные Задачи */}
-            {trashTasks.length > 0 && (
-              <div className="space-y-2.5">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  {t.trashDeletedTasks} ({trashTasks.length})
+        {/* Вкладка: Заметки */}
+        {activeTab === 'notes' && (
+          <div className="space-y-3">
+            {filteredTrashNotes.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
+                  <FileText className="w-7 h-7" />
                 </div>
-                {trashTasks.map((task) => (
+                <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">{isEn ? 'No deleted notes' : 'Удалённых заметок нет'}</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+                  {searchQuery ? t.notFoundDesc : (isEn ? 'Trash has no deleted notes.' : 'В корзине нет удалённых заметок.')}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredTrashNotes.map((note) => (
                   <div
-                    key={task.id}
+                    key={note.id}
                     className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between group"
                   >
                     <div className="flex items-center space-x-3.5 flex-1 min-w-0 pr-4">
                       <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-[#282828] text-zinc-400 flex items-center justify-center shrink-0">
-                        <CheckSquare className="w-4 h-4" />
+                        <FileText className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 line-through truncate">
-                          {task.title}
+                        <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 line-through truncate">
+                          {note.title}
                         </h4>
-                        {task.notes && (
-                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{task.notes}</p>
+                        {note.notes && (
+                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{note.notes}</p>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2 shrink-0">
                       <button
-                        onClick={() => handleRestoreTask(task)}
+                        onClick={() => handleRestoreTask(note)}
                         className="px-3.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2c] font-bold flex items-center space-x-1.5 cursor-pointer transition-colors"
-                        title={t.trashRestoreTask}
+                        title={isEn ? 'Restore note' : 'Восстановить заметку'}
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                        <span>{t.trashRestoreTask}</span>
+                        <span>{isEn ? 'Restore note' : 'Восстановить'}</span>
                       </button>
 
                       <button
@@ -279,8 +450,8 @@ export const TrashView: React.FC<TrashViewProps> = ({
                           setDeleteModalState({
                             isOpen: true,
                             type: 'task',
-                            targetId: task.id,
-                            title: task.title,
+                            targetId: note.id,
+                            title: note.title,
                           })
                         }
                         className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"

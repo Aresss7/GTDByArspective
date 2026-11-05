@@ -3,10 +3,32 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
+import HardBreak from '@tiptap/extension-hard-break';
 import { Markdown } from 'tiptap-markdown';
 import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
 import { LinkPreviewCard } from './LinkPreviewCard';
+
+// Кастомный перенос строки без обратного слэша "\" при сохранении в Markdown
+export const CustomHardBreak = HardBreak.extend({
+  addStorage() {
+    return {
+      markdown: {
+        serialize(state: any, node: any, parent: any, index: number) {
+          for (let i = index + 1; i < parent.childCount; i++) {
+            if (parent.child(i).type !== node.type) {
+              state.write(state.inTable ? '<br>' : '\n');
+              return;
+            }
+          }
+        },
+        parse: {
+          // Обрабатывается markdown-it с опцией breaks: true
+        },
+      },
+    };
+  },
+});
 
 export interface VisualEditorRef {
   getMarkdown: () => string;
@@ -17,12 +39,14 @@ export interface VisualEditorRef {
 interface VisualEditorProps {
   initialMarkdown: string;
   onChange: (markdown: string) => void;
+  onSave?: () => void;
   placeholder?: string;
 }
 
 export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
   initialMarkdown,
   onChange,
+  onSave,
   placeholder = 'Начните вводить текст заметки... Для форматирования нажмите правую кнопку мыши.',
 }, ref) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
@@ -40,6 +64,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        hardBreak: false,
         heading: {
           levels: [1, 2, 3],
         },
@@ -69,6 +94,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
           },
         },
       }),
+      CustomHardBreak,
       Underline,
       Link.configure({
         openOnClick: false,
@@ -78,6 +104,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
       }),
       Markdown.configure({
         html: true,
+        breaks: true,
         transformPastedText: true,
         transformCopiedText: true,
       }),
@@ -86,6 +113,14 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
     editorProps: {
       attributes: {
         class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[460px] p-5 text-sm md:text-base leading-relaxed text-zinc-900 dark:text-zinc-100',
+      },
+      handleKeyDown: (view, event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          onSave?.();
+          return true;
+        }
+        return false;
       },
       handleClick: (view, pos, event) => {
         // Ctrl+Click opens link in default external browser

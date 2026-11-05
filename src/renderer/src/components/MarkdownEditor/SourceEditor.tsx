@@ -12,12 +12,14 @@ export interface SourceEditorRef {
 interface SourceEditorProps {
   value: string;
   onChange: (val: string) => void;
+  onSave?: () => void;
   placeholder?: string;
 }
 
 export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
   value,
   onChange,
+  onSave,
   placeholder = 'Введите текст в формате Markdown...',
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -105,6 +107,13 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const el = textareaRef.current;
     if (!el) return;
+
+    // Ctrl+Enter to save
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      onSave?.();
+      return;
+    }
 
     // Tab key
     if (e.key === 'Tab') {

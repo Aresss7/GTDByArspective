@@ -24,8 +24,11 @@ export interface Task {
   scheduled_date?: string | null; // YYYY-MM-DD
   scheduled_time?: string | null; // HH:mm
   delegated_to?: string | null;
+  delegated_date?: string | null; // YYYY-MM-DD
   waiting_for?: string | null;
   check_date?: string | null;     // YYYY-MM-DD
+  is_pinned?: boolean | number;
+  previous_destination?: TaskDestination | null;
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
@@ -49,6 +52,7 @@ export interface Project {
 }
 
 export type GTDQuestionId =
+  | 'WHAT_IS_IT'          // «Что это?» (добавление/редактирование описания)
   | 'ACTIONABLE'          // «С этим надо что-то делать?»
   | 'CHOOSE_NOT_ACTIONABLE' // Выбор: Мусор или Заметки
   | 'FOR_ME'              // «Мне?»
@@ -148,6 +152,7 @@ export interface GtdApi {
   createTask: (data: Partial<Task> & { title: string }) => Promise<Task>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<Task>;
   deleteTask: (id: string, permanent?: boolean) => Promise<boolean>;
+  restoreTask: (id: string) => Promise<Task | null>;
   
   // Projects
   getProjects: (status?: ProjectStatus) => Promise<Project[]>;

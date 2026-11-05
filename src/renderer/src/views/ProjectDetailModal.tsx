@@ -191,18 +191,26 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
   // Сохранение настроек проекта (заголовок, описание, критерии)
   const handleSaveProjectDetails = async () => {
-    if (!window.gtdApi || !projectTitleDraft.trim()) return;
+    if (!window.gtdApi) return;
+    if (!projectTitleDraft.trim()) {
+      alert('Пожалуйста, укажите название проекта.');
+      return;
+    }
+    if (!projectCriteriaDraft.trim()) {
+      alert('Пожалуйста, укажите критерий завершения проекта (обязательное поле).');
+      return;
+    }
     try {
       await window.gtdApi.updateProject(project.id, {
         title: projectTitleDraft.trim(),
         description: projectDescDraft.trim() || null,
-        completion_criteria: projectCriteriaDraft.trim() || null,
+        completion_criteria: projectCriteriaDraft.trim(),
       });
       setIsEditingProject(false);
       await loadProjectData();
       await onProjectUpdated();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert(err.message || 'Ошибка обновления проекта');
     }
   };
 
@@ -324,11 +332,19 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-500 mb-1">Критерии завершения</label>
+                  <label className="block text-xs font-semibold text-zinc-500 mb-1">
+                    Критерий завершения <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
+                    required
                     value={projectCriteriaDraft}
                     onChange={(e) => setProjectCriteriaDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveProjectDetails();
+                      if (e.key === 'Escape') setIsEditingProject(false);
+                    }}
+                    placeholder="Что должно произойти, чтобы проект считался завершенным..."
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs"
                   />
                 </div>
@@ -487,12 +503,12 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                             onChange={() => handleToggleStep(step)}
                             title="Отметить выполненным"
                           />
-                          <div className="flex items-center space-x-2 truncate">
-                            <span className={`truncate ${step.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'font-semibold'}`}>
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            <span className={`break-words whitespace-pre-wrap leading-relaxed ${step.status === 'completed' ? 'line-through text-zinc-400 dark:text-zinc-500' : 'font-semibold'}`}>
                               {step.title}
                             </span>
                             {step.id === project.first_step_task_id && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold shrink-0">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold shrink-0 self-start mt-0.5">
                                 1-й шаг
                               </span>
                             )}

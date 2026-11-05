@@ -8,7 +8,7 @@ interface DelegateTaskModalProps {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
-  onDelegate: (taskId: string, data: { delegated_to: string; waiting_for?: string; check_date?: string }) => Promise<void>;
+  onDelegate: (taskId: string, data: { delegated_to: string; delegated_date?: string; waiting_for?: string; check_date?: string }) => Promise<void>;
   language?: Language;
 }
 
@@ -23,6 +23,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   const todayStr = new Date().toISOString().split('T')[0];
 
   const [delegatedTo, setDelegatedTo] = useState('');
+  const [delegatedDate, setDelegatedDate] = useState(todayStr);
   const [waitingFor, setWaitingFor] = useState('');
   const [checkDate, setCheckDate] = useState(todayStr);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,6 +32,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   useEffect(() => {
     if (task && isOpen) {
       setDelegatedTo(task.delegated_to || '');
+      setDelegatedDate(task.delegated_date || todayStr);
       setWaitingFor(task.waiting_for || task.title || '');
       // Автозаполнение даты: берём дату задачи или сегодняшнюю дату
       setCheckDate(task.scheduled_date || task.check_date || task.due_date || todayStr);
@@ -38,10 +40,26 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
     }
   }, [task, isOpen, todayStr]);
 
+  // Закрытие по Escape и сохранение по Ctrl+Enter
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit(e as any);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, delegatedTo, delegatedDate, waitingFor, checkDate]);
+
   if (!isOpen || !task) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!delegatedTo.trim()) {
       setError(isEn ? 'Please specify whom this task is delegated to.' : 'Укажите, кому делегирована задача.');
       return;
@@ -52,6 +70,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
     try {
       await onDelegate(task.id, {
         delegated_to: delegatedTo.trim(),
+        delegated_date: delegatedDate || undefined,
         waiting_for: waitingFor.trim() || undefined,
         check_date: checkDate || undefined,
       });
@@ -136,20 +155,32 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
             />
           </div>
 
-          {/* Дата проверки / контроля с автозаполнением */}
-          <div>
-            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              {isEn ? 'Follow-up / Check Date' : 'Дата проверки / контроля'}
-            </label>
-            <CustomDatePicker
-              value={checkDate}
-              onChange={setCheckDate}
-              placeholder={isEn ? 'Select check date' : 'Выберите дату контроля'}
-            />
-            <p className="text-[10px] text-zinc-400 mt-1">
-              {isEn ? 'Date is prefilled automatically and can be customized.' : 'Дата заполнена автоматически, вы можете изменить её при необходимости.'}
-            </p>
+          {/* Даты: Дата от и Дата проверки */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                {isEn ? 'Date From (Start)' : 'Дата от'}
+              </label>
+              <CustomDatePicker
+                value={delegatedDate}
+                onChange={setDelegatedDate}
+                placeholder={isEn ? 'Start date' : 'Дата начала'}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                {isEn ? 'Follow-up / Check Date' : 'Дата проверки'}
+              </label>
+              <CustomDatePicker
+                value={checkDate}
+                onChange={setCheckDate}
+                placeholder={isEn ? 'Check date' : 'Дата контроля'}
+              />
+            </div>
           </div>
+          <p className="text-[10px] text-zinc-400">
+            {isEn ? 'Dates are prefilled automatically and can be customized.' : 'Даты заполнены автоматически, вы можете изменить их при необходимости.'}
+          </p>
 
           {/* Кнопки действий */}
           <div className="flex items-center justify-end space-x-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">

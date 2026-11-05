@@ -25,7 +25,7 @@ nsis:
   perMachine: false
   allowElevation: true
   deleteAppDataOnUninstall: false
-  createDesktopShortcut: always
+  createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Arspective GTD
   include: build/installer.nsh

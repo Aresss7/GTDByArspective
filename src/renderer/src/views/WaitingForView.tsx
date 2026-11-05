@@ -145,14 +145,24 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                     </p>
                   )}
 
-                  {task.check_date && (
-                    <div className="flex items-center space-x-1.5 text-xs">
-                      <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-                      <span className={isCheckDue ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}>
-                        {t.waitingForCheckDate}: {task.check_date} {isCheckDue && `⚠️ ${t.waitingForCheckDueAlert}`}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 pt-0.5">
+                    {task.delegated_date && (
+                      <div className="flex items-center space-x-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>
+                          {isEn ? 'Delegated:' : 'Поручено:'} {task.delegated_date}
+                        </span>
+                      </div>
+                    )}
+                    {task.check_date && (
+                      <div className="flex items-center space-x-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className={isCheckDue ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>
+                          {t.waitingForCheckDate}: {task.check_date} {isCheckDue && `⚠️ ${t.waitingForCheckDueAlert}`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center space-x-2 shrink-0">

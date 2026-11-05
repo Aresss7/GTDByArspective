@@ -307,8 +307,11 @@ export class SyncRepository {
               scheduled_date: t.scheduled_date || undefined,
               scheduled_time: t.scheduled_time || undefined,
               delegated_to: t.delegated_to || undefined,
+              delegated_date: t.delegated_date || undefined,
               waiting_for: t.waiting_for || undefined,
               check_date: t.check_date || undefined,
+              is_pinned: t.is_pinned ? 1 : 0,
+              previous_destination: t.previous_destination || undefined,
             });
             // Фиксируем исходные даты создания/обновления с клиента
             this.db.prepare(`
@@ -347,8 +350,11 @@ export class SyncRepository {
                   scheduled_date = @scheduled_date,
                   scheduled_time = @scheduled_time,
                   delegated_to = @delegated_to,
+                  delegated_date = @delegated_date,
                   waiting_for = @waiting_for,
                   check_date = @check_date,
+                  is_pinned = @is_pinned,
+                  previous_destination = @previous_destination,
                   updated_at = @updated_at,
                   completed_at = @completed_at,
                   deleted_at = @deleted_at
@@ -366,8 +372,11 @@ export class SyncRepository {
                 scheduled_date: t.scheduled_date || null,
                 scheduled_time: t.scheduled_time || null,
                 delegated_to: t.delegated_to || null,
+                delegated_date: t.delegated_date || null,
                 waiting_for: t.waiting_for || null,
                 check_date: t.check_date || null,
+                is_pinned: t.is_pinned !== undefined ? (t.is_pinned ? 1 : 0) : (local.is_pinned ? 1 : 0),
+                previous_destination: t.previous_destination || local.previous_destination || null,
                 updated_at: t.updated_at,
                 completed_at: t.completed_at || null,
                 deleted_at: t.deleted_at || null,

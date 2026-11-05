@@ -36,6 +36,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [scheduledTime, setScheduledTime] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [delegatedTo, setDelegatedTo] = useState('');
+  const [delegatedDate, setDelegatedDate] = useState('');
   const [waitingFor, setWaitingFor] = useState('');
   const [checkDate, setCheckDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,10 +54,29 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setScheduledTime(task.scheduled_time || '');
       setDueDate(task.due_date || '');
       setDelegatedTo(task.delegated_to || '');
+      setDelegatedDate(task.delegated_date || todayStr);
       setWaitingFor(task.waiting_for || '');
       setCheckDate(task.check_date || '');
     }
   }, [task, isOpen]);
+
+  // Закрытие/отмена по Escape и сохранение по Ctrl+Enter
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!isConfirmDeleteOpen) {
+          e.preventDefault();
+          onClose();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit(e as any);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isConfirmDeleteOpen, title, notes, destination, projectId, scheduledDate, scheduledTime, dueDate, delegatedTo, delegatedDate, waitingFor, checkDate]);
 
   if (!isOpen || !task) return null;
 
@@ -80,6 +100,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         scheduled_time: destination === 'calendar' ? scheduledTime || null : null,
         due_date: dueDate || null,
         delegated_to: destination === 'waiting_for' ? delegatedTo || null : null,
+        delegated_date: destination === 'waiting_for' ? delegatedDate || null : null,
         waiting_for: destination === 'waiting_for' ? waitingFor || null : null,
         check_date: destination === 'waiting_for' ? checkDate || null : null,
       });
@@ -259,14 +280,12 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                    Ожидаемый результат
+                    Дата от (начала)
                   </label>
-                  <input
-                    type="text"
-                    value={waitingFor}
-                    onChange={(e) => setWaitingFor(e.target.value)}
-                    placeholder="Что ожидается..."
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                  <CustomDatePicker
+                    value={delegatedDate}
+                    onChange={setDelegatedDate}
+                    placeholder="Дата от"
                   />
                 </div>
                 <div>
@@ -280,6 +299,18 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                     placeholder="Дата проверки"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Ожидаемый результат
+                </label>
+                <input
+                  type="text"
+                  value={waitingFor}
+                  onChange={(e) => setWaitingFor(e.target.value)}
+                  placeholder="Что ожидается..."
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                />
               </div>
             </div>
           )}

@@ -35,11 +35,31 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     setCompletionCriteria('');
   }, [sourceTask, isOpen]);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit(e as any);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, title, firstStepTitle, completionCriteria, description, approximatePlan]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!title.trim() || !firstStepTitle.trim() || isSubmitting) return;
+
+    if (!completionCriteria.trim()) {
+      alert('Пожалуйста, укажите критерий завершения проекта (обязательное поле).');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -49,7 +69,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           description: description.trim() || undefined,
           firstStepTitle: firstStepTitle.trim(),
           approximatePlan: approximatePlan.trim() || undefined,
-          completionCriteria: completionCriteria.trim() || undefined,
+          completionCriteria: completionCriteria.trim(),
           sourceTaskId: sourceTask?.id,
         });
 
@@ -156,13 +176,14 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-              Критерии завершения
+              Критерий завершения <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
+              required
               value={completionCriteria}
               onChange={(e) => setCompletionCriteria(e.target.value)}
-              placeholder="Когда проект считается закрытым?"
+              placeholder="Когда проект считается закрытым? (обязательно)"
               className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none"
             />
           </div>
@@ -173,11 +194,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               onClick={onClose}
               className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
             >
-              Отмена
+              Отмена (Esc)
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || !firstStepTitle.trim() || isSubmitting}
+              disabled={!title.trim() || !firstStepTitle.trim() || !completionCriteria.trim() || isSubmitting}
               className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
             >
               <span>Создать и обработать 1-й шаг</span>

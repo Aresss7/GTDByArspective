@@ -98,6 +98,7 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
           ref={visualEditorRef}
           initialMarkdown={content}
           onChange={handleContentChange}
+          onSave={onSave}
           placeholder={placeholder}
         />
       ) : (
@@ -105,6 +106,7 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
           ref={sourceEditorRef}
           value={content}
           onChange={handleContentChange}
+          onSave={onSave}
           placeholder={placeholder}
         />
       )}

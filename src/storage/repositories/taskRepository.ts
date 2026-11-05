@@ -54,8 +54,11 @@ export class TaskRepository {
       scheduled_date: data.scheduled_date || undefined,
       scheduled_time: data.scheduled_time || undefined,
       delegated_to: data.delegated_to || undefined,
+      delegated_date: data.delegated_date || undefined,
       waiting_for: data.waiting_for || undefined,
       check_date: data.check_date || undefined,
+      is_pinned: data.is_pinned ? 1 : 0,
+      previous_destination: data.previous_destination || undefined,
       created_at: now,
       updated_at: now,
       completed_at: data.status === 'completed' ? now : undefined,
@@ -66,11 +69,13 @@ export class TaskRepository {
       INSERT INTO tasks (
         id, title, notes, destination, status, project_id, project_order,
         due_date, due_time, scheduled_date, scheduled_time, delegated_to,
-        waiting_for, check_date, created_at, updated_at, completed_at, deleted_at
+        delegated_date, waiting_for, check_date, is_pinned, previous_destination,
+        created_at, updated_at, completed_at, deleted_at
       ) VALUES (
         @id, @title, @notes, @destination, @status, @project_id, @project_order,
         @due_date, @due_time, @scheduled_date, @scheduled_time, @delegated_to,
-        @waiting_for, @check_date, @created_at, @updated_at, @completed_at, @deleted_at
+        @delegated_date, @waiting_for, @check_date, @is_pinned, @previous_destination,
+        @created_at, @updated_at, @completed_at, @deleted_at
       )
     `);
 
@@ -87,8 +92,11 @@ export class TaskRepository {
       scheduled_date: task.scheduled_date || null,
       scheduled_time: task.scheduled_time || null,
       delegated_to: task.delegated_to || null,
+      delegated_date: task.delegated_date || null,
       waiting_for: task.waiting_for || null,
       check_date: task.check_date || null,
+      is_pinned: task.is_pinned ? 1 : 0,
+      previous_destination: task.previous_destination || null,
       created_at: task.created_at,
       updated_at: task.updated_at,
       completed_at: task.completed_at || null,
@@ -115,6 +123,7 @@ export class TaskRepository {
     const updatedTask: Task = {
       ...existing,
       ...updates,
+      is_pinned: updates.is_pinned !== undefined ? (updates.is_pinned ? 1 : 0) : existing.is_pinned,
       updated_at: now,
       completed_at: completedAt,
     };
@@ -132,8 +141,11 @@ export class TaskRepository {
         scheduled_date = @scheduled_date,
         scheduled_time = @scheduled_time,
         delegated_to = @delegated_to,
+        delegated_date = @delegated_date,
         waiting_for = @waiting_for,
         check_date = @check_date,
+        is_pinned = @is_pinned,
+        previous_destination = @previous_destination,
         updated_at = @updated_at,
         completed_at = @completed_at,
         deleted_at = @deleted_at
@@ -153,8 +165,11 @@ export class TaskRepository {
       scheduled_date: updatedTask.scheduled_date || null,
       scheduled_time: updatedTask.scheduled_time || null,
       delegated_to: updatedTask.delegated_to || null,
+      delegated_date: updatedTask.delegated_date || null,
       waiting_for: updatedTask.waiting_for || null,
       check_date: updatedTask.check_date || null,
+      is_pinned: updatedTask.is_pinned ? 1 : 0,
+      previous_destination: updatedTask.previous_destination || null,
       updated_at: updatedTask.updated_at,
       completed_at: updatedTask.completed_at || null,
       deleted_at: updatedTask.deleted_at || null,
@@ -179,13 +194,29 @@ export class TaskRepository {
       }
       return res.changes > 0;
     } else {
+      const existing = this.getById(id);
       const now = new Date().toISOString();
+      const prevDest = existing && existing.destination !== 'trash' ? existing.destination : null;
       const stmt = this.db.prepare(
-        "UPDATE tasks SET destination = 'trash', deleted_at = ?, updated_at = ? WHERE id = ?"
+        "UPDATE tasks SET previous_destination = COALESCE(previous_destination, ?), destination = 'trash', deleted_at = ?, updated_at = ? WHERE id = ?"
       );
-      const res = stmt.run(now, now, id);
+      const res = stmt.run(prevDest, now, now, id);
       return res.changes > 0;
     }
+  }
+
+  restore(id: string): Task | null {
+    const existing = this.getById(id);
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    const restoreDest = existing.previous_destination && existing.previous_destination !== 'trash'
+      ? existing.previous_destination
+      : 'inbox';
+    const stmt = this.db.prepare(
+      "UPDATE tasks SET destination = ?, previous_destination = NULL, deleted_at = NULL, status = 'active', updated_at = ? WHERE id = ?"
+    );
+    stmt.run(restoreDest, now, id);
+    return this.getById(id);
   }
 
   getCompletedTasks(): Task[] {
