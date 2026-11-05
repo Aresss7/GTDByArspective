@@ -483,14 +483,14 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   />
                 </div>
 
-                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                  <div className="text-[11px] text-zinc-400 dark:text-zinc-500 space-y-1 shrink-0 whitespace-nowrap">
-                    <div className="flex items-center space-x-1.5">
-                      <span className="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Enter</span>
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="text-[11px] text-zinc-400 dark:text-zinc-500 space-y-1 shrink-0">
+                    <div className="flex items-center space-x-1.5 whitespace-nowrap">
+                      <kbd className="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Enter</kbd>
                       <span>— {isEn ? 'save & continue' : 'сохранить и продолжить'}</span>
                     </div>
-                    <div className="flex items-center space-x-1.5">
-                      <span className="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Ctrl + Enter</span>
+                    <div className="flex items-center space-x-1.5 whitespace-nowrap">
+                      <kbd className="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Ctrl + Enter</kbd>
                       <span>— {isEn ? 'save & close' : 'сохранить и закрыть'}</span>
                     </div>
                   </div>
@@ -510,7 +510,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                       className="px-5 py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold transition-colors shadow-sm disabled:opacity-40 cursor-pointer"
                       title={isEn ? 'Save to Inbox and stay open (Enter)' : 'Сохранить в корзину и продолжить ввод (Enter)'}
                     >
-                      {isEn ? 'Save (Enter)' : 'Сохранить (Enter)'}
+                      {isEn ? 'Save' : 'Сохранить'}
                     </button>
                   </div>
                 </div>
