@@ -8,7 +8,8 @@ import {
   UserCheck, 
   Clock, 
   FileText, 
-  ChevronDown 
+  ChevronDown,
+  Trash2 
 } from 'lucide-react';
 import { TaskDestination } from '@shared/types';
 import { DefaultCaptureTabSetting } from '../views/SettingsView';
@@ -28,6 +29,7 @@ const DESTINATION_META: Record<TaskDestination, { label: string; shortLabel: str
   waiting_for: { label: 'Ожидание', shortLabel: '«Ожидание»', icon: UserCheck },
   someday: { label: 'Когда-нибудь', shortLabel: '«Когда-нибудь»', icon: Clock },
   notes: { label: 'Заметки', shortLabel: '«Заметки»', icon: FileText },
+  trash: { label: 'Мусор', shortLabel: '«Мусор»', icon: Trash2 },
 };
 
 const ALL_DESTINATIONS: TaskDestination[] = [

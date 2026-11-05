@@ -146,6 +146,10 @@
   padding: 0 !important;
 }
 
+.ProseMirror ul[data-type="taskList"] li > label > span {
+  display: none !important;
+}
+
 .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
   appearance: none !important;
   -webkit-appearance: none !important;
@@ -207,13 +211,21 @@
 }
 
 /* Завершённые задачи НЕ перечёркиваются, а становятся более серыми */
-.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"],
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div,
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p,
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div * {
   text-decoration: none !important;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div,
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
   color: #71717a !important;
   opacity: 0.6 !important;
 }
 
-.dark .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+.dark .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div,
+.dark .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
   color: #a1a1aa !important;
   opacity: 0.55 !important;
 }

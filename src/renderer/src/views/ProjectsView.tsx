@@ -117,7 +117,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             {effectiveSearch ? t.notFoundTitle : t.projectsEmptyActiveTitle}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            {effectiveSearch ? t.notFoundDesc : t.projectsEmptyActiveDesc}
+            {effectiveSearch ? t.notFoundDesc : t.projectsEmptyDesc}
           </p>
         </div>
       ) : (

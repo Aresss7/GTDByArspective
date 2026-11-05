@@ -1,4 +1,4 @@
-import React, { useRef, useImperativeHandle, forwardRef, useState } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
 import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
 
