@@ -48,13 +48,76 @@ export class ProjectRepository {
   createWithFirstStep(data: {
     title: string;
     description?: string;
-    firstStepTitle: string;
+    firstStepTitle?: string;
     approximatePlan?: string;
     completionCriteria?: string;
     sourceTaskId?: string; // Исходная задача из Корзины, если проект возник из нее
-  }): { project: Project; firstStep: Task } {
+    existingTaskId?: string; // Если проект создается прямо из существующей задачи (без дублирования!)
+  }): { project: Project; firstStep?: Task } {
     const now = new Date().toISOString();
     const projectId = `proj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    // Вариант 1: Проект создается прямо из существующей задачи — привязываем ее как 1-й шаг без дублирования
+    if (data.existingTaskId) {
+      const existingTask = this.taskRepo.getById(data.existingTaskId);
+      if (existingTask) {
+        const tx = this.db.transaction(() => {
+          const insertProjectStmt = this.db.prepare(`
+            INSERT INTO projects (
+              id, title, description, first_step_task_id, approximate_plan,
+              completion_criteria, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          insertProjectStmt.run(
+            projectId,
+            data.title,
+            data.description || null,
+            data.existingTaskId,
+            data.approximatePlan || null,
+            data.completionCriteria || 'Выполнение всех шагов',
+            'active',
+            now,
+            now
+          );
+
+          const updateTaskStmt = this.db.prepare(`
+            UPDATE tasks SET project_id = ?, project_order = 1, updated_at = ? WHERE id = ?
+          `);
+          updateTaskStmt.run(projectId, now, data.existingTaskId);
+        });
+
+        tx();
+        const project = this.getById(projectId)!;
+        const firstStep = this.taskRepo.getById(data.existingTaskId)!;
+        return { project, firstStep };
+      }
+    }
+
+    // Вариант 2: Создание проекта без первого шага (когда задача еще редактируется/создается в окне)
+    if (!data.firstStepTitle && !data.existingTaskId) {
+      const insertProjectStmt = this.db.prepare(`
+        INSERT INTO projects (
+          id, title, description, first_step_task_id, approximate_plan,
+          completion_criteria, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      insertProjectStmt.run(
+        projectId,
+        data.title,
+        data.description || null,
+        null,
+        data.approximatePlan || null,
+        data.completionCriteria || 'Выполнение всех шагов',
+        'active',
+        now,
+        now
+      );
+      const project = this.getById(projectId)!;
+      return { project };
+    }
+
+    // Вариант 3: Создание проекта с генерацией новой задачи первого шага
     const firstStepId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
     const tx = this.db.transaction(() => {
@@ -88,7 +151,7 @@ export class ProjectRepository {
 
       insertTaskStmt.run(
         firstStepId,
-        data.firstStepTitle,
+        data.firstStepTitle || 'Первый шаг',
         null,
         'inbox', // пока не пройдет специальную обработку «Мне?»
         'active',

@@ -22,6 +22,7 @@ import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { useToast } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
 import { Task, Project, TaskDestination, WindowCloseAction } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { Language, getStoredLanguage, setStoredLanguage, translations } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -556,18 +557,10 @@ export const App: React.FC = () => {
     }
     return false;
   });
-  const nextActionsQ = nextActionsSearch.toLowerCase().trim();
-  const nextActionsTasks = allNextActions.filter((t) => {
-    if (!nextActionsQ) return true;
-    return t.title.toLowerCase().includes(nextActionsQ) || Boolean(t.notes && t.notes.toLowerCase().includes(nextActionsQ));
-  });
+  const nextActionsTasks = allNextActions.filter((t) => matchesSearch(t, nextActionsSearch));
 
   const allInboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active' && !t.deleted_at);
-  const inboxQ = inboxSearch.toLowerCase().trim();
-  const inboxTasks = allInboxTasks.filter((t) => {
-    if (!inboxQ) return true;
-    return t.title.toLowerCase().includes(inboxQ) || Boolean(t.notes && t.notes.toLowerCase().includes(inboxQ));
-  });
+  const inboxTasks = allInboxTasks.filter((t) => matchesSearch(t, inboxSearch));
 
   const t = translations[language] || translations.ru;
 

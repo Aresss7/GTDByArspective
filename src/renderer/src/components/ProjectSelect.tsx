@@ -10,6 +10,7 @@ interface ProjectSelectProps {
   language?: Language;
   isDarkMode?: boolean;
   className?: string;
+  taskId?: string;
   taskTitle?: string;
   onProjectCreated?: (newProject: Project) => void;
 }
@@ -21,6 +22,7 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
   language = 'ru',
   isDarkMode = false,
   className = '',
+  taskId,
   taskTitle,
   onProjectCreated,
 }) => {
@@ -82,10 +84,11 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
     setIsSavingProject(true);
     try {
       if (window.gtdApi) {
-        const stepTitle = taskTitle?.trim() || (isEn ? 'First Step' : 'Первый шаг');
+        // Если передан taskId (существующая задача), привязываем её как 1-й шаг без создания дубликата!
+        // Если taskId нет (новая задача в UniversalAddModal), создаем проект, а сама задача станет 1-м шагом при сохранении.
         const res = await window.gtdApi.createProject({
           title: trimmed,
-          firstStepTitle: stepTitle,
+          existingTaskId: taskId || undefined,
           completionCriteria: isEn ? 'Completion of all steps' : 'Выполнение всех шагов',
         });
         onChange(res.project.id);

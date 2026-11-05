@@ -49,7 +49,7 @@ export function containsWordBoundary(text: string, word: string): boolean {
   if (!text || !word) return false;
   const escaped = escapeRegExp(word);
   // Using Unicode lookaround: not preceded by letter, number or hyphen, and not followed by letter, number or hyphen.
-  const regex = new RegExp(`(?<![\\p{L}\\p{N}_-])${escaped}(?![\\p{L}\\p{N}_-])`, 'iu');
+  const regex = new RegExp(`(?<![\\p{L}\\p{N}_–—-])${escaped}(?![\\p{L}\\p{N}_–—-])`, 'iu');
   return regex.test(text);
 }
 
@@ -68,8 +68,9 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
   }
 
   const exactPhrases: string[] = [];
-  // 1. Extract exact phrases in quotes ("phrase")
-  let working = rawQuery.replace(/"([^"]+)"/g, (_, phrase) => {
+  // 1. Extract exact phrases in quotes ("...", «...», “...”)
+  let working = rawQuery.replace(/(?:"([^"]+)"|«([^»]+)»|[“„]([^”"]+)[”"])/g, (_, p1, p2, p3) => {
+    const phrase = p1 || p2 || p3 || '';
     const trimmed = phrase.trim();
     if (trimmed) {
       const idx = exactPhrases.length;
@@ -79,9 +80,9 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
     return ' ';
   });
 
-  // 2. Extract exclusion words surrounded by hyphens: -word-
+  // 2. Extract exclusion words surrounded by hyphens/dashes: -word-, –word–, —word—
   const excludedWords: string[] = [];
-  working = working.replace(/(?:^|\s)-([^\s]+)-(?=\s|$)/gu, (_, word) => {
+  working = working.replace(/(?:^|\s)[-–—]([^\s–—-]+)[-–—](?=\s|$)/gu, (_, word) => {
     const cleanWord = word.trim();
     if (cleanWord) {
       excludedWords.push(cleanWord);
@@ -94,7 +95,8 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
   const structuredTokens: (SearchToken | 'OR')[] = [];
 
   for (const token of rawTokens) {
-    if (token.toUpperCase() === 'OR') {
+    const upper = token.toUpperCase();
+    if (upper === 'OR' || upper === 'ИЛИ') {
       structuredTokens.push('OR');
       continue;
     }

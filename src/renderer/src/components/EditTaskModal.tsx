@@ -325,6 +325,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 projects={projects}
                 value={projectId}
                 onChange={setProjectId}
+                taskId={task.id}
                 taskTitle={title}
                 language={language}
                 isDarkMode={isDarkMode}

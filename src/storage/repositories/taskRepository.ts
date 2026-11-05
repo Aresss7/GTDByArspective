@@ -103,6 +103,17 @@ export class TaskRepository {
       deleted_at: task.deleted_at || null,
     });
 
+    if (task.project_id) {
+      try {
+        const proj = this.db.prepare('SELECT first_step_task_id FROM projects WHERE id = ?').get(task.project_id) as any;
+        if (proj && !proj.first_step_task_id) {
+          this.db.prepare('UPDATE projects SET first_step_task_id = ?, updated_at = ? WHERE id = ?').run(task.id, task.updated_at, task.project_id);
+        }
+      } catch (e) {
+        console.warn('Failed to update project first step on task create:', e);
+      }
+    }
+
     return task;
   }
 
@@ -188,6 +199,17 @@ export class TaskRepository {
       completed_at: updatedTask.completed_at || null,
       deleted_at: updatedTask.deleted_at || null,
     });
+
+    if (updatedTask.project_id) {
+      try {
+        const proj = this.db.prepare('SELECT first_step_task_id FROM projects WHERE id = ?').get(updatedTask.project_id) as any;
+        if (proj && !proj.first_step_task_id) {
+          this.db.prepare('UPDATE projects SET first_step_task_id = ?, updated_at = ? WHERE id = ?').run(updatedTask.id, updatedTask.updated_at, updatedTask.project_id);
+        }
+      } catch (e) {
+        console.warn('Failed to update project first step on task update:', e);
+      }
+    }
 
     return updatedTask;
   }

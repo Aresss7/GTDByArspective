@@ -93,4 +93,34 @@ describe('Project & First Step GTD Workflow', () => {
     const completedProject = projectRepo.update(project.id, { status: 'completed' });
     expect(completedProject.status).toBe('completed');
   });
+
+  it('creating project from existing task must NOT duplicate the task', () => {
+    // 1. Создаем исходную задачу
+    const task = taskRepo.create({
+      title: 'Купить краску для стен',
+      destination: 'next_actions',
+      notes: 'Цвет: матовый графит',
+    });
+
+    const initialTaskCount = taskRepo.getAll().length;
+    expect(initialTaskCount).toBe(1);
+
+    // 2. Создаем проект из этой существующей задачи
+    const { project, firstStep } = projectRepo.createWithFirstStep({
+      title: 'Ремонт гостиной',
+      existingTaskId: task.id,
+    });
+
+    // 3. Проверяем, что проект привязал эту задачу как 1-й шаг
+    expect(project.first_step_task_id).toBe(task.id);
+    expect(firstStep?.id).toBe(task.id);
+    expect(firstStep?.title).toBe('Купить краску для стен');
+    expect(firstStep?.project_id).toBe(project.id);
+
+    // 4. Проверяем, что в базе по-прежнему ровно 1 задача, а не 2!
+    const allTasks = taskRepo.getAll();
+    expect(allTasks.length).toBe(1);
+    expect(allTasks[0].id).toBe(task.id);
+    expect(allTasks[0].project_id).toBe(project.id);
+  });
 });
