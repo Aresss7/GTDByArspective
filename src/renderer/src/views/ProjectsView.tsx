@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FolderKanban, Search } from 'lucide-react';
 import { Project, Task } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { ProjectDetailModal } from './ProjectDetailModal';
 import { ProjectContextMenu } from '../components/ProjectContextMenu';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
@@ -44,17 +45,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   // В разделе «Проекты» отображаются только активные проекты
   const activeProjects = projects.filter((p) => p.status === 'active' && !p.deleted_at);
 
-  const filteredProjects = activeProjects.filter((p) => {
-    if (effectiveSearch) {
-      const q = effectiveSearch.toLowerCase();
-      const inTitle = p.title.toLowerCase().includes(q);
-      const inDesc = Boolean(p.description && p.description.toLowerCase().includes(q));
-      const inCriteria = Boolean(p.completion_criteria && p.completion_criteria.toLowerCase().includes(q));
-      return inTitle || inDesc || inCriteria;
-    }
-
-    return true;
-  });
+  const filteredProjects = activeProjects.filter((p) => matchesSearch(p, effectiveSearch));
 
   const handleContextMenu = (e: React.MouseEvent, project: Project) => {
     e.preventDefault();

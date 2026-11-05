@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FolderKanban, ChevronDown, Check, X, Search, MinusCircle } from 'lucide-react';
+import { FolderKanban, ChevronDown, Check, X, Search, MinusCircle, Plus } from 'lucide-react';
 import { Project } from '@shared/types';
 import { Language, translations } from '../i18n/translations';
 
@@ -10,6 +10,8 @@ interface ProjectSelectProps {
   language?: Language;
   isDarkMode?: boolean;
   className?: string;
+  taskTitle?: string;
+  onProjectCreated?: (newProject: Project) => void;
 }
 
 export const ProjectSelect: React.FC<ProjectSelectProps> = ({
@@ -19,11 +21,18 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
   language = 'ru',
   isDarkMode = false,
   className = '',
+  taskTitle,
+  onProjectCreated,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState('');
+  const [isSavingProject, setIsSavingProject] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const newProjectInputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[language] || translations.ru;
   const isEn = language === 'en';
@@ -38,6 +47,7 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setIsCreatingNew(false);
       }
     };
 
@@ -49,16 +59,49 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
     };
   }, [isOpen]);
 
-  // Focus search input on open
+  // Focus search or new project input on open/switch
   useEffect(() => {
-    if (isOpen && activeProjects.length >= 4) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
+    if (isOpen) {
+      if (isCreatingNew) {
+        setTimeout(() => newProjectInputRef.current?.focus(), 50);
+      } else if (activeProjects.length >= 4) {
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      }
     } else {
       setSearchQuery('');
+      setIsCreatingNew(false);
+      setNewProjectTitle('');
     }
-  }, [isOpen, activeProjects.length]);
+  }, [isOpen, isCreatingNew, activeProjects.length]);
+
+  const handleCreateProject = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newProjectTitle.trim();
+    if (!trimmed || isSavingProject) return;
+
+    setIsSavingProject(true);
+    try {
+      if (window.gtdApi) {
+        const stepTitle = taskTitle?.trim() || (isEn ? 'First Step' : 'Первый шаг');
+        const res = await window.gtdApi.createProject({
+          title: trimmed,
+          firstStepTitle: stepTitle,
+          completionCriteria: isEn ? 'Completion of all steps' : 'Выполнение всех шагов',
+        });
+        onChange(res.project.id);
+        if (onProjectCreated) {
+          onProjectCreated(res.project);
+        }
+        setIsCreatingNew(false);
+        setNewProjectTitle('');
+        setIsOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to create project:', err);
+    } finally {
+      setIsSavingProject(false);
+    }
+  };
 
   const filteredProjects = activeProjects.filter((p) => {
     if (!searchQuery.trim()) return true;
@@ -110,8 +153,64 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
       {/* Выпадающее современное меню */}
       {isOpen && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          {/* Инлайн-создание нового проекта */}
+          {isCreatingNew ? (
+            <div className="p-2 border-b border-zinc-100 dark:border-zinc-800 mb-1 space-y-2">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                {isEn ? 'New Project (Task will become Step 1)' : 'Новый проект (эта задача станет 1-м шагом)'}
+              </span>
+              <div className="flex items-center space-x-1.5">
+                <input
+                  ref={newProjectInputRef}
+                  type="text"
+                  value={newProjectTitle}
+                  onChange={(e) => setNewProjectTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCreateProject();
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setIsCreatingNew(false);
+                    }
+                  }}
+                  placeholder={isEn ? 'Project title...' : 'Название проекта...'}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-zinc-100 dark:bg-[#141414] border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCreateProject()}
+                  disabled={!newProjectTitle.trim() || isSavingProject}
+                  className="p-1.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer shrink-0"
+                  title={isEn ? 'Create project' : 'Создать проект'}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingNew(false)}
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer shrink-0"
+                  title={isEn ? 'Cancel' : 'Отмена'}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="px-1 pb-1 mb-1 border-b border-zinc-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setIsCreatingNew(true)}
+                className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-xs font-semibold text-indigo-600 dark:text-purple-400 hover:bg-indigo-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer text-left"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span>{isEn ? '+ Create New Project' : '+ Новый проект (сделать 1-м шагом)'}</span>
+              </button>
+            </div>
+          )}
+
           {/* Поле поиска, если активных проектов 4 и более */}
-          {activeProjects.length >= 4 && (
+          {activeProjects.length >= 4 && !isCreatingNew && (
             <div className="px-2 pt-1 pb-2 border-b border-zinc-100 dark:border-zinc-800 mb-1">
               <div className="relative flex items-center">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 text-zinc-400" />

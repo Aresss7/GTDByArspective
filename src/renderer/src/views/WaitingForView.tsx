@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserCheck, Calendar, CheckCircle2, ArrowRight, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { Language, translations } from '../i18n/translations';
 
@@ -31,15 +32,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
 
   const allWaitingTasks = tasks.filter((t) => t.destination === 'waiting_for' && t.status === 'active' && !t.deleted_at);
 
-  const q = searchQuery.toLowerCase().trim();
-  const waitingTasks = allWaitingTasks.filter((t) => {
-    if (!q) return true;
-    const inTitle = t.title.toLowerCase().includes(q);
-    const inNotes = Boolean(t.notes && t.notes.toLowerCase().includes(q));
-    const inPerson = Boolean(t.delegated_to && t.delegated_to.toLowerCase().includes(q));
-    const inWaiting = Boolean(t.waiting_for && t.waiting_for.toLowerCase().includes(q));
-    return inTitle || inNotes || inPerson || inWaiting;
-  });
+  const waitingTasks = allWaitingTasks.filter((t) => matchesSearch(t, searchQuery));
 
   const todayStr = new Date().toISOString().split('T')[0];
 

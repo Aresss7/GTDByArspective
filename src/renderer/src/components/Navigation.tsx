@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Inbox, 
   CheckSquare, 
@@ -34,6 +34,15 @@ export const Navigation: React.FC<NavigationProps> = ({
   language = 'ru',
 }) => {
   const t = translations[language];
+  const [appVersion, setAppVersion] = useState('1.5.3');
+
+  useEffect(() => {
+    if (window.gtdApi?.getAppVersion) {
+      window.gtdApi.getAppVersion().then((ver) => {
+        if (ver) setAppVersion(ver);
+      }).catch(() => {});
+    }
+  }, []);
 
   const navItems = [
     { id: 'next_actions', label: t.navNextActions, icon: CheckSquare },
@@ -111,7 +120,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       {/* Футер: Версия приложения */}
       <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
         <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">Arspective</span>
-        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">v1.5.0</span>
+        <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">v{appVersion}</span>
       </div>
     </aside>
   );

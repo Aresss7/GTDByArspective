@@ -82,6 +82,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   const [projectCriteria, setProjectCriteria] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const rapidInputRef = useRef<HTMLInputElement>(null);
   const fullInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +137,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       case 'calendar':
         return isEn ? 'To «Calendar»' : 'В «Календарь»';
       case 'waiting_for':
-        return isEn ? 'To «Waiting For»' : 'В «Ожидание»';
+        return isEn ? 'To «Waiting For»' : 'В «Делегированные»';
       case 'someday':
         return isEn ? 'To «Someday»' : 'В «Когда-нибудь»';
       case 'notes':
@@ -228,6 +229,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSubmittingRef.current) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
@@ -265,8 +267,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   const handleRapidSubmit = async (closeAfterSave: boolean = false, e?: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
     const trimmed = rapidTitle.trim();
-    if (!trimmed || isSubmitting) return;
+    if (!trimmed || isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       await onRapidSaveTask(trimmed, 'inbox');
       const nextCount = toastCount + 1;
@@ -284,17 +288,20 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     } catch (err) {
       console.error(err);
       showToast(isEn ? 'Error saving task' : 'Ошибка при сохранении задачи');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
   // Сохранение подробной задачи
   const handleTaskSubmit = async (e?: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!taskTitle.trim() || isSubmitting) return;
+    if (!taskTitle.trim() || isSubmittingRef.current) return;
 
     // Валидация дат
-    if (destination === 'calendar' && scheduledDate && scheduledDate < todayStr) {
-      alert(isEn ? 'Calendar date cannot be earlier than today.' : 'Дата выполнения в календаре не может быть раньше сегодняшнего дня.');
+    if (destination === 'calendar' && (!scheduledDate || scheduledDate < todayStr)) {
+      alert(isEn ? 'Please set a scheduled date for calendar tasks (today or later).' : 'Для задач календаря необходимо указать дату выполнения (сегодня или позже).');
       return;
     }
     if (dueDate && dueDate < todayStr) {
@@ -306,6 +313,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       await onSaveTask({
@@ -324,6 +332,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       });
       onClose();
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -331,6 +340,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   // Сохранение проекта
   const handleProjectSubmit = async (e?: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!projectTitle.trim()) {
       alert(isEn ? 'Please specify project title.' : 'Пожалуйста, укажите название проекта.');
       return;
@@ -345,6 +355,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       if (window.gtdApi) {
@@ -363,6 +374,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     } catch (err: any) {
       alert(err.message || (isEn ? 'Error creating project' : 'Ошибка создания проекта'));
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -371,7 +383,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     { id: 'next_actions', label: isEn ? 'Next Actions' : 'Текущие действия', icon: CheckSquare },
     { id: 'inbox', label: isEn ? 'GTD Inbox' : 'Корзина ГТД', icon: Inbox },
     { id: 'calendar', label: isEn ? 'Calendar' : 'Календарь', icon: Calendar },
-    { id: 'waiting_for', label: isEn ? 'Waiting For' : 'Делегирование / Ожидание', icon: UserCheck },
+    { id: 'waiting_for', label: isEn ? 'Waiting For' : 'Делегированные', icon: UserCheck },
     { id: 'someday', label: isEn ? 'Someday / Maybe' : 'Когда-нибудь потом', icon: Clock },
     { id: 'notes', label: isEn ? 'Notes' : 'Заметки', icon: FileText },
   ];
@@ -458,9 +470,11 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                     onKeyDown={(e) => {
                       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                         e.preventDefault();
+                        e.stopPropagation();
                         handleRapidSubmit(true);
                       } else if (e.key === 'Enter') {
                         e.preventDefault();
+                        e.stopPropagation();
                         handleRapidSubmit(false);
                       }
                     }}
@@ -546,9 +560,20 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
               {/* Блок первого шага проекта: выделенный фирменный фиолетовый акцент */}
               <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-purple-950/30 border border-indigo-100 dark:border-purple-900/50 space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-purple-200">
-                  {isEn ? 'First Next Action' : 'Первый следующий шаг'} <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-purple-200">
+                    {isEn ? 'First Next Action' : 'Первый следующий шаг'} <span className="text-rose-500">*</span>
+                  </label>
+                  {projectTitle.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setProjectFirstStepTitle(projectTitle)}
+                      className="text-[11px] font-semibold text-indigo-600 dark:text-purple-300 hover:underline cursor-pointer"
+                    >
+                      {isEn ? 'Use as 1st step' : 'Сделать это первым шагом'}
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-start space-x-2 text-xs text-indigo-900 dark:text-purple-200 bg-indigo-100/70 dark:bg-purple-900/40 p-3 rounded-xl">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600 dark:text-purple-400" />
                   <p className="leading-relaxed">
@@ -780,8 +805,8 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                 </div>
               )}
 
-              {/* Привязка к существующему незавершённому проекту: современный селектор */}
-              {projects.some((p) => p.status !== 'completed' && !p.deleted_at) && destination !== 'notes' && (
+              {/* Привязка к проекту или создание нового прямо из задачи */}
+              {destination !== 'notes' && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                     {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}
@@ -790,6 +815,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                     projects={projects}
                     value={projectId}
                     onChange={setProjectId}
+                    taskTitle={taskTitle}
                     language={language}
                     isDarkMode={isDarkMode}
                   />

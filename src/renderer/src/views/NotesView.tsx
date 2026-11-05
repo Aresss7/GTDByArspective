@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   FileText, 
   Plus, 
@@ -8,12 +8,15 @@ import {
   Copy, 
   Check, 
   Save, 
-  Calendar,
+  Calendar, 
   Clock, 
   Pin,
-  X
+  X,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { Task } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { PinLimitModal } from '../components/PinLimitModal';
 import { MarkdownNoteEditor, MarkdownPreview } from '../components/MarkdownEditor';
@@ -51,6 +54,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
   // Закреплённые заметки (до 4 заметок одновременно)
   const [isPinLimitOpen, setIsPinLimitOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Поиск внутри открытой заметки (Ctrl+F)
+  const [inNoteSearchOpen, setInNoteSearchOpen] = useState(false);
+  const [inNoteQuery, setInNoteQuery] = useState('');
+  const inNoteSearchInputRef = useRef<HTMLInputElement>(null);
 
   const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
 
@@ -125,11 +133,28 @@ export const NotesView: React.FC<NotesViewProps> = ({
     }
   };
 
-  const filteredNotes = noteItems.filter(
-    (n) =>
-      n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (n.notes && n.notes.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredNotes = noteItems.filter((n) => matchesSearch(n, searchQuery));
+
+  // Подсчёт совпадений внутри открытой заметки
+  const inNoteMatchesCount = useMemo(() => {
+    if (!inNoteQuery.trim()) return 0;
+    const full = (draftTitle + ' ' + draftContent).toLowerCase();
+    const q = inNoteQuery.toLowerCase();
+    let count = 0;
+    let pos = 0;
+    while ((pos = full.indexOf(q, pos)) !== -1) {
+      count++;
+      pos += q.length;
+    }
+    return count;
+  }, [inNoteQuery, draftTitle, draftContent]);
+
+  const handleInNoteFind = (backwards: boolean = false) => {
+    if (!inNoteQuery.trim()) return;
+    if (typeof window.find === 'function') {
+      window.find(inNoteQuery, false, backwards, true);
+    }
+  };
 
   // Закреплённые активные заметки идут первыми в списке
   const sortedNotes = [...filteredNotes].sort((a, b) => {
@@ -209,34 +234,49 @@ export const NotesView: React.FC<NotesViewProps> = ({
     }
   };
 
-  // Горячая клавиша Escape для возврата к общему списку заметок
+  // Горячая клавиша Escape для закрытия поиска в заметке или возврата к списку
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedNote && !noteToDelete) {
-        handleCloseNote();
+      if (e.key === 'Escape') {
+        if (inNoteSearchOpen) {
+          e.preventDefault();
+          setInNoteSearchOpen(false);
+          setInNoteQuery('');
+          return;
+        }
+        if (selectedNote && !noteToDelete) {
+          handleCloseNote();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNote, draftTitle, draftContent, noteToDelete]);
+  }, [inNoteSearchOpen, selectedNote, draftTitle, draftContent, noteToDelete]);
 
-  // Горячая клавиша Ctrl+F / Cmd+F для фокуса строки поиска заметок
+  // Горячая клавиша Ctrl+F / Cmd+F:
+  // Если открыта заметка — открывает поиск внутри этой заметки.
+  // Если на общем списке заметок — фокус общего поля поиска.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А')) {
         e.preventDefault();
         if (selectedNote) {
-          handleCloseNote();
+          setInNoteSearchOpen(true);
+          setTimeout(() => {
+            inNoteSearchInputRef.current?.focus();
+            inNoteSearchInputRef.current?.select();
+          }, 50);
+        } else {
+          setTimeout(() => {
+            searchInputRef.current?.focus();
+            searchInputRef.current?.select();
+          }, 50);
         }
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-          searchInputRef.current?.select();
-        }, 50);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNote, draftTitle, draftContent]);
+  }, [selectedNote]);
 
   // ЕСЛИ ОТКРЫТА СТРАНИЦА ЗАМЕТКИ
   if (selectedNote) {
@@ -321,6 +361,71 @@ export const NotesView: React.FC<NotesViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Панель поиска внутри заметки (Ctrl+F) */}
+        {inNoteSearchOpen && (
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100 dark:bg-[#242426] border border-zinc-200 dark:border-zinc-700 shadow-md animate-fadeIn">
+            <div className="flex items-center space-x-2 flex-1 max-w-md">
+              <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+              <input
+                ref={inNoteSearchInputRef}
+                type="text"
+                value={inNoteQuery}
+                onChange={(e) => {
+                  setInNoteQuery(e.target.value);
+                  if (typeof window.find === 'function' && e.target.value.trim()) {
+                    window.find(e.target.value, false, false, true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleInNoteFind(e.shiftKey);
+                  }
+                }}
+                placeholder={isEn ? 'Find in note...' : 'Поиск в тексте заметки...'}
+                className="w-full bg-transparent text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 shrink-0 text-xs">
+              <span className="text-[11px] text-zinc-400 font-mono">
+                {inNoteQuery.trim()
+                  ? (inNoteMatchesCount > 0 ? `${inNoteMatchesCount} ${isEn ? 'matches' : 'совп.'}` : (isEn ? 'Not found' : 'Не найдено'))
+                  : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleInNoteFind(true)}
+                disabled={!inNoteQuery.trim() || inNoteMatchesCount === 0}
+                className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
+                title={isEn ? 'Previous (Shift+Enter)' : 'Предыдущее (Shift+Enter)'}
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInNoteFind(false)}
+                disabled={!inNoteQuery.trim() || inNoteMatchesCount === 0}
+                className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 cursor-pointer"
+                title={isEn ? 'Next (Enter)' : 'Следующее (Enter)'}
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInNoteSearchOpen(false);
+                  setInNoteQuery('');
+                }}
+                className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+                title={isEn ? 'Close search (Esc)' : 'Закрыть поиск (Esc)'}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Рабочая область заметки */}
         <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-4">

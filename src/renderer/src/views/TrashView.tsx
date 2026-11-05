@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, RotateCcw, FolderKanban, CheckSquare, Search, FileText } from 'lucide-react';
 import { Task, Project } from '@shared/types';
+import { matchesSearch } from '@shared/searchEngine';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useToast } from '../components/ToastNotification';
 import { Language, translations } from '../i18n/translations';
@@ -60,20 +61,9 @@ export const TrashView: React.FC<TrashViewProps> = ({
 
   const q = searchQuery.toLowerCase().trim();
 
-  const filteredTrashTasks = allTrashActionTasks.filter((t) => {
-    if (!q) return true;
-    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
-  });
-
-  const filteredTrashProjects = trashProjects.filter((p) => {
-    if (!q) return true;
-    return p.title.toLowerCase().includes(q) || Boolean(p.description && p.description.toLowerCase().includes(q));
-  });
-
-  const filteredTrashNotes = allTrashNotes.filter((t) => {
-    if (!q) return true;
-    return t.title.toLowerCase().includes(q) || Boolean(t.notes && t.notes.toLowerCase().includes(q));
-  });
+  const filteredTrashTasks = allTrashActionTasks.filter((t) => matchesSearch(t, searchQuery));
+  const filteredTrashProjects = trashProjects.filter((p) => matchesSearch(p, searchQuery));
+  const filteredTrashNotes = allTrashNotes.filter((t) => matchesSearch(t, searchQuery));
 
   const totalTrashCount = allTrashTasks.length + trashProjects.length;
 
@@ -86,7 +76,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
       case 'calendar':
         return isEn ? '«Calendar»' : '«Календарь»';
       case 'waiting_for':
-        return isEn ? '«Waiting For»' : '«Делегирование / Ожидание»';
+        return isEn ? '«Waiting For»' : '«Делегированные»';
       case 'someday':
         return isEn ? '«Someday / Maybe»' : '«Когда-нибудь потом»';
       case 'notes':

@@ -224,7 +224,7 @@ export class GTDStateMachine {
       case 'FOR_ME':
         return 'Мне?';
       case 'DELEGATE_FORM':
-        return 'Делегирование и ожидание';
+        return 'Делегированные';
       case 'IS_NOW':
         return 'Сейчас? (в пределах ближайшей недели)';
       case 'CHOOSE_LATER':

@@ -84,8 +84,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     e.preventDefault();
     if (!title.trim() || isSubmitting) return;
 
-    if (destination === 'calendar' && scheduledDate && scheduledDate < todayStr) {
-      alert('Дата выполнения не может быть раньше сегодняшнего дня.');
+    if (destination === 'calendar' && (!scheduledDate || scheduledDate < todayStr)) {
+      alert('Для задач календаря необходимо указать дату выполнения (сегодня или позже).');
       return;
     }
 
@@ -129,7 +129,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     { id: 'next_actions', label: 'Текущие действия', icon: CheckSquare },
     { id: 'inbox', label: 'Корзина ГТД', icon: Inbox },
     { id: 'calendar', label: 'Календарь', icon: Calendar },
-    { id: 'waiting_for', label: 'Делегирование / Ожидание', icon: UserCheck },
+    { id: 'waiting_for', label: 'Делегированные', icon: UserCheck },
     { id: 'someday', label: 'Когда-нибудь потом', icon: Clock },
     { id: 'notes', label: 'Заметки', icon: FileText },
   ];
@@ -315,8 +315,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             </div>
           )}
 
-          {/* Привязка к проекту (показываем, если есть незавершённые проекты или проект уже привязан) */}
-          {(projects.some((p) => p.status !== 'completed' && !p.deleted_at) || Boolean(projectId)) && destination !== 'notes' && (
+          {/* Привязка к проекту или создание нового прямо из задачи */}
+          {destination !== 'notes' && (
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                 {isEn ? 'Project (optional)' : 'Относится к проекту (необязательно)'}
@@ -325,6 +325,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 projects={projects}
                 value={projectId}
                 onChange={setProjectId}
+                taskTitle={title}
                 language={language}
                 isDarkMode={isDarkMode}
               />
