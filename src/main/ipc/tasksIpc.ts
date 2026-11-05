@@ -40,4 +40,10 @@ export function registerTasksIpc(): void {
     SyncServer.getInstance().broadcastChange();
     return res;
   });
+
+  ipcMain.handle('tasks:restore', async (_, id: string) => {
+    const res = getRepo().restore(id);
+    SyncServer.getInstance().broadcastChange();
+    return res;
+  });
 }

@@ -61,6 +61,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   const [toastCount, setToastCount] = useState(0);
 
   // Поля подробной задачи
+  const todayStr = new Date().toISOString().split('T')[0];
   const [taskTitle, setTaskTitle] = useState('');
   const [taskNotes, setTaskNotes] = useState('');
   const [destination, setDestination] = useState<TaskDestination>('inbox');
@@ -69,6 +70,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   const [scheduledTime, setScheduledTime] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [delegatedTo, setDelegatedTo] = useState('');
+  const [delegatedDate, setDelegatedDate] = useState(todayStr);
   const [waitingFor, setWaitingFor] = useState('');
   const [checkDate, setCheckDate] = useState('');
 
@@ -84,7 +86,6 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   const rapidInputRef = useRef<HTMLInputElement>(null);
   const fullInputRef = useRef<HTMLInputElement>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const todayStr = new Date().toISOString().split('T')[0];
 
   const isProjectsTab = currentTab === 'projects' || Boolean(sourceTask);
 
@@ -222,7 +223,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
     }
   }, [modalMode]);
 
-  // Закрытие по Escape
+  // Закрытие по Escape и сохранение по Ctrl+Enter
   useEffect(() => {
     if (!isOpen) return;
 
@@ -230,12 +231,21 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (modalMode === 'quick') {
+          handleRapidSubmit(true);
+        } else if (isProjectsTab) {
+          handleProjectSubmit(e as any);
+        } else {
+          handleTaskSubmit(e as any);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, modalMode, rapidTitle, isProjectsTab, projectTitle, projectFirstStepTitle, projectCriteria, projectDescription, projectPlan, taskTitle, taskNotes, destination, projectId, scheduledDate, scheduledTime, dueDate, delegatedTo, delegatedDate, waitingFor, checkDate]);
 
   if (!isOpen) return null;
 
@@ -250,8 +260,10 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   };
 
   // Быстрое сохранение в Корзину
-  const handleRapidSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Enter — сохранить задачу, но оставить окно открытым для добавления следующей.
+  // Ctrl + Enter — сохранить задачу и закрыть окно.
+  const handleRapidSubmit = async (closeAfterSave: boolean = false, e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     const trimmed = rapidTitle.trim();
     if (!trimmed || isSubmitting) return;
 
@@ -264,7 +276,11 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         : `✓ Сохранено в Корзину: "${trimmed.length > 25 ? trimmed.slice(0, 25) + '...' : trimmed}"`;
       showToast(text);
       setRapidTitle('');
-      rapidInputRef.current?.focus();
+      if (closeAfterSave) {
+        onClose();
+      } else {
+        rapidInputRef.current?.focus();
+      }
     } catch (err) {
       console.error(err);
       showToast(isEn ? 'Error saving task' : 'Ошибка при сохранении задачи');
@@ -272,8 +288,8 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   };
 
   // Сохранение подробной задачи
-  const handleTaskSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleTaskSubmit = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!taskTitle.trim() || isSubmitting) return;
 
     // Валидация дат
@@ -302,6 +318,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         scheduled_time: destination === 'calendar' ? scheduledTime || undefined : undefined,
         due_date: dueDate || undefined,
         delegated_to: destination === 'waiting_for' ? delegatedTo || undefined : undefined,
+        delegated_date: destination === 'waiting_for' ? delegatedDate || todayStr : undefined,
         waiting_for: destination === 'waiting_for' ? waitingFor || undefined : undefined,
         check_date: destination === 'waiting_for' ? checkDate || undefined : undefined,
       });
@@ -312,9 +329,21 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   };
 
   // Сохранение проекта
-  const handleProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!projectTitle.trim() || !projectFirstStepTitle.trim() || isSubmitting) return;
+  const handleProjectSubmit = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!projectTitle.trim()) {
+      alert(isEn ? 'Please specify project title.' : 'Пожалуйста, укажите название проекта.');
+      return;
+    }
+    if (!projectFirstStepTitle.trim()) {
+      alert(isEn ? 'Please specify the first step for this project.' : 'Пожалуйста, укажите первый шаг проекта.');
+      return;
+    }
+    // Обязательный критерий завершения проекта (требование 2.5)
+    if (!projectCriteria.trim()) {
+      alert(isEn ? 'Completion criterion is required for the project.' : 'Пожалуйста, укажите критерий завершения проекта (обязательное поле).');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -324,7 +353,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
           description: projectDescription.trim() || undefined,
           firstStepTitle: projectFirstStepTitle.trim(),
           approximatePlan: projectPlan.trim() || undefined,
-          completionCriteria: projectCriteria.trim() || undefined,
+          completionCriteria: projectCriteria.trim(),
           sourceTaskId: sourceTask?.id,
         });
 
@@ -426,16 +455,32 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                     type="text"
                     value={rapidTitle}
                     onChange={(e) => handleUpdateTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        handleRapidSubmit(true);
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleRapidSubmit(false);
+                      }
+                    }}
                     placeholder={isEn ? 'What needs to be done? Write here...' : 'Что нужно сделать? Напишите сюда...'}
                     className="w-full px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-400 text-sm focus:outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-zinc-900 dark:text-zinc-100"
                   />
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 flex items-center space-x-1">
-                    <span>{isEn ? 'Enter — save & next' : 'Enter — сохранить и следующая'}</span>
-                    <CornerDownLeft className="w-3 h-3 inline" />
-                  </span>
+                  <div className="text-[11px] text-zinc-400 dark:text-zinc-500 space-y-0.5">
+                    <div className="flex items-center space-x-1">
+                      <span className="font-semibold text-zinc-600 dark:text-zinc-300">Enter</span>
+                      <span>— {isEn ? 'save & continue' : 'сохранить и продолжить'}</span>
+                      <CornerDownLeft className="w-3 h-3 inline" />
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="font-semibold text-zinc-600 dark:text-zinc-300">Ctrl + Enter</span>
+                      <span>— {isEn ? 'save & close' : 'сохранить и закрыть'}</span>
+                    </div>
+                  </div>
 
                   <div className="flex items-center space-x-2">
                     <button
@@ -443,14 +488,25 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                       onClick={onClose}
                       className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
-                      {isEn ? 'Cancel' : 'Отмена'}
+                      {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
                     </button>
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={() => handleRapidSubmit(true)}
+                      disabled={!rapidTitle.trim()}
+                      className="px-4 py-2 rounded-full bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors disabled:opacity-40 cursor-pointer"
+                      title={isEn ? 'Save and close modal (Ctrl+Enter)' : 'Сохранить и закрыть окно (Ctrl+Enter)'}
+                    >
+                      {isEn ? 'Save & Close' : 'Сохранить и закрыть'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRapidSubmit(false)}
                       disabled={!rapidTitle.trim()}
                       className="px-5 py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold transition-colors shadow-sm disabled:opacity-40 cursor-pointer"
+                      title={isEn ? 'Save to Inbox and stay open (Enter)' : 'Сохранить в корзину и продолжить ввод (Enter)'}
                     >
-                      {isEn ? 'Save to Inbox' : 'Сохранить в корзину'}
+                      {isEn ? 'Save (Enter)' : 'Сохранить (Enter)'}
                     </button>
                   </div>
                 </div>
@@ -534,13 +590,14 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                  {isEn ? 'Completion Criteria' : 'Критерии завершения'}
+                  {isEn ? 'Completion Criteria' : 'Критерии завершения'} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
+                  required
                   value={projectCriteria}
                   onChange={(e) => setProjectCriteria(e.target.value)}
-                  placeholder={isEn ? 'When is this project considered done?' : 'Когда проект считается закрытым?'}
+                  placeholder={isEn ? 'When is this project considered done?' : 'Когда проект считается закрытым? (обязательно)'}
                   className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-500 transition-colors text-zinc-900 dark:text-zinc-100"
                 />
               </div>
@@ -551,11 +608,11 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   onClick={onClose}
                   className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  {isEn ? 'Cancel' : 'Отмена'}
+                  {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !projectTitle.trim() || !projectFirstStepTitle.trim()}
+                  disabled={isSubmitting || !projectTitle.trim() || !projectFirstStepTitle.trim() || !projectCriteria.trim()}
                   className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   <span>{isEn ? 'Create & Process 1st Step' : 'Создать и обработать 1-й шаг'}</span>
@@ -698,14 +755,12 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                        {isEn ? 'Expected result' : 'Ожидаемый результат'}
+                        {isEn ? 'Date From (Start)' : 'Дата от'}
                       </label>
-                      <input
-                        type="text"
-                        value={waitingFor}
-                        onChange={(e) => setWaitingFor(e.target.value)}
-                        placeholder={isEn ? 'What is expected...' : 'Что ожидается...'}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
+                      <CustomDatePicker
+                        value={delegatedDate}
+                        onChange={setDelegatedDate}
+                        placeholder={isEn ? 'Start date' : 'Дата начала'}
                       />
                     </div>
                     <div>
@@ -719,6 +774,18 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                         placeholder={isEn ? 'Check date' : 'Дата проверки'}
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                      {isEn ? 'Expected result' : 'Ожидаемый результат'}
+                    </label>
+                    <input
+                      type="text"
+                      value={waitingFor}
+                      onChange={(e) => setWaitingFor(e.target.value)}
+                      placeholder={isEn ? 'What is expected...' : 'Что ожидается...'}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
+                    />
                   </div>
                 </div>
               )}

@@ -46,8 +46,11 @@ export const migrations: Migration[] = [
           scheduled_date TEXT,
           scheduled_time TEXT,
           delegated_to TEXT,
+          delegated_date TEXT,
           waiting_for TEXT,
           check_date TEXT,
+          is_pinned INTEGER DEFAULT 0,
+          previous_destination TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           completed_at TEXT,
@@ -157,6 +160,22 @@ export const migrations: Migration[] = [
           fetched_at TEXT NOT NULL
         );
       `);
+    },
+  },
+  {
+    id: 4,
+    name: '004_task_enhancements',
+    up: (db: Database.Database) => {
+      const taskCols = db.pragma('table_info(tasks)') as Array<{ name: string }>;
+      if (!taskCols.some((col) => col.name === 'is_pinned')) {
+        db.exec('ALTER TABLE tasks ADD COLUMN is_pinned INTEGER DEFAULT 0;');
+      }
+      if (!taskCols.some((col) => col.name === 'delegated_date')) {
+        db.exec('ALTER TABLE tasks ADD COLUMN delegated_date TEXT;');
+      }
+      if (!taskCols.some((col) => col.name === 'previous_destination')) {
+        db.exec('ALTER TABLE tasks ADD COLUMN previous_destination TEXT;');
+      }
     },
   },
 ];

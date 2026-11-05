@@ -1,6 +1,8 @@
 import { GTDQuestionId, TaskDestination, Task } from '../../shared/types';
 
 export type GTDAnswer =
+  | 'CONTINUE'
+  | 'SKIP'
   | 'YES'
   | 'NO'
   | 'CHOOSE_TRASH'
@@ -23,6 +25,7 @@ export interface GTDTransitionResult {
 export interface DelegationPayload {
   delegatedTo: string;
   waitingFor?: string;
+  delegatedDate?: string;
   checkDate?: string;
 }
 

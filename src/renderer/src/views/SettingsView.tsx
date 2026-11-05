@@ -41,6 +41,8 @@ interface SettingsViewProps {
   onChangeDefaultCaptureTab?: (setting: DefaultCaptureTabSetting) => void;
   windowCloseAction?: WindowCloseAction;
   onChangeWindowCloseAction?: (action: WindowCloseAction) => void;
+  autoSaveNotesOnExit?: boolean;
+  onChangeAutoSaveNotesOnExit?: (val: boolean) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -55,6 +57,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onChangeDefaultCaptureTab,
   windowCloseAction = 'tray',
   onChangeWindowCloseAction,
+  autoSaveNotesOnExit = true,
+  onChangeAutoSaveNotesOnExit,
 }) => {
   const t = translations[language];
   const { showToast } = useToast();
@@ -349,6 +353,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </p>
             </div>
             {defaultCaptureTab === 'current_menu' && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Секция: Заметки и автосохранение */}
+      <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
+            <FileText className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
+            <span>{language === 'en' ? 'Notes & Auto-save' : 'Заметки и автосохранение'}</span>
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {language === 'en' ? 'Behavior when closing a note or switching section' : 'Поведение при закрытии заметки или смене раздела'}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
+          <button
+            type="button"
+            onClick={() => onChangeAutoSaveNotesOnExit?.(true)}
+            className={`flex items-start justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+              autoSaveNotesOnExit
+                ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] shadow-xs'
+                : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+            }`}
+          >
+            <div className="space-y-1 pr-2">
+              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">
+                {language === 'en' ? 'Auto-save on exit' : 'Автосохранение при выходе'}
+              </span>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                {language === 'en' ? 'Automatically saves draft when closing note or switching sections.' : 'Автоматически сохраняет изменения при закрытии заметки или смене раздела.'}
+              </p>
+            </div>
+            {autoSaveNotesOnExit && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeAutoSaveNotesOnExit?.(false)}
+            className={`flex items-start justify-between p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+              !autoSaveNotesOnExit
+                ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-[#252525] shadow-xs'
+                : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+            }`}
+          >
+            <div className="space-y-1 pr-2">
+              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">
+                {language === 'en' ? 'Manual save only' : 'Только вручную'}
+              </span>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                {language === 'en' ? 'Save only by clicking Save or pressing Ctrl+Enter.' : 'Сохранение только по кнопке «Сохранить» или Ctrl+Enter.'}
+              </p>
+            </div>
+            {!autoSaveNotesOnExit && (
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" />
             )}
           </button>

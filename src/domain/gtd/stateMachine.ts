@@ -16,6 +16,20 @@ export class GTDStateMachine {
     payload?: any
   ): GTDTransitionResult {
     switch (currentQuestion) {
+      // 0. «Что это?»
+      case 'WHAT_IS_IT': {
+        if (answer === 'CONTINUE') {
+          return {
+            nextQuestion: 'ACTIONABLE',
+            taskUpdates: payload?.notes !== undefined ? { notes: payload.notes } : undefined,
+          };
+        }
+        if (answer === 'SKIP') {
+          return { nextQuestion: 'ACTIONABLE' };
+        }
+        break;
+      }
+
       // 1. «С этим надо что-то делать?»
       case 'ACTIONABLE': {
         if (answer === 'YES') {
@@ -76,6 +90,7 @@ export class GTDStateMachine {
               status: 'active',
               delegated_to: data.delegatedTo || null,
               waiting_for: data.waitingFor || null,
+              delegated_date: data.delegatedDate || null,
               check_date: data.checkDate || null,
             },
           };
@@ -200,6 +215,8 @@ export class GTDStateMachine {
    */
   static getQuestionTitle(question: GTDQuestionId): string {
     switch (question) {
+      case 'WHAT_IS_IT':
+        return 'Что это?';
       case 'ACTIONABLE':
         return 'С этим надо что-то делать?';
       case 'CHOOSE_NOT_ACTIONABLE':
@@ -232,24 +249,26 @@ export class GTDStateMachine {
    */
   static getStepNumber(question: GTDQuestionId): { step: number; total: number } {
     switch (question) {
+      case 'WHAT_IS_IT':
+        return { step: 1, total: 6 };
       case 'ACTIONABLE':
       case 'CHOOSE_NOT_ACTIONABLE':
-        return { step: 1, total: 5 };
+        return { step: 2, total: 6 };
       case 'FOR_ME':
       case 'DELEGATE_FORM':
-        return { step: 2, total: 5 };
+        return { step: 3, total: 6 };
       case 'IS_NOW':
       case 'CHOOSE_LATER':
       case 'CALENDAR_FORM':
-        return { step: 3, total: 5 };
+        return { step: 4, total: 6 };
       case 'IS_SINGLE_STEP':
       case 'CREATE_PROJECT_FORM':
-        return { step: 4, total: 5 };
+        return { step: 5, total: 6 };
       case 'IS_TWO_MINUTES':
       case 'DO_TWO_MINUTES':
-        return { step: 5, total: 5 };
+        return { step: 6, total: 6 };
       default:
-        return { step: 1, total: 5 };
+        return { step: 1, total: 6 };
     }
   }
 }

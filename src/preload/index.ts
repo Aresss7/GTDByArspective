@@ -17,6 +17,8 @@ const api: GtdApi = {
     ipcRenderer.invoke('tasks:update', id, updates),
   deleteTask: (id: string, permanent?: boolean) =>
     ipcRenderer.invoke('tasks:delete', id, permanent),
+  restoreTask: (id: string) =>
+    ipcRenderer.invoke('tasks:restore', id),
 
   // Projects
   getProjects: (status?: ProjectStatus) =>

@@ -15,9 +15,11 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LinkPreviewData | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
+    setImageError(false);
     if (!window.gtdApi?.fetchLinkPreview) {
       setLoading(false);
       return;
@@ -77,15 +79,13 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({
       onClick={handleOpen}
       className="group relative my-3 flex flex-col sm:flex-row overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#191919] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 hover:shadow-md transition-all cursor-pointer select-none text-left"
     >
-      {image && (
+      {image && !imageError && (
         <div className="sm:w-44 h-32 sm:h-auto shrink-0 bg-zinc-100 dark:bg-[#222222] overflow-hidden">
           <img 
             src={image} 
             alt={title} 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
+            onError={() => setImageError(true)}
           />
         </div>
       )}

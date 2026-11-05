@@ -142,6 +142,17 @@ export const App: React.FC = () => {
     }
   };
 
+  // Автосохранение заметок при выходе
+  const [autoSaveNotesOnExit, setAutoSaveNotesOnExit] = useState<boolean>(() => {
+    const stored = localStorage.getItem('gtd-auto-save-notes');
+    return stored === null ? true : stored === 'true';
+  });
+
+  const handleAutoSaveNotesOnExitChange = (val: boolean) => {
+    setAutoSaveNotesOnExit(val);
+    localStorage.setItem('gtd-auto-save-notes', String(val));
+  };
+
   useEffect(() => {
     if (window.gtdApi?.setWindowCloseAction) {
       window.gtdApi.setWindowCloseAction(windowCloseAction);
@@ -366,6 +377,22 @@ export const App: React.FC = () => {
     );
   };
 
+  // Прямое удаление задачи из окна редактирования (где пользователь уже нажал «Удалить» в диалоге подтверждения)
+  const handleDeleteTaskFromEditModal = async (taskId: string) => {
+    if (window.gtdApi) {
+      try {
+        await window.gtdApi.deleteTask(taskId, false);
+        await refreshData();
+      } catch (e) {
+        console.error('Failed to move task to trash from edit modal:', e);
+      }
+    } else {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, destination: 'trash' } : t))
+      );
+    }
+  };
+
   // Запрос на удаление задачи (открывает красивое окно подтверждения)
   const handleDeleteTask = (taskOrId: Task | string) => {
     if (typeof taskOrId === 'string') {
@@ -401,13 +428,14 @@ export const App: React.FC = () => {
 
   const handleConfirmDelegate = async (
     taskId: string,
-    data: { delegated_to: string; waiting_for?: string; check_date?: string }
+    data: { delegated_to: string; delegated_date?: string; waiting_for?: string; check_date?: string }
   ) => {
     if (window.gtdApi) {
       try {
         await window.gtdApi.updateTask(taskId, {
           destination: 'waiting_for',
           delegated_to: data.delegated_to,
+          delegated_date: data.delegated_date || null,
           waiting_for: data.waiting_for || null,
           check_date: data.check_date || null,
           scheduled_date: null,
@@ -472,7 +500,8 @@ export const App: React.FC = () => {
   // Списки задач для разделов
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  // Ровно 7 календарных дней вперед (устойчиво к часовым поясам и летнему времени)
+  const sevenDaysLater = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 23, 59, 59, 999);
   const sevenDaysLaterStr = `${sevenDaysLater.getFullYear()}-${String(sevenDaysLater.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysLater.getDate()).padStart(2, '0')}`;
 
   const allNextActions = tasks.filter((t) => {
@@ -482,8 +511,12 @@ export const App: React.FC = () => {
 
     // Задачи из календаря, до которых осталась неделя или меньше (включая сегодня и просроченные)
     if (t.destination === 'calendar' || Boolean(t.scheduled_date)) {
-      const taskDate = t.scheduled_date || t.due_date;
-      if (taskDate && taskDate <= sevenDaysLaterStr) {
+      const rawDate = t.scheduled_date || t.due_date;
+      if (!rawDate) {
+        return t.destination === 'calendar';
+      }
+      const taskDateOnly = rawDate.split('T')[0].split(' ')[0];
+      if (taskDateOnly <= sevenDaysLaterStr) {
         return true;
       }
     }
@@ -638,6 +671,7 @@ export const App: React.FC = () => {
               onTaskUpdated={refreshData}
               onOpenAddTask={() => openAddModal('notes')}
               language={language}
+              autoSaveNotesOnExit={autoSaveNotesOnExit}
             />
           )}
 
@@ -676,6 +710,8 @@ export const App: React.FC = () => {
               onChangeDefaultCaptureTab={handleDefaultCaptureTabChange}
               windowCloseAction={windowCloseAction}
               onChangeWindowCloseAction={handleWindowCloseActionChange}
+              autoSaveNotesOnExit={autoSaveNotesOnExit}
+              onChangeAutoSaveNotesOnExit={handleAutoSaveNotesOnExitChange}
             />
           )}
 
@@ -881,19 +917,19 @@ export const App: React.FC = () => {
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
                             )}
                             <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                              {task.destination === 'calendar' && (
-                                <span className="px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[10px] font-semibold">
-                                  🗓️ {t.calendarUpcomingBadge}
-                                </span>
-                              )}
                               {task.scheduled_date && (
-                                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                                  📅 {task.scheduled_date} {task.scheduled_time || ''}
+                                <span className={`px-2.5 py-0.5 rounded-full font-semibold ${
+                                  task.destination === 'calendar'
+                                    ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                    : 'bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700'
+                                }`}>
+                                  📅 {task.scheduled_date}{task.scheduled_time ? ` ${task.scheduled_time}` : ''}
                                 </span>
                               )}
                               {task.delegated_to && (
                                 <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                                   👤 {task.delegated_to}
+                                  {task.delegated_date && ` (${task.delegated_date})`}
                                 </span>
                               )}
                               {task.waiting_for && (
@@ -975,7 +1011,7 @@ export const App: React.FC = () => {
         isOpen={Boolean(editingTask)}
         onClose={() => setEditingTask(null)}
         onSave={handleSaveEditedTask}
-        onDelete={handleDeleteTask}
+        onDelete={handleDeleteTaskFromEditModal}
         projects={projects}
         language={language}
         isDarkMode={isDarkMode}
