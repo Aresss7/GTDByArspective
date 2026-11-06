@@ -27,7 +27,7 @@ export class TaskRepository {
 
   getByProjectId(projectId: string): Task[] {
     const stmt = this.db.prepare(
-      'SELECT * FROM tasks WHERE project_id = ? AND deleted_at IS NULL ORDER BY project_order ASC, created_at ASC'
+      "SELECT * FROM tasks WHERE project_id = ? AND deleted_at IS NULL AND destination != 'trash' ORDER BY project_order ASC, created_at ASC"
     );
     return stmt.all(projectId) as Task[];
   }
