@@ -83,7 +83,7 @@ export class ProjectRepository {
 
           const taskTitle = data.firstStepTitle?.trim() || existingTask.title;
           const updateTaskStmt = this.db.prepare(`
-            UPDATE tasks SET title = ?, project_id = ?, project_order = 1, destination = 'next_actions', updated_at = ? WHERE id = ?
+            UPDATE tasks SET title = ?, project_id = ?, project_order = 1, updated_at = ? WHERE id = ?
           `);
           updateTaskStmt.run(taskTitle, projectId, now, data.existingTaskId);
         });
