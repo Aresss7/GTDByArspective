@@ -297,7 +297,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     try {
       if (window.gtdApi) {
         // Создаем проект в БД с привязкой текущей задачи в качестве 1-го шага
-        await window.gtdApi.createProject({
+        const result = await window.gtdApi.createProject({
           title: projectTitleDraft.trim(),
           description: projectDescDraft.trim() || undefined,
           firstStepTitle: projectFirstStepDraft.trim(),
@@ -306,46 +306,18 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
           existingTaskId: currentTask.id,
         });
 
-        if (sessionId) {
-          await window.gtdApi.completeSession(sessionId);
-        }
-      }
+        // После создания проекта первый шаг задачи направляется к вопросу «Делать мне?»
+        const updatedTask: Task = {
+          ...currentTask,
+          title: projectFirstStepDraft.trim(),
+          project_id: result.project.id,
+          project_order: 1,
+        };
+        setCurrentTask(updatedTask);
+        setHistoryStack((prev) => [...prev, 'CREATE_PROJECT_FORM']);
+        setCurrentQuestion('FOR_ME');
 
-      await onTaskUpdated();
-
-      // Сброс полей
-      setProjectTitleDraft('');
-      setProjectDescDraft('');
-      setProjectFirstStepDraft('');
-      setProjectApproximatePlanDraft('');
-      setProjectCriteriaDraft('');
-      setDelegatedTo('');
-      setWaitingFor('');
-      setDelegatedDate(todayStr);
-      setCheckDate('');
-      setScheduledDate('');
-      setScheduledTime('');
-
-      // Если это была обработка конкретной выбранной задачи
-      if (initialTask && currentTask.id === initialTask.id) {
-        onClose();
-        return;
-      }
-
-      // Переход к следующей задаче из корзины
-      const remaining = inboxTasks.filter((t) => t.id !== currentTask.id && !skippedTaskIds.includes(t.id));
-      if (remaining.length > 0) {
-        const next = remaining[0];
-        setCurrentTask(next);
-        setTaskNotes(next.notes || '');
-        setCurrentQuestion('WHAT_IS_IT');
-        setHistoryStack([]);
-        if (window.gtdApi) {
-          const newSess = await window.gtdApi.startSession(next.id);
-          if (newSess) setSessionId(newSess.id);
-        }
-      } else {
-        setCurrentTask(null);
+        await onTaskUpdated();
       }
     } catch (err: any) {
       alert(err.message || 'Ошибка создания проекта');
@@ -354,7 +326,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     }
   };
 
-  const progress = GTDStateMachine.getStepNumber(currentQuestion);
+  const progress = GTDStateMachine.getStepNumber(currentQuestion, !!currentTask?.project_id);
   const questionTitle = GTDStateMachine.getQuestionTitle(currentQuestion);
   const currentProject = currentTask?.project_id ? projects.find((p) => p.id === currentTask.project_id) : null;
 
@@ -405,55 +377,169 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         )}
 
         {/* Центральное рабочее тело */}
-        <div className="flex-1 overflow-y-auto p-8 flex flex-col justify-between">
-          {!currentTask ? (
-            // Экран успешного завершения разбора (верхняя панель скрыта)
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 relative">
-              <button
-                onClick={onClose}
-                className="absolute top-0 right-0 p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                title="Закрыть"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-sm">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Корзина полностью разобрана!</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md mb-6">
-                Все задачи распределены по соответствующим разделам и готовы к выполнению.
-              </p>
-              <button
-                ref={primaryButtonRef}
-                onClick={onClose}
-                className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer focus:ring-4 focus:ring-indigo-500/50 outline-none"
-              >
-                Вернуться к делам
-              </button>
+        {!currentTask ? (
+          // Экран успешного завершения разбора (верхняя панель скрыта)
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 relative">
+            <button
+              onClick={onClose}
+              className="absolute top-0 right-0 p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="Закрыть"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-sm">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
-          ) : (
-            <>
-              {/* Карточка текущей задачи Material 3 */}
-              <div className="p-6 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 rounded-3xl mb-6 shadow-sm">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-purple-400 mb-1.5 flex items-center space-x-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>
-                    {currentTask.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Текущая задача для обработки'}
-                  </span>
-                </div>
-                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{currentTask.title}</h2>
-                {currentTask.notes && (
-                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-2 bg-white/70 dark:bg-zinc-800 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-700/50 max-h-24 overflow-y-auto whitespace-pre-wrap leading-relaxed custom-scrollbar">
-                    {currentTask.notes}
-                  </div>
-                )}
+            <h3 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Корзина полностью разобрана!</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md mb-6">
+              Все задачи распределены по соответствующим разделам и готовы к выполнению.
+            </p>
+            <button
+              ref={primaryButtonRef}
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer focus:ring-4 focus:ring-indigo-500/50 outline-none"
+            >
+              Вернуться к делам
+            </button>
+          </div>
+        ) : currentQuestion === 'CREATE_PROJECT_FORM' ? (
+          /* Экран создания проекта (в точности как на втором скриншоте: 1 слайдер, без двойных рамок) */
+          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4 custom-scrollbar">
+            <div>
+              <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Новый проект</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Желаемый результат из нескольких действий</p>
+            </div>
+
+            {/* НАЗВАНИЕ ПРОЕКТА * */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                Название проекта <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={projectTitleDraft}
+                onChange={(e) => setProjectTitleDraft(e.target.value)}
+                placeholder="Например: Запустить интернет-магазин"
+                className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none transition-all placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
+              />
+            </div>
+
+            {/* ОПИСАНИЕ (НЕОБЯЗАТЕЛЬНО) */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                Описание (необязательно)
+              </label>
+              <textarea
+                rows={2}
+                value={projectDescDraft}
+                onChange={(e) => setProjectDescDraft(e.target.value)}
+                placeholder="Контекст или детали..."
+                className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none resize-none placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
+              />
+            </div>
+
+            {/* ПЕРВЫЙ СЛЕДУЮЩИЙ ШАГ * (в фиолетовой рамке) */}
+            <div className="p-4 bg-indigo-50/60 dark:bg-purple-950/30 rounded-2xl border border-indigo-100 dark:border-purple-900/50 space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-purple-200">
+                Первый следующий шаг <span className="text-rose-500">*</span>
+              </label>
+
+              <div className="flex items-start space-x-2 text-xs text-indigo-900 dark:text-purple-200 bg-indigo-100/70 dark:bg-purple-900/40 p-3 rounded-xl">
+                <AlertCircle className="w-4 h-4 shrink-0 text-indigo-600 dark:text-purple-400 mt-0.5" />
+                <span>
+                  <strong>Правило ГТД:</strong> Первый шаг должен быть одним конкретным действием, которое можно выполнить без дополнительного разложения на несколько шагов.
+                </span>
               </div>
 
-              {/* Интерактивная область активного вопроса */}
-              <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto w-full my-auto py-4">
-                <h3 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-8 leading-tight">
-                  {questionTitle}
-                </h3>
+              <input
+                type="text"
+                required
+                value={projectFirstStepDraft}
+                onChange={(e) => setProjectFirstStepDraft(e.target.value)}
+                placeholder="Например: Запросить прайс-лист у поставщика"
+                className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-indigo-200 dark:border-purple-800/80 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+              />
+            </div>
+
+            {/* ПРИМЕРНЫЙ ПЛАН ДЕЙСТВИЙ */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                Примерный план действий
+              </label>
+              <textarea
+                rows={3}
+                value={projectApproximatePlanDraft}
+                onChange={(e) => setProjectApproximatePlanDraft(e.target.value)}
+                placeholder="1. Найти варианты&#10;2. Сравнить условия..."
+                className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none font-mono resize-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+              />
+            </div>
+
+            {/* КРИТЕРИИ ЗАВЕРШЕНИЯ * */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                Критерии завершения <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={projectCriteriaDraft}
+                onChange={(e) => setProjectCriteriaDraft(e.target.value)}
+                placeholder="Когда проект считается закрытым? (обязательно)"
+                className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+              />
+            </div>
+
+            {/* Кнопки действий */}
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                onClick={handleStepBack}
+                className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Отмена (Esc)
+              </button>
+              <button
+                ref={primaryButtonRef}
+                type="button"
+                onClick={handleCreateProjectFromWizardStep}
+                disabled={
+                  !projectTitleDraft.trim() ||
+                  !projectFirstStepDraft.trim() ||
+                  !projectCriteriaDraft.trim() ||
+                  isCreatingProject
+                }
+                className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 outline-none"
+              >
+                <span>{isCreatingProject ? 'Создание...' : 'Создать и обработать 1-й шаг'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-8 flex flex-col justify-between">
+            {/* Карточка текущей задачи Material 3 */}
+            <div className="p-6 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 rounded-3xl mb-6 shadow-sm">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-purple-400 mb-1.5 flex items-center space-x-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {currentTask.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Текущая задача для обработки'}
+                </span>
+              </div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{currentTask.title}</h2>
+              {currentTask.notes && (
+                <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-2 bg-white/70 dark:bg-zinc-800 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-700/50 max-h-24 overflow-y-auto whitespace-pre-wrap leading-relaxed custom-scrollbar">
+                  {currentTask.notes}
+                </div>
+              )}
+            </div>
+
+            {/* Интерактивная область активного вопроса */}
+            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto w-full my-auto py-4">
+              <h3 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-8 leading-tight">
+                {questionTitle}
+              </h3>
 
                 {/* 0. Вводный вопрос: «Что это?» */}
                 {currentQuestion === 'WHAT_IS_IT' && (
@@ -511,118 +597,6 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     >
                       Нет
                     </button>
-                  </div>
-                )}
-
-                {/* 1.5. Форма создания проекта непосредственно внутри разбора */}
-                {currentQuestion === 'CREATE_PROJECT_FORM' && (
-                  <div className="w-full bg-zinc-50/90 dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 space-y-4 text-left max-w-xl mx-auto shadow-sm max-h-[58vh] overflow-y-auto custom-scrollbar">
-                    {/* НАЗВАНИЕ ПРОЕКТА * */}
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                        Название проекта <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={projectTitleDraft}
-                        onChange={(e) => setProjectTitleDraft(e.target.value)}
-                        placeholder="Например: Запустить интернет-магазин"
-                        className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none transition-all placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
-                      />
-                    </div>
-
-                    {/* ОПИСАНИЕ (НЕОБЯЗАТЕЛЬНО) */}
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                        Описание (необязательно)
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={projectDescDraft}
-                        onChange={(e) => setProjectDescDraft(e.target.value)}
-                        placeholder="Контекст или детали..."
-                        className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none resize-none placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
-                      />
-                    </div>
-
-                    {/* ПЕРВЫЙ СЛЕДУЮЩИЙ ШАГ * (в фиолетовой рамке) */}
-                    <div className="p-4 bg-indigo-50/60 dark:bg-purple-950/30 rounded-2xl border border-indigo-100 dark:border-purple-900/50 space-y-2">
-                      <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-purple-200">
-                        Первый следующий шаг <span className="text-rose-500">*</span>
-                      </label>
-
-                      <div className="flex items-start space-x-2 text-xs text-indigo-900 dark:text-purple-200 bg-indigo-100/70 dark:bg-purple-900/40 p-3 rounded-xl">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-indigo-600 dark:text-purple-400 mt-0.5" />
-                        <span>
-                          <strong>Правило ГТД:</strong> Первый шаг должен быть одним конкретным действием, которое можно выполнить без дополнительного разложения на несколько шагов.
-                        </span>
-                      </div>
-
-                      <input
-                        type="text"
-                        required
-                        value={projectFirstStepDraft}
-                        onChange={(e) => setProjectFirstStepDraft(e.target.value)}
-                        placeholder="Например: Запросить прайс-лист у поставщика"
-                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-indigo-200 dark:border-purple-800/80 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                      />
-                    </div>
-
-                    {/* ПРИМЕРНЫЙ ПЛАН ДЕЙСТВИЙ */}
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                        Примерный план действий
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={projectApproximatePlanDraft}
-                        onChange={(e) => setProjectApproximatePlanDraft(e.target.value)}
-                        placeholder="1. Найти варианты&#10;2. Сравнить условия..."
-                        className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none font-mono resize-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                      />
-                    </div>
-
-                    {/* КРИТЕРИИ ЗАВЕРШЕНИЯ * */}
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
-                        Критерии завершения <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={projectCriteriaDraft}
-                        onChange={(e) => setProjectCriteriaDraft(e.target.value)}
-                        placeholder="Когда проект считается закрытым? (обязательно)"
-                        className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                      />
-                    </div>
-
-                    {/* Кнопки действий */}
-                    <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={handleStepBack}
-                        className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                      >
-                        Отмена (Esc)
-                      </button>
-                      <button
-                        ref={primaryButtonRef}
-                        type="button"
-                        onClick={handleCreateProjectFromWizardStep}
-                        disabled={
-                          !projectTitleDraft.trim() ||
-                          !projectFirstStepDraft.trim() ||
-                          !projectCriteriaDraft.trim() ||
-                          isCreatingProject
-                        }
-                        className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 outline-none"
-                      >
-                        <span>{isCreatingProject ? 'Создание...' : 'Создать и обработать 1-й шаг'}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
                   </div>
                 )}
 
@@ -848,9 +822,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
-        </div>
       </div>
     </div>
   );

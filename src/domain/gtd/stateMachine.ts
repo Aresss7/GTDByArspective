@@ -247,7 +247,24 @@ export class GTDStateMachine {
   /**
    * Возвращает порядковый номер основного шага (1..5) для индикатора прогресса
    */
-  static getStepNumber(question: GTDQuestionId): { step: number; total: number } {
+  static getStepNumber(question: GTDQuestionId, isProjectTask?: boolean): { step: number; total: number } {
+    if (isProjectTask) {
+      switch (question) {
+        case 'FOR_ME':
+        case 'DELEGATE_FORM':
+          return { step: 1, total: 3 };
+        case 'IS_NOW':
+        case 'CHOOSE_LATER':
+        case 'CALENDAR_FORM':
+          return { step: 2, total: 3 };
+        case 'IS_TWO_MINUTES':
+        case 'DO_TWO_MINUTES':
+          return { step: 3, total: 3 };
+        default:
+          return { step: 1, total: 3 };
+      }
+    }
+
     switch (question) {
       case 'WHAT_IS_IT':
         return { step: 1, total: 6 };
