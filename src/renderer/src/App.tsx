@@ -275,6 +275,55 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Навигация по пунктам меню с помощью клавиш Tab и Shift+Tab (когда разбор не открыт)
+  useEffect(() => {
+    const handleTabNav = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      // Если открыт мастер разбора или другие модальные окна — не перехватываем Tab
+      if (isProcessingOpen || isAddModalOpen || editingTask || taskToDelete) return;
+
+      // Если фокус находится внутри поля ввода или редактора — не перехватываем Tab
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toUpperCase();
+      if (
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        target?.isContentEditable ||
+        target?.closest('.ProseMirror')
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      const tabs: NavigationTab[] = [
+        'next_actions',
+        'inbox',
+        'projects',
+        'calendar',
+        'waiting_for',
+        'someday',
+        'notes',
+        'completed',
+        'trash',
+        'settings',
+      ];
+      const currentIndex = tabs.indexOf(activeTab);
+      if (currentIndex === -1) return;
+
+      let nextIndex: number;
+      if (e.shiftKey) {
+        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      } else {
+        nextIndex = (currentIndex + 1) % tabs.length;
+      }
+      setActiveTab(tabs[nextIndex]);
+    };
+
+    window.addEventListener('keydown', handleTabNav);
+    return () => window.removeEventListener('keydown', handleTabNav);
+  }, [isProcessingOpen, isAddModalOpen, editingTask, taskToDelete, activeTab]);
+
   const handleSaveTask = async (taskData: Partial<Task> & { title: string }) => {
     if (window.gtdApi) {
       try {

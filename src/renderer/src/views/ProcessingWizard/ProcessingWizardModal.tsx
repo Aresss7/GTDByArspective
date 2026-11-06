@@ -59,6 +59,13 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
 
+  // Состояния для формы создания проекта непосредственно внутри мастера
+  const [projectTitleDraft, setProjectTitleDraft] = useState('');
+  const [projectDescDraft, setProjectDescDraft] = useState('');
+  const [projectCriteriaDraft, setProjectCriteriaDraft] = useState('');
+  const [projectFirstStepDraft, setProjectFirstStepDraft] = useState('');
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+
   const isInitializedRef = useRef(false);
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -125,6 +132,16 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     }, 50);
     return () => clearTimeout(timer);
   }, [isOpen, currentQuestion, currentTask?.id]);
+
+  // Предзаполнение данных проекта при переходе к созданию проекта из разбора
+  useEffect(() => {
+    if (currentQuestion === 'CREATE_PROJECT_FORM' && currentTask) {
+      setProjectTitleDraft(currentTask.title);
+      setProjectDescDraft(taskNotes || currentTask.notes || '');
+      setProjectCriteriaDraft('');
+      setProjectFirstStepDraft(currentTask.title);
+    }
+  }, [currentQuestion, currentTask?.id]);
 
   if (!isOpen) return null;
 
@@ -261,6 +278,79 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     onClose();
   };
 
+  const handleCreateProjectFromWizardStep = async () => {
+    if (!currentTask || !projectTitleDraft.trim() || isCreatingProject) return;
+
+    setIsCreatingProject(true);
+    try {
+      if (window.gtdApi) {
+        // Создаем проект в БД с привязкой текущей задачи в качестве 1-го шага
+        await window.gtdApi.createProject({
+          title: projectTitleDraft.trim(),
+          description: projectDescDraft.trim() || undefined,
+          completionCriteria: projectCriteriaDraft.trim() || 'Выполнение всех шагов',
+          existingTaskId: currentTask.id,
+        });
+
+        // Если пользователь уточнил название первого физического шага
+        if (projectFirstStepDraft.trim() && projectFirstStepDraft.trim() !== currentTask.title) {
+          await window.gtdApi.updateTask(currentTask.id, {
+            title: projectFirstStepDraft.trim(),
+            destination: 'next_actions',
+          });
+        } else {
+          await window.gtdApi.updateTask(currentTask.id, {
+            destination: 'next_actions',
+          });
+        }
+
+        if (sessionId) {
+          await window.gtdApi.completeSession(sessionId);
+        }
+      }
+
+      await onTaskUpdated();
+
+      // Сброс полей
+      setProjectTitleDraft('');
+      setProjectDescDraft('');
+      setProjectCriteriaDraft('');
+      setProjectFirstStepDraft('');
+      setDelegatedTo('');
+      setWaitingFor('');
+      setDelegatedDate(todayStr);
+      setCheckDate('');
+      setScheduledDate('');
+      setScheduledTime('');
+
+      // Если это была обработка конкретной выбранной задачи
+      if (initialTask && currentTask.id === initialTask.id) {
+        onClose();
+        return;
+      }
+
+      // Переход к следующей задаче из корзины
+      const remaining = inboxTasks.filter((t) => t.id !== currentTask.id && !skippedTaskIds.includes(t.id));
+      if (remaining.length > 0) {
+        const next = remaining[0];
+        setCurrentTask(next);
+        setTaskNotes(next.notes || '');
+        setCurrentQuestion('WHAT_IS_IT');
+        setHistoryStack([]);
+        if (window.gtdApi) {
+          const newSess = await window.gtdApi.startSession(next.id);
+          if (newSess) setSessionId(newSess.id);
+        }
+      } else {
+        setCurrentTask(null);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Ошибка создания проекта');
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
   const progress = GTDStateMachine.getStepNumber(currentQuestion);
   const questionTitle = GTDStateMachine.getQuestionTitle(currentQuestion);
   const currentProject = currentTask?.project_id ? projects.find((p) => p.id === currentTask.project_id) : null;
@@ -268,56 +358,43 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-fadeIn select-none">
       <div className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 w-full max-w-3xl h-[85vh] max-h-[720px] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800 transition-colors">
-        {/* Верхняя навигационная панель мастера (скрыта, когда разбор завершён) */}
+        {/* Минималистичная верхняя навигационная панель мастера (скрыта, когда разбор завершён) */}
         {currentTask && (
           <>
-            <header className="px-8 py-4 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between bg-zinc-50/70 dark:bg-zinc-800/40">
-              <div className="flex items-center space-x-3">
-                {historyStack.length > 0 && (
-                  <button
-                    onClick={handleStepBack}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-                    title="Вернуться к предыдущему вопросу"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Назад</span>
-                  </button>
-                )}
-                <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  {currentTask?.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Обработка задачи'} • Шаг {progress.step} из {progress.total}
-                </div>
+            <header className="px-6 py-3 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-900/90 border-b border-zinc-200/50 dark:border-zinc-800/50">
+              {/* Кнопка Назад */}
+              <button
+                onClick={handleStepBack}
+                disabled={historyStack.length === 0}
+                className={`p-2 rounded-full transition-colors cursor-pointer ${
+                  historyStack.length > 0
+                    ? 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800'
+                    : 'invisible pointer-events-none'
+                }`}
+                title="Назад к предыдущему вопросу"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
+              {/* Центральная капсула с номером шага */}
+              <div className="px-4 py-1.5 rounded-2xl bg-purple-100 dark:bg-[#2b173f] border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-[#c084fc] font-bold text-sm tracking-wide shadow-sm flex items-center justify-center">
+                {progress.step}/{progress.total}
               </div>
 
-              <div className="flex items-center space-x-3">
-                {currentTask && !currentTask.project_id && !initialTask && (
-                  <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                    Осталось: {inboxTasks.filter((t) => !skippedTaskIds.includes(t.id)).length}
-                  </span>
-                )}
-                {currentTask && !currentTask.project_id && !initialTask && (
-                  <button
-                    onClick={handleSkipCurrentTask}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                    title="Пропустить задачу в текущем сеансе разбора"
-                  >
-                    <SkipForward className="w-3.5 h-3.5" />
-                    <span>Пропустить</span>
-                  </button>
-                )}
-                <button
-                  onClick={handlePause}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                >
-                  <Pause className="w-3.5 h-3.5" />
-                  <span>Приостановить</span>
-                </button>
-              </div>
+              {/* Кнопка Закрыть / Приостановить */}
+              <button
+                onClick={handlePause}
+                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Приостановить и закрыть"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </header>
 
-            {/* Прогресс-бар */}
-            <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5">
+            {/* Тонкий фиолетовый индикатор прогресса под панелью */}
+            <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-[2.5px] overflow-hidden">
               <div
-                className="bg-indigo-600 dark:bg-purple-500 h-1.5 transition-all duration-300"
+                className="bg-purple-600 dark:bg-purple-500 h-[2.5px] transition-all duration-300"
                 style={{ width: `${(progress.step / progress.total) * 100}%` }}
               />
             </div>
@@ -434,36 +511,73 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   </div>
                 )}
 
-                {/* 1.5. Форма подтверждения создания проекта из многошаговой задачи */}
+                {/* 1.5. Форма создания проекта непосредственно внутри разбора */}
                 {currentQuestion === 'CREATE_PROJECT_FORM' && (
-                  <div className="w-full bg-zinc-50 dark:bg-zinc-800/60 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-700 space-y-4 text-center">
-                    <div className="w-14 h-14 mx-auto rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-md">
-                      <FolderKanban className="w-7 h-7" />
-                    </div>
+                  <div className="w-full bg-zinc-50 dark:bg-zinc-850/80 p-5 rounded-3xl border border-zinc-200/80 dark:border-zinc-700/80 space-y-3.5 text-left max-w-xl mx-auto shadow-sm">
                     <div>
-                      <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-base mb-1">
-                        Задача требует нескольких шагов
-                      </h4>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-                        По методологии GTD любая многошаговая цель становится проектом. Вы можете создать проект прямо сейчас или вернуться назад.
-                      </p>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                        Название проекта <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={projectTitleDraft}
+                        onChange={(e) => setProjectTitleDraft(e.target.value)}
+                        placeholder="Например: Запустить сайт, Отремонтировать ванную..."
+                        className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 pt-2 justify-center">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                        Критерий завершения
+                      </label>
+                      <input
+                        type="text"
+                        value={projectCriteriaDraft}
+                        onChange={(e) => setProjectCriteriaDraft(e.target.value)}
+                        placeholder="например: Все работы приняты и подписан акт"
+                        className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                        Первый шаг <span className="text-purple-600 dark:text-purple-400 font-normal lowercase">(будет перенесён в «Текущие действия»)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={projectFirstStepDraft}
+                        onChange={(e) => setProjectFirstStepDraft(e.target.value)}
+                        placeholder="Конкретное первое физическое действие..."
+                        className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                        Пояснение / Описание цели
+                      </label>
+                      <textarea
+                        value={projectDescDraft}
+                        onChange={(e) => setProjectDescDraft(e.target.value)}
+                        placeholder="Детали, ссылки, примерный план..."
+                        rows={2}
+                        className="w-full px-3.5 py-2 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
                       <button
                         ref={primaryButtonRef}
-                        onClick={() => {
-                          if (onCreateProjectRequested && currentTask) {
-                            onCreateProjectRequested(currentTask);
-                          }
-                        }}
-                        className="py-3.5 px-6 rounded-2xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
+                        onClick={handleCreateProjectFromWizardStep}
+                        disabled={!projectTitleDraft.trim() || isCreatingProject}
+                        className="py-3 px-5 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-purple-500/50 outline-none"
                       >
-                        Создать проект из задачи
+                        {isCreatingProject ? 'Создание...' : 'Создать проект'}
                       </button>
                       <button
                         onClick={handleStepBack}
-                        className="py-3.5 px-6 rounded-2xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
+                        className="py-3 px-5 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold text-sm transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-zinc-400 outline-none"
                       >
                         Назад к «Одношаговая?»
                       </button>
