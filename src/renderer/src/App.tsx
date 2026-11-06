@@ -275,25 +275,13 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Навигация по пунктам меню с помощью клавиш Tab и Shift+Tab (когда разбор не открыт)
+  // Навигация по пунктам меню с помощью клавиш Ctrl+Tab и Ctrl+Shift+Tab
   useEffect(() => {
     const handleTabNav = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== 'Tab' || (!e.ctrlKey && !e.metaKey)) return;
 
-      // Если открыт мастер разбора или другие модальные окна — не перехватываем Tab
+      // Если открыт мастер разбора или другие модальные окна — не перехватываем
       if (isProcessingOpen || isAddModalOpen || editingTask || taskToDelete) return;
-
-      // Если фокус находится внутри поля ввода или редактора — не перехватываем Tab
-      const target = e.target as HTMLElement | null;
-      const tagName = target?.tagName?.toUpperCase();
-      if (
-        tagName === 'INPUT' ||
-        tagName === 'TEXTAREA' ||
-        target?.isContentEditable ||
-        target?.closest('.ProseMirror')
-      ) {
-        return;
-      }
 
       e.preventDefault();
       const tabs: NavigationTab[] = [

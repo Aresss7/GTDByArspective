@@ -13,6 +13,8 @@ import {
   SkipForward,
   X,
   FolderKanban,
+  AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { Task, GTDQuestionId, Project } from '@shared/types';
 import { GTDStateMachine } from '@domain/gtd/stateMachine';
@@ -62,8 +64,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   // Состояния для формы создания проекта непосредственно внутри мастера
   const [projectTitleDraft, setProjectTitleDraft] = useState('');
   const [projectDescDraft, setProjectDescDraft] = useState('');
-  const [projectCriteriaDraft, setProjectCriteriaDraft] = useState('');
   const [projectFirstStepDraft, setProjectFirstStepDraft] = useState('');
+  const [projectApproximatePlanDraft, setProjectApproximatePlanDraft] = useState('');
+  const [projectCriteriaDraft, setProjectCriteriaDraft] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const isInitializedRef = useRef(false);
@@ -138,8 +141,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     if (currentQuestion === 'CREATE_PROJECT_FORM' && currentTask) {
       setProjectTitleDraft(currentTask.title);
       setProjectDescDraft(taskNotes || currentTask.notes || '');
+      setProjectFirstStepDraft(''); // Первый шаг изначально пустой
+      setProjectApproximatePlanDraft('');
       setProjectCriteriaDraft('');
-      setProjectFirstStepDraft(currentTask.title);
     }
   }, [currentQuestion, currentTask?.id]);
 
@@ -279,7 +283,15 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   };
 
   const handleCreateProjectFromWizardStep = async () => {
-    if (!currentTask || !projectTitleDraft.trim() || isCreatingProject) return;
+    if (
+      !currentTask ||
+      !projectTitleDraft.trim() ||
+      !projectFirstStepDraft.trim() ||
+      !projectCriteriaDraft.trim() ||
+      isCreatingProject
+    ) {
+      return;
+    }
 
     setIsCreatingProject(true);
     try {
@@ -288,21 +300,11 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         await window.gtdApi.createProject({
           title: projectTitleDraft.trim(),
           description: projectDescDraft.trim() || undefined,
-          completionCriteria: projectCriteriaDraft.trim() || 'Выполнение всех шагов',
+          firstStepTitle: projectFirstStepDraft.trim(),
+          approximatePlan: projectApproximatePlanDraft.trim() || undefined,
+          completionCriteria: projectCriteriaDraft.trim(),
           existingTaskId: currentTask.id,
         });
-
-        // Если пользователь уточнил название первого физического шага
-        if (projectFirstStepDraft.trim() && projectFirstStepDraft.trim() !== currentTask.title) {
-          await window.gtdApi.updateTask(currentTask.id, {
-            title: projectFirstStepDraft.trim(),
-            destination: 'next_actions',
-          });
-        } else {
-          await window.gtdApi.updateTask(currentTask.id, {
-            destination: 'next_actions',
-          });
-        }
 
         if (sessionId) {
           await window.gtdApi.completeSession(sessionId);
@@ -314,8 +316,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
       // Сброс полей
       setProjectTitleDraft('');
       setProjectDescDraft('');
-      setProjectCriteriaDraft('');
       setProjectFirstStepDraft('');
+      setProjectApproximatePlanDraft('');
+      setProjectCriteriaDraft('');
       setDelegatedTo('');
       setWaitingFor('');
       setDelegatedDate(todayStr);
@@ -513,73 +516,111 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                 {/* 1.5. Форма создания проекта непосредственно внутри разбора */}
                 {currentQuestion === 'CREATE_PROJECT_FORM' && (
-                  <div className="w-full bg-zinc-50 dark:bg-zinc-850/80 p-5 rounded-3xl border border-zinc-200/80 dark:border-zinc-700/80 space-y-3.5 text-left max-w-xl mx-auto shadow-sm">
+                  <div className="w-full bg-zinc-50/90 dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 space-y-4 text-left max-w-xl mx-auto shadow-sm max-h-[58vh] overflow-y-auto custom-scrollbar">
+                    {/* НАЗВАНИЕ ПРОЕКТА * */}
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
                         Название проекта <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
+                        required
                         value={projectTitleDraft}
                         onChange={(e) => setProjectTitleDraft(e.target.value)}
-                        placeholder="Например: Запустить сайт, Отремонтировать ванную..."
-                        className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                        placeholder="Например: Запустить интернет-магазин"
+                        className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none transition-all placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
 
+                    {/* ОПИСАНИЕ (НЕОБЯЗАТЕЛЬНО) */}
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
-                        Критерий завершения
-                      </label>
-                      <input
-                        type="text"
-                        value={projectCriteriaDraft}
-                        onChange={(e) => setProjectCriteriaDraft(e.target.value)}
-                        placeholder="например: Все работы приняты и подписан акт"
-                        className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
-                        Первый шаг <span className="text-purple-600 dark:text-purple-400 font-normal lowercase">(будет перенесён в «Текущие действия»)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={projectFirstStepDraft}
-                        onChange={(e) => setProjectFirstStepDraft(e.target.value)}
-                        placeholder="Конкретное первое физическое действие..."
-                        className="w-full px-3.5 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
-                        Пояснение / Описание цели
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                        Описание (необязательно)
                       </label>
                       <textarea
+                        rows={2}
                         value={projectDescDraft}
                         onChange={(e) => setProjectDescDraft(e.target.value)}
-                        placeholder="Детали, ссылки, примерный план..."
-                        rows={2}
-                        className="w-full px-3.5 py-2 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                        placeholder="Контекст или детали..."
+                        className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none resize-none placeholder:text-zinc-400 text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    {/* ПЕРВЫЙ СЛЕДУЮЩИЙ ШАГ * (в фиолетовой рамке) */}
+                    <div className="p-4 bg-indigo-50/60 dark:bg-purple-950/30 rounded-2xl border border-indigo-100 dark:border-purple-900/50 space-y-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-purple-200">
+                        Первый следующий шаг <span className="text-rose-500">*</span>
+                      </label>
+
+                      <div className="flex items-start space-x-2 text-xs text-indigo-900 dark:text-purple-200 bg-indigo-100/70 dark:bg-purple-900/40 p-3 rounded-xl">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-indigo-600 dark:text-purple-400 mt-0.5" />
+                        <span>
+                          <strong>Правило ГТД:</strong> Первый шаг должен быть одним конкретным действием, которое можно выполнить без дополнительного разложения на несколько шагов.
+                        </span>
+                      </div>
+
+                      <input
+                        type="text"
+                        required
+                        value={projectFirstStepDraft}
+                        onChange={(e) => setProjectFirstStepDraft(e.target.value)}
+                        placeholder="Например: Запросить прайс-лист у поставщика"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-indigo-200 dark:border-purple-800/80 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+
+                    {/* ПРИМЕРНЫЙ ПЛАН ДЕЙСТВИЙ */}
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                        Примерный план действий
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={projectApproximatePlanDraft}
+                        onChange={(e) => setProjectApproximatePlanDraft(e.target.value)}
+                        placeholder="1. Найти варианты&#10;2. Сравнить условия..."
+                        className="w-full px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-xs focus:outline-none font-mono resize-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+
+                    {/* КРИТЕРИИ ЗАВЕРШЕНИЯ * */}
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
+                        Критерии завершения <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={projectCriteriaDraft}
+                        onChange={(e) => setProjectCriteriaDraft(e.target.value)}
+                        placeholder="Когда проект считается закрытым? (обязательно)"
+                        className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 dark:focus:border-purple-400 text-sm focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                      />
+                    </div>
+
+                    {/* Кнопки действий */}
+                    <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end space-x-3">
                       <button
-                        ref={primaryButtonRef}
-                        onClick={handleCreateProjectFromWizardStep}
-                        disabled={!projectTitleDraft.trim() || isCreatingProject}
-                        className="py-3 px-5 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-purple-500/50 outline-none"
+                        type="button"
+                        onClick={handleStepBack}
+                        className="px-5 py-2.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       >
-                        {isCreatingProject ? 'Создание...' : 'Создать проект'}
+                        Отмена (Esc)
                       </button>
                       <button
-                        onClick={handleStepBack}
-                        className="py-3 px-5 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold text-sm transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-zinc-400 outline-none"
+                        ref={primaryButtonRef}
+                        type="button"
+                        onClick={handleCreateProjectFromWizardStep}
+                        disabled={
+                          !projectTitleDraft.trim() ||
+                          !projectFirstStepDraft.trim() ||
+                          !projectCriteriaDraft.trim() ||
+                          isCreatingProject
+                        }
+                        className="flex items-center space-x-2 px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 outline-none"
                       >
-                        Назад к «Одношаговая?»
+                        <span>{isCreatingProject ? 'Создание...' : 'Создать и обработать 1-й шаг'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
