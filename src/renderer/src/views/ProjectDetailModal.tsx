@@ -231,9 +231,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     }
   };
 
-  const completedStepsCount = steps.filter((s) => s.status === 'completed').length;
+  const activeSteps = steps.filter((s) => !s.deleted_at && s.destination !== 'trash');
+  const completedStepsCount = activeSteps.filter((s) => s.status === 'completed').length;
 
-  const sortedSteps = [...steps].sort((a, b) => {
+  const sortedSteps = [...activeSteps].sort((a, b) => {
     const aIsFirst = a.id === project.first_step_task_id;
     const bIsFirst = b.id === project.first_step_task_id;
     const aCompleted = a.status === 'completed';
@@ -295,7 +296,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                   </button>
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Шагов выполнено: {completedStepsCount} из {steps.length}
+                  Шагов выполнено: {completedStepsCount} из {activeSteps.length}
                 </p>
               </div>
             </div>

@@ -123,7 +123,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredProjects.map((project) => {
-            const projectSteps = tasks.filter((t) => t.project_id === project.id);
+            const projectSteps = tasks.filter(
+              (t) => t.project_id === project.id && !t.deleted_at && t.destination !== 'trash'
+            );
             const completedCount = projectSteps.filter((t) => t.status === 'completed').length;
             const progressPercent =
               projectSteps.length > 0 ? Math.round((completedCount / projectSteps.length) * 100) : 0;

@@ -11,6 +11,8 @@ import {
   Zap, 
   Sparkles,
   SkipForward,
+  X,
+  FolderKanban,
 } from 'lucide-react';
 import { Task, GTDQuestionId, Project } from '@shared/types';
 import { GTDStateMachine } from '@domain/gtd/stateMachine';
@@ -58,6 +60,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   const [scheduledTime, setScheduledTime] = useState('');
 
   const isInitializedRef = useRef(false);
+  const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Инициализация задачи и сессии строго один раз при открытии модального окна
   useEffect(() => {
@@ -91,27 +94,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         return;
       }
 
-      // Пытаемся восстановить активную сессию из базы данных, только если задача всё ещё активна
-      if (window.gtdApi) {
-        try {
-          const activeSession = await window.gtdApi.getActiveSession();
-          if (activeSession) {
-            const task = await window.gtdApi.getTaskById(activeSession.current_task_id);
-            if (task && task.status === 'active' && (task.destination === 'inbox' || task.project_id)) {
-              setCurrentTask(task);
-              setTaskNotes(task.notes || '');
-              setCurrentQuestion(activeSession.current_question || 'WHAT_IS_IT');
-              setSessionId(activeSession.id);
-              setHistoryStack([]);
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('Could not restore session:', e);
-        }
-      }
-
-      // Если нет сохраненной сессии, берем первую незавершенную и непропущенную задачу из входящих
+      // При последовательном разборе корзины по порядку всегда начинаем с 1-го шага («Что это?»)
       const available = inboxTasks.filter((t) => !skippedTaskIds.includes(t.id));
       if (available.length > 0) {
         setCurrentTask(available[0]);
@@ -134,68 +117,19 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     initWizard();
   }, [isOpen, initialTask?.id]);
 
-  // Горячая клавиша Ctrl+Enter для утвердительного ответа на вопросы разбора
+  // Фокус на кнопку выбора при смене вопроса для удобной навигации Tab + Enter
   useEffect(() => {
     if (!isOpen || !currentTask) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (currentQuestion === 'WHAT_IS_IT') {
-          const trimmed = taskNotes.trim();
-          const original = (currentTask.notes || '').trim();
-          const hasChanged = trimmed !== original;
-          handleStepAnswer('CONTINUE', {
-            notes: hasChanged ? (trimmed || undefined) : currentTask.notes,
-          });
-        } else if (['ACTIONABLE', 'FOR_ME', 'IS_NOW', 'IS_SINGLE_STEP'].includes(currentQuestion)) {
-          handleStepAnswer('YES');
-        } else if (currentQuestion === 'DO_TWO_MINUTES') {
-          handleStepAnswer('COMPLETE_ACTION');
-        } else if (currentQuestion === 'DELEGATE_FORM') {
-          if (delegatedTo.trim()) {
-            if (checkDate && checkDate < todayStr) return;
-            handleStepAnswer('SUBMIT_DELEGATION', {
-              delegatedTo: delegatedTo.trim(),
-              waitingFor: waitingFor.trim(),
-              delegatedDate: delegatedDate || undefined,
-              checkDate: checkDate || undefined,
-            });
-          }
-        } else if (currentQuestion === 'CALENDAR_FORM') {
-          if (scheduledDate) {
-            if (scheduledDate < todayStr) return;
-            handleStepAnswer('SUBMIT_CALENDAR', {
-              scheduledDate,
-              scheduledTime: scheduledTime || undefined,
-            });
-          }
-        } else if (currentQuestion === 'CREATE_PROJECT_FORM') {
-          if (onCreateProjectRequested) {
-            onCreateProjectRequested(currentTask);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentTask, currentQuestion, taskNotes, delegatedTo, waitingFor, delegatedDate, checkDate, scheduledDate, scheduledTime, todayStr, onCreateProjectRequested]);
+    const timer = setTimeout(() => {
+      primaryButtonRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [isOpen, currentQuestion, currentTask?.id]);
 
   if (!isOpen) return null;
 
   const handleStepAnswer = async (answer: GTDAnswer, payload?: any) => {
     if (!currentTask) return;
-
-    // Особый случай: создание проекта при ответе «Нет» на «Одношаговая?»
-    if (currentQuestion === 'IS_SINGLE_STEP' && answer === 'NO') {
-      if (onCreateProjectRequested) {
-        onCreateProjectRequested(currentTask);
-        return;
-      }
-    }
 
     try {
       // Для первого шага проекта: если он на шаге IS_NOW отвечает YES,
@@ -334,63 +268,74 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-fadeIn select-none">
       <div className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 w-full max-w-3xl h-[85vh] max-h-[720px] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800 transition-colors">
-        {/* Верхняя навигационная панель мастера Material 3 */}
-        <header className="px-8 py-4 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between bg-zinc-50/70 dark:bg-zinc-800/40">
-          <div className="flex items-center space-x-3">
-            {historyStack.length > 0 && (
-              <button
-                onClick={handleStepBack}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-                title="Вернуться к предыдущему вопросу"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Назад</span>
-              </button>
-            )}
-            <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-              {currentTask?.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Обработка задачи'} • Шаг {progress.step} из {progress.total}
+        {/* Верхняя навигационная панель мастера (скрыта, когда разбор завершён) */}
+        {currentTask && (
+          <>
+            <header className="px-8 py-4 border-b border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between bg-zinc-50/70 dark:bg-zinc-800/40">
+              <div className="flex items-center space-x-3">
+                {historyStack.length > 0 && (
+                  <button
+                    onClick={handleStepBack}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    title="Вернуться к предыдущему вопросу"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Назад</span>
+                  </button>
+                )}
+                <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  {currentTask?.project_id ? (currentProject ? `Шаг проекта «${currentProject.title}»` : 'Шаг проекта') : 'Обработка задачи'} • Шаг {progress.step} из {progress.total}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                {currentTask && !currentTask.project_id && !initialTask && (
+                  <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                    Осталось: {inboxTasks.filter((t) => !skippedTaskIds.includes(t.id)).length}
+                  </span>
+                )}
+                {currentTask && !currentTask.project_id && !initialTask && (
+                  <button
+                    onClick={handleSkipCurrentTask}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    title="Пропустить задачу в текущем сеансе разбора"
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                    <span>Пропустить</span>
+                  </button>
+                )}
+                <button
+                  onClick={handlePause}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>Приостановить</span>
+                </button>
+              </div>
+            </header>
+
+            {/* Прогресс-бар */}
+            <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5">
+              <div
+                className="bg-indigo-600 dark:bg-purple-500 h-1.5 transition-all duration-300"
+                style={{ width: `${(progress.step / progress.total) * 100}%` }}
+              />
             </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {currentTask && !currentTask.project_id && !initialTask && (
-              <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                Осталось: {inboxTasks.filter((t) => !skippedTaskIds.includes(t.id)).length}
-              </span>
-            )}
-            {currentTask && !currentTask.project_id && !initialTask && (
-              <button
-                onClick={handleSkipCurrentTask}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                title="Пропустить задачу в текущем сеансе разбора"
-              >
-                <SkipForward className="w-3.5 h-3.5" />
-                <span>Пропустить</span>
-              </button>
-            )}
-            <button
-              onClick={handlePause}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <Pause className="w-3.5 h-3.5" />
-              <span>Приостановить</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Прогресс-бар */}
-        <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5">
-          <div
-            className="bg-indigo-600 dark:bg-purple-500 h-1.5 transition-all duration-300"
-            style={{ width: `${(progress.step / progress.total) * 100}%` }}
-          />
-        </div>
+          </>
+        )}
 
         {/* Центральное рабочее тело */}
         <div className="flex-1 overflow-y-auto p-8 flex flex-col justify-between">
           {!currentTask ? (
-            // Экран успешного завершения разбора
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+            // Экран успешного завершения разбора (верхняя панель скрыта)
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 relative">
+              <button
+                onClick={onClose}
+                className="absolute top-0 right-0 p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Закрыть"
+              >
+                <X className="w-5 h-5" />
+              </button>
               <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-sm">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
@@ -399,8 +344,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 Все задачи распределены по соответствующим разделам и готовы к выполнению.
               </p>
               <button
+                ref={primaryButtonRef}
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer focus:ring-4 focus:ring-indigo-500/50 outline-none"
               >
                 Вернуться к делам
               </button>
@@ -446,6 +392,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3 pt-2">
                       <button
+                        ref={primaryButtonRef}
                         onClick={() => {
                           const trimmed = taskNotes.trim();
                           const original = (currentTask.notes || '').trim();
@@ -454,13 +401,13 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                             notes: hasChanged ? (trimmed || undefined) : currentTask.notes,
                           });
                         }}
-                        className="py-3.5 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer text-center"
+                        className="py-3.5 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-purple-600 dark:hover:bg-purple-500 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-indigo-500/50 outline-none"
                       >
-                        Продолжить <span className="text-[11px] font-normal opacity-80">(Ctrl + ↵)</span>
+                        Продолжить
                       </button>
                       <button
                         onClick={() => handleStepAnswer('SKIP')}
-                        className="py-3.5 px-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold text-sm transition-all active:scale-[0.98] cursor-pointer text-center"
+                        className="py-3.5 px-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold text-sm transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-zinc-400 outline-none"
                       >
                         Пропустить
                       </button>
@@ -472,18 +419,55 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 {['ACTIONABLE', 'FOR_ME', 'IS_NOW', 'IS_SINGLE_STEP'].includes(currentQuestion) && (
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
+                      ref={primaryButtonRef}
                       onClick={() => handleStepAnswer('YES')}
-                      className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2"
+                      className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-emerald-500/50 outline-none"
                     >
                       <span>Да</span>
-                      <span className="text-xs font-normal opacity-70">(Ctrl + ↵)</span>
                     </button>
                     <button
                       onClick={() => handleStepAnswer('NO')}
-                      className="py-5 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                      className="py-5 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none"
                     >
                       Нет
                     </button>
+                  </div>
+                )}
+
+                {/* 1.5. Форма подтверждения создания проекта из многошаговой задачи */}
+                {currentQuestion === 'CREATE_PROJECT_FORM' && (
+                  <div className="w-full bg-zinc-50 dark:bg-zinc-800/60 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-700 space-y-4 text-center">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-md">
+                      <FolderKanban className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-base mb-1">
+                        Задача требует нескольких шагов
+                      </h4>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+                        По методологии GTD любая многошаговая цель становится проектом. Вы можете создать проект прямо сейчас или вернуться назад.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2 justify-center">
+                      <button
+                        ref={primaryButtonRef}
+                        onClick={() => {
+                          if (onCreateProjectRequested && currentTask) {
+                            onCreateProjectRequested(currentTask);
+                          }
+                        }}
+                        className="py-3.5 px-6 rounded-2xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
+                      >
+                        Создать проект из задачи
+                      </button>
+                      <button
+                        onClick={handleStepBack}
+                        className="py-3.5 px-6 rounded-2xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
+                      >
+                        Назад к «Одношаговая?»
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -664,8 +648,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 {currentQuestion === 'IS_TWO_MINUTES' && (
                   <div className="space-y-3 w-full">
                     <button
+                      ref={primaryButtonRef}
                       onClick={() => handleStepAnswer('DO_NOW')}
-                      className="w-full py-4 px-6 rounded-full border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-base flex items-center justify-center space-x-2 transition-all shadow-sm cursor-pointer"
+                      className="w-full py-4 px-6 rounded-full border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-base flex items-center justify-center space-x-2 transition-all shadow-sm cursor-pointer focus:ring-4 focus:ring-emerald-500/50 outline-none"
                     >
                       <Zap className="w-5 h-5" />
                       <span>Да, выполнить сейчас</span>
@@ -673,7 +658,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('DEFER_TO_NEXT_ACTIONS')}
-                      className="w-full py-4 px-6 rounded-full border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-base flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                      className="w-full py-4 px-6 rounded-full border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-base flex items-center justify-center space-x-2 transition-all cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
                     >
                       <span>Добавить в текущие действия</span>
                     </button>
@@ -691,8 +676,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     </div>
 
                     <button
+                      ref={primaryButtonRef}
                       onClick={() => handleStepAnswer('COMPLETE_ACTION')}
-                      className="w-full py-5 px-6 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-lg flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                      className="w-full py-5 px-6 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-lg flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-emerald-500/50 outline-none"
                     >
                       <CheckCircle2 className="w-6 h-6" />
                       <span>Выполнено</span>
@@ -700,7 +686,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
                     <button
                       onClick={() => handleStepAnswer('DEFER_TO_NEXT_ACTIONS')}
-                      className="w-full py-3 px-4 rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-xs transition-colors cursor-pointer"
+                      className="w-full py-3 px-4 rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-xs transition-colors cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
                     >
                       Не удалось сделать сейчас — перенести в текущие действия
                     </button>
