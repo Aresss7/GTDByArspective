@@ -125,14 +125,16 @@ export class SyncServer {
   }
 
   // Оповещение об изменении данных (для мгновенной синхронизации)
-  broadcastChange(): void {
-    // 1. Отправляем уведомление на подключённые клиенты (Android) по SSE
-    const payload = `data: ${JSON.stringify({ type: 'sync_needed', timestamp: new Date().toISOString() })}\n\n`;
-    for (const client of this.eventClients) {
-      try {
-        client.write(payload);
-      } catch (err) {
-        this.eventClients.delete(client);
+  broadcastChange(skipSse: boolean = false): void {
+    if (!skipSse) {
+      // 1. Отправляем уведомление на подключённые клиенты (Android) по SSE
+      const payload = `data: ${JSON.stringify({ type: 'sync_needed', timestamp: new Date().toISOString() })}\n\n`;
+      for (const client of this.eventClients) {
+        try {
+          client.write(payload);
+        } catch (err) {
+          this.eventClients.delete(client);
+        }
       }
     }
 
@@ -304,8 +306,8 @@ export class SyncServer {
         // 1. Применяем изменения клиента на сервере
         const stats = repo.applyClientChanges(clientChanges, authenticatedDevice.id);
 
-        // Всегда сразу уведомляем Desktop UI и мобильных клиентов о любых изменениях / синхронизации
-        this.broadcastChange();
+        // Уведомляем локальный Desktop UI (не отправляя sync_needed обратно телефону во время активного sync)
+        this.broadcastChange(true);
 
         // 2. Получаем изменения с сервера, произошедшие после момента последней синхронизации клиента
         const serverChanges = repo.getChangesSince(lastSyncedAt);
@@ -326,11 +328,15 @@ export class SyncServer {
       // 5. Постоянный SSE-поток событий для Android: GET /api/v1/events
       if (req.method === 'GET' && pathname === '/api/v1/events') {
         res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
           'Connection': 'keep-alive',
           'Access-Control-Allow-Origin': '*',
+          'X-Accel-Buffering': 'no',
         });
+        if (typeof (res as any).flushHeaders === 'function') {
+          (res as any).flushHeaders();
+        }
         res.write(': connected\n\n');
 
         this.eventClients.add(res);
