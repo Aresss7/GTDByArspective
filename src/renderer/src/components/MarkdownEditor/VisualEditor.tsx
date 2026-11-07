@@ -206,7 +206,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[460px] p-5 text-sm md:text-base leading-relaxed text-zinc-900 dark:text-zinc-100',
       },
       handleKeyDown: (view, event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        if ((event.ctrlKey || event.metaKey) && (event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter')) {
           event.preventDefault();
           onSave?.();
           return true;

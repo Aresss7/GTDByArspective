@@ -287,6 +287,19 @@ export const NotesView: React.FC<NotesViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNote]);
 
+  // Горячая клавиша Ctrl+Enter / Cmd+Enter: сохранение заметки при редактировании
+  useEffect(() => {
+    if (!selectedNote) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+        e.preventDefault();
+        handleSaveNote();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNote, draftTitle, draftContent]);
+
   // ЕСЛИ ОТКРЫТА СТРАНИЦА ЗАМЕТКИ
   if (selectedNote) {
     return (
@@ -454,6 +467,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
               type="text"
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+                  e.preventDefault();
+                  handleSaveNote();
+                }
+              }}
               placeholder={t.notesTitlePlaceholder}
               className="w-full text-xl md:text-2xl font-black bg-transparent border-b border-zinc-200 dark:border-zinc-800 pb-2 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors placeholder:text-zinc-400"
             />

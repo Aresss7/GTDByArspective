@@ -60,6 +60,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
   }, [task, isOpen]);
 
+  const handleCtrlEnter = (e: React.KeyboardEvent | KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
+
   // Закрытие/отмена по Escape и сохранение по Ctrl+Enter
   useEffect(() => {
     if (!isOpen) return;
@@ -69,7 +76,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           e.preventDefault();
           onClose();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
         e.preventDefault();
         handleSubmit(e as any);
       }
@@ -80,8 +87,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
   if (!isOpen || !task) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.KeyboardEvent | KeyboardEvent) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     if (!title.trim() || isSubmitting) return;
 
     if (destination === 'calendar' && (!scheduledDate || scheduledDate < todayStr)) {
@@ -157,7 +164,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         </div>
 
         {/* Форма */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} onKeyDown={handleCtrlEnter} className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           {/* Название */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
@@ -169,6 +176,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={handleCtrlEnter}
               className="w-full px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none text-zinc-900 dark:text-zinc-100"
             />
           </div>
@@ -187,6 +195,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
               rows={destination === 'notes' ? 6 : 4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              onKeyDown={handleCtrlEnter}
               placeholder={
                 destination === 'notes'
                   ? 'Введите текст заметки, мысли, полезные ссылки...'
