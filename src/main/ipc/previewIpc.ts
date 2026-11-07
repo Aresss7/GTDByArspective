@@ -54,7 +54,7 @@ export function registerPreviewIpc(): void {
         WHERE url = ?
       `).get(cleanUrl) as LinkPreviewData & { fetched_at: string } | undefined;
 
-      if (cached) {
+      if (cached && cached.title && cached.title !== validUrl.hostname) {
         return {
           url: cleanUrl,
           title: cached.title,
@@ -66,7 +66,51 @@ export function registerPreviewIpc(): void {
       // Игнорируем ошибки чтения кэша
     }
 
-    // 2. Запрашиваем метаданные Open Graph с сайта через безопасный fetch
+    // 2. Быстрая и надежная поддержка YouTube (oEmbed API + прямые обложки)
+    const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:watch\?.*v=|live\/|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+    if (ytMatch && ytMatch[1]) {
+      const videoId = ytMatch[1];
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`;
+        const oembedController = new AbortController();
+        const oembedTimeout = setTimeout(() => oembedController.abort(), 4000);
+        const oembedResp = await fetch(oembedUrl, {
+          signal: oembedController.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+          },
+        });
+        clearTimeout(oembedTimeout);
+
+        if (oembedResp.ok) {
+          const oembed = await oembedResp.json() as any;
+          const title = (oembed.title || 'YouTube Video').trim();
+          const description = oembed.author_name ? `Автор: ${oembed.author_name}` : null;
+          const imageUrl = oembed.thumbnail_url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+          try {
+            db.prepare(`
+              INSERT OR REPLACE INTO link_preview_cache (url, title, description, image_url, fetched_at)
+              VALUES (?, ?, ?, ?, ?)
+            `).run(cleanUrl, title, description, imageUrl, new Date().toISOString());
+          } catch (err) {
+            console.warn('Failed to save YouTube link preview cache:', err);
+          }
+
+          return {
+            url: cleanUrl,
+            title,
+            description,
+            imageUrl,
+          };
+        }
+      } catch (ytErr) {
+        // Если oEmbed не ответил, продолжим стандартным получением HTML
+      }
+    }
+
+    // 3. Запрашиваем метаданные Open Graph с сайта через безопасный fetch
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -108,7 +152,6 @@ export function registerPreviewIpc(): void {
       let rawImage = extractMeta(['og:image', 'twitter:image', 'og:image:url', 'twitter:image:src', 'image']);
 
       // Специальная поддержка обложек YouTube (видео и трансляции)
-      const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
       if (!rawImage && ytMatch && ytMatch[1]) {
         rawImage = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
       }
@@ -142,7 +185,7 @@ export function registerPreviewIpc(): void {
         }
       }
 
-      // 3. Сохраняем в кэш
+      // 4. Сохраняем в кэш
       try {
         db.prepare(`
           INSERT OR REPLACE INTO link_preview_cache (url, title, description, image_url, fetched_at)
@@ -159,6 +202,16 @@ export function registerPreviewIpc(): void {
         imageUrl,
       };
     } catch (err) {
+      // Если это YouTube, сформируем гарантированную карточку с обложкой
+      if (ytMatch && ytMatch[1]) {
+        return {
+          url: cleanUrl,
+          title: 'YouTube Video',
+          description: null,
+          imageUrl: `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`,
+        };
+      }
+
       // При ошибке возвращаем упрощённую карточку с доменом
       const fallbackTitle = validUrl.hostname;
       return {
