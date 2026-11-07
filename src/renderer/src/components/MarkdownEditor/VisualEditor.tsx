@@ -13,6 +13,7 @@ import { Markdown } from 'tiptap-markdown';
 import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { extractLinkUrls } from './urlExtractor';
 
 export const SearchHighlightKey = new PluginKey('searchHighlight');
 
@@ -140,6 +141,10 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
     initialText: '',
   });
 
+  const [discoveredUrls, setDiscoveredUrls] = useState<string[]>(() => {
+    return extractLinkUrls(initialMarkdown);
+  });
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -247,8 +252,18 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
       // @ts-ignore
       const md = editor.storage.markdown?.getMarkdown() ?? '';
       onChange(md);
+      const fresh = extractLinkUrls(md, editor);
+      setDiscoveredUrls((prev) => (prev.length === fresh.length && prev.every((u, i) => u === fresh[i]) ? prev : fresh));
     },
   });
+
+  // Синхронизация списка ссылок при изменении входного markdown или загрузке редактора
+  useEffect(() => {
+    setDiscoveredUrls((prev) => {
+      const fresh = extractLinkUrls(initialMarkdown, editor);
+      return prev.length === fresh.length && prev.every((u, i) => u === fresh[i]) ? prev : fresh;
+    });
+  }, [initialMarkdown, editor]);
 
   // Обновление подсветки поиска и скролл к активному совпадению
   useEffect(() => {
@@ -284,6 +299,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
     },
     setMarkdown: (md: string) => {
       editor?.commands.setContent(md);
+      setDiscoveredUrls(extractLinkUrls(md, editor));
     },
     focus: () => {
       editor?.commands.focus();
@@ -329,27 +345,6 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
     editor.chain().focus().unsetLink().run();
   };
 
-  // Find standalone links for preview cards
-  // Any link in markdown that sits on its own line can have an optional preview card
-  const standaloneUrls = (() => {
-    // @ts-ignore
-    const currentMd: string = editor.storage.markdown?.getMarkdown() ?? '';
-    const urls: string[] = [];
-    const lines = currentMd.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      // Match standalone markdown link [text](url) or bare url
-      const mdLinkMatch = trimmed.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-      const bareUrlMatch = trimmed.match(/^(https?:\/\/[^\s]+)$/);
-      if (mdLinkMatch) {
-        urls.push(mdLinkMatch[2]);
-      } else if (bareUrlMatch) {
-        urls.push(bareUrlMatch[1]);
-      }
-    }
-    return Array.from(new Set(urls));
-  })();
-
   return (
     <div className="relative w-full h-full flex flex-col">
       <div 
@@ -359,14 +354,14 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         <EditorContent editor={editor} />
       </div>
 
-      {/* Embedded Link Previews for discovered standalone links */}
-      {standaloneUrls.length > 0 && (
+      {/* Embedded Link Previews for discovered links */}
+      {discoveredUrls.length > 0 && (
         <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
           <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-            Предпросмотр ссылок ({standaloneUrls.length})
+            Предпросмотр ссылок ({discoveredUrls.length})
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {standaloneUrls.map((url) => (
+            {discoveredUrls.map((url) => (
               <LinkPreviewCard
                 key={url}
                 url={url}

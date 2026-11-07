@@ -1,6 +1,8 @@
-import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect, useMemo } from 'react';
 import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
+import { LinkPreviewCard } from './LinkPreviewCard';
+import { extractLinkUrls } from './urlExtractor';
 
 export interface SourceEditorRef {
   getValue: () => string;
@@ -275,6 +277,8 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
     }, 0);
   };
 
+  const discoveredUrls = useMemo(() => extractLinkUrls(value), [value]);
+
   return (
     <div className="relative w-full h-full flex flex-col">
       <textarea
@@ -287,6 +291,23 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         className="w-full flex-1 p-5 rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 text-sm font-mono leading-relaxed text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors resize-y min-h-[460px] whitespace-pre-wrap selection:bg-emerald-500/20"
         spellCheck={false}
       />
+
+      {/* Embedded Link Previews for discovered links */}
+      {discoveredUrls.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+            Предпросмотр ссылок ({discoveredUrls.length})
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {discoveredUrls.map((url) => (
+              <LinkPreviewCard
+                key={url}
+                url={url}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <NoteContextMenu
         x={contextMenu.x}
