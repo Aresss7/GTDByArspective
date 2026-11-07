@@ -345,6 +345,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                     type="text"
                     value={projectTitleDraft}
                     onChange={(e) => setProjectTitleDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) handleSaveProjectDetails();
+                      if (e.key === 'Escape') setIsEditingProject(false);
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs font-bold"
                   />
                 </div>
@@ -354,6 +358,12 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                     rows={2}
                     value={projectDescDraft}
                     onChange={(e) => setProjectDescDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+                        e.preventDefault();
+                        handleSaveProjectDetails();
+                      }
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 text-xs"
                   />
                 </div>
@@ -367,7 +377,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                     value={projectCriteriaDraft}
                     onChange={(e) => setProjectCriteriaDraft(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveProjectDetails();
+                      if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) handleSaveProjectDetails();
                       if (e.key === 'Escape') setIsEditingProject(false);
                     }}
                     placeholder="Что должно произойти, чтобы проект считался завершенным..."
@@ -437,6 +447,12 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                 rows={4}
                 value={planDraft}
                 onChange={(e) => setPlanDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+                    e.preventDefault();
+                    handleSavePlan();
+                  }
+                }}
                 className="w-full p-3 bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-mono focus:ring-1 focus:ring-zinc-500 focus:outline-none"
               />
             ) : (
@@ -500,7 +516,9 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                           value={editingStepTitle}
                           onChange={(e) => setEditingStepTitle(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEditStep(step.id);
+                            if (e.key === 'Enter' || ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter'))) {
+                              handleSaveEditStep(step.id);
+                            }
                             if (e.key === 'Escape') setEditingStepId(null);
                           }}
                           autoFocus

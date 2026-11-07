@@ -832,7 +832,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {/* Модальное окно переноса даты задачи */}
       {rescheduleTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-zinc-200 dark:border-zinc-800 space-y-4">
+          <div
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+                e.preventDefault();
+                handleSaveReschedule();
+              }
+              if (e.key === 'Escape') {
+                setRescheduleTask(null);
+              }
+            }}
+            className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-zinc-200 dark:border-zinc-800 space-y-4"
+          >
             <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Перенести задачу</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">{rescheduleTask.title}</p>
             <div className="space-y-3">

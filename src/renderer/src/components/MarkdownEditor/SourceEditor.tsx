@@ -134,7 +134,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
     if (!el) return;
 
     // Ctrl+Enter to save
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
       e.preventDefault();
       onSave?.();
       return;
