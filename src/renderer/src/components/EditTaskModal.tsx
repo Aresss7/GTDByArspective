@@ -3,6 +3,8 @@ import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox, FileText, Trash2 } f
 import { Task, TaskDestination, Project } from '@shared/types';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { CustomDatePicker } from './CustomDatePicker';
+import { CustomTimePicker } from './CustomTimePicker';
+import { TaskReminderPicker } from './TaskReminderPicker';
 import { ProjectSelect } from './ProjectSelect';
 import { Language, translations } from '../i18n/translations';
 
@@ -39,6 +41,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [delegatedDate, setDelegatedDate] = useState('');
   const [waitingFor, setWaitingFor] = useState('');
   const [checkDate, setCheckDate] = useState('');
+  const [reminderOffset, setReminderOffset] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
@@ -57,6 +60,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       setDelegatedDate(task.delegated_date || todayStr);
       setWaitingFor(task.waiting_for || '');
       setCheckDate(task.check_date || '');
+      setReminderOffset(task.reminder_offset !== undefined ? task.reminder_offset : null);
     }
   }, [task, isOpen]);
 
@@ -105,6 +109,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         project_id: projectId || null,
         scheduled_date: destination === 'calendar' ? scheduledDate || null : null,
         scheduled_time: destination === 'calendar' ? scheduledTime || null : null,
+        reminder_offset: destination === 'calendar' ? reminderOffset : null,
         due_date: dueDate || null,
         delegated_to: destination === 'waiting_for' ? delegatedTo || null : null,
         delegated_date: destination === 'waiting_for' ? delegatedDate || null : null,
@@ -259,14 +264,19 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                     Время
                   </label>
-                  <input
-                    type="time"
+                  <CustomTimePicker
                     value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                    onChange={setScheduledTime}
                   />
                 </div>
               </div>
+
+              {/* Напоминание / Уведомление */}
+              <TaskReminderPicker
+                reminderOffset={reminderOffset}
+                onChange={setReminderOffset}
+                language={language}
+              />
             </div>
           )}
 

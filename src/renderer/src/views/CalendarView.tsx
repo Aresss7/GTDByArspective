@@ -13,6 +13,7 @@ import {
 import { Task, Project } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
 import { CustomDatePicker } from '../components/CustomDatePicker';
+import { CustomTimePicker } from '../components/CustomTimePicker';
 import { Checkbox } from '../components/Checkbox';
 import { Language, translations } from '../i18n/translations';
 
@@ -858,12 +859,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Время (необязательно)</label>
-                <input
-                  type="time"
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+                  {isEn ? 'Time (optional)' : 'Время (необязательно)'}
+                </label>
+                <CustomTimePicker
                   value={newTimeInput}
-                  onChange={(e) => setNewTimeInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs focus:ring-2 focus:ring-indigo-500"
+                  onChange={setNewTimeInput}
                 />
               </div>
             </div>

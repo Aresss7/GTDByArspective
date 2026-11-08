@@ -85,6 +85,30 @@ describe('SQLite Database & Storage Layer', () => {
       expect(updated.scheduled_time).toBe('14:30');
     });
 
+    it('should create and update task with reminder_offset', () => {
+      const task = taskRepo.create({
+        title: 'Конференция',
+        destination: 'calendar',
+        scheduled_date: '2026-11-10',
+        scheduled_time: '10:00',
+        reminder_offset: 15,
+      });
+
+      expect(task.reminder_offset).toBe(15);
+      const fetched = taskRepo.getById(task.id);
+      expect(fetched?.reminder_offset).toBe(15);
+
+      const updated = taskRepo.update(task.id, {
+        reminder_offset: 60,
+      });
+      expect(updated.reminder_offset).toBe(60);
+
+      const disabled = taskRepo.update(task.id, {
+        reminder_offset: null,
+      });
+      expect(disabled.reminder_offset).toBeNull();
+    });
+
     it('should soft delete task by moving to trash', () => {
       const task = taskRepo.create({ title: 'Старая задача' });
       const deleted = taskRepo.delete(task.id, false);

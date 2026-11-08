@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, UserCheck, Clock, CheckSquare, Inbox, FileText } from 'lucide-react';
 import { TaskDestination, Task, Project } from '@shared/types';
 import { CustomDatePicker } from './CustomDatePicker';
+import { CustomTimePicker } from './CustomTimePicker';
+import { TaskReminderPicker } from './TaskReminderPicker';
 
 interface QuickAddTaskModalProps {
   isOpen: boolean;
@@ -26,6 +28,7 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
   // Календарь
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
+  const [reminderOffset, setReminderOffset] = useState<number | null>(null);
   
   // Дедлайн
   const [dueDate, setDueDate] = useState('');
@@ -78,6 +81,7 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
         project_id: projectId || undefined,
         scheduled_date: destination === 'calendar' ? scheduledDate || undefined : undefined,
         scheduled_time: destination === 'calendar' ? scheduledTime || undefined : undefined,
+        reminder_offset: destination === 'calendar' ? (reminderOffset !== null ? reminderOffset : undefined) : undefined,
         due_date: dueDate || undefined,
         delegated_to: destination === 'waiting_for' ? delegatedTo || undefined : undefined,
         waiting_for: destination === 'waiting_for' ? waitingFor || undefined : undefined,
@@ -224,14 +228,18 @@ export const QuickAddTaskModal: React.FC<QuickAddTaskModalProps> = ({
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                     Время (необязательно)
                   </label>
-                  <input
-                    type="time"
+                  <CustomTimePicker
                     value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#191919] border border-zinc-300 dark:border-zinc-600 text-xs text-zinc-900 dark:text-zinc-100"
+                    onChange={setScheduledTime}
                   />
                 </div>
               </div>
+
+              {/* Напоминание / Уведомление */}
+              <TaskReminderPicker
+                reminderOffset={reminderOffset}
+                onChange={setReminderOffset}
+              />
             </div>
           )}
 

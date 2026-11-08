@@ -185,6 +185,16 @@ export const migrations: Migration[] = [
       db.exec("UPDATE tasks SET is_pinned = 0 WHERE destination = 'trash' OR deleted_at IS NOT NULL;");
     },
   },
+  {
+    id: 6,
+    name: '006_task_reminder_offset',
+    up: (db: Database.Database) => {
+      const taskCols = db.pragma('table_info(tasks)') as Array<{ name: string }>;
+      if (!taskCols.some((col) => col.name === 'reminder_offset')) {
+        db.exec('ALTER TABLE tasks ADD COLUMN reminder_offset INTEGER DEFAULT NULL;');
+      }
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

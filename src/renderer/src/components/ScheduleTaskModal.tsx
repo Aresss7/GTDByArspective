@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, X, AlertCircle } from 'lucide-react';
 import { Task } from '@shared/types';
 import { CustomDatePicker } from './CustomDatePicker';
+import { CustomTimePicker } from './CustomTimePicker';
+import { TaskReminderPicker } from './TaskReminderPicker';
 import { Language } from '../i18n/translations';
 
 interface ScheduleTaskModalProps {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
-  onSchedule: (taskId: string, scheduledDate: string, scheduledTime?: string) => Promise<void>;
+  onSchedule: (taskId: string, scheduledDate: string, scheduledTime?: string, reminderOffset?: number | null) => Promise<void>;
   language?: Language;
 }
 
@@ -24,6 +26,7 @@ export const ScheduleTaskModal: React.FC<ScheduleTaskModalProps> = ({
 
   const [scheduledDate, setScheduledDate] = useState(todayStr);
   const [scheduledTime, setScheduledTime] = useState('');
+  const [reminderOffset, setReminderOffset] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,6 +34,7 @@ export const ScheduleTaskModal: React.FC<ScheduleTaskModalProps> = ({
     if (task && isOpen) {
       setScheduledDate(task.scheduled_date || todayStr);
       setScheduledTime(task.scheduled_time || '');
+      setReminderOffset(task.reminder_offset !== undefined ? task.reminder_offset : null);
       setError('');
     }
   }, [task, isOpen, todayStr]);
@@ -67,7 +71,7 @@ export const ScheduleTaskModal: React.FC<ScheduleTaskModalProps> = ({
     setIsSubmitting(true);
     setError('');
     try {
-      await onSchedule(task.id, scheduledDate, scheduledTime || undefined);
+      await onSchedule(task.id, scheduledDate, scheduledTime || undefined, reminderOffset);
       onClose();
     } catch (err: any) {
       setError(err?.message || (isEn ? 'Failed to schedule task' : 'Не удалось запланировать задачу'));
@@ -148,16 +152,18 @@ export const ScheduleTaskModal: React.FC<ScheduleTaskModalProps> = ({
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5">
               {isEn ? 'Time (optional)' : 'Время (необязательно)'}
             </label>
-            <div className="relative flex items-center">
-              <Clock className="w-4 h-4 absolute left-3 text-zinc-400" />
-              <input
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-zinc-100 dark:bg-[#141414] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
-              />
-            </div>
+            <CustomTimePicker
+              value={scheduledTime}
+              onChange={setScheduledTime}
+            />
           </div>
+
+          {/* Напоминание / Уведомление */}
+          <TaskReminderPicker
+            reminderOffset={reminderOffset}
+            onChange={setReminderOffset}
+            language={language}
+          />
 
           {/* Кнопки */}
           <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
