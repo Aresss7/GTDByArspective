@@ -13,7 +13,9 @@ import {
   Pin,
   X,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
@@ -62,6 +64,28 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const inNoteSearchInputRef = useRef<HTMLInputElement>(null);
 
   const noteItems = tasks.filter((t) => t.destination === 'notes' && t.status === 'active' && !t.deleted_at);
+
+  const pinnedNotesCount = useMemo(() => {
+    return noteItems.filter((n) => Boolean(n.is_pinned)).length;
+  }, [noteItems]);
+
+  // Переключение режима отображения: 'grid' (сетка) или 'list' (список)
+  const [notesViewMode, setNotesViewMode] = useState<'grid' | 'list'>(() => {
+    try {
+      const saved = localStorage.getItem('gtd-notes-view-mode');
+      return saved === 'list' ? 'list' : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const handleToggleViewMode = () => {
+    const nextMode = notesViewMode === 'grid' ? 'list' : 'grid';
+    setNotesViewMode(nextMode);
+    try {
+      localStorage.setItem('gtd-notes-view-mode', nextMode);
+    } catch {}
+  };
 
   // Однократная миграция старых закреплений из localStorage в SQLite
   useEffect(() => {
@@ -514,7 +538,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   // ОБЩИЙ СПИСОК ВСЕХ ЗАМЕТОК
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
-      {/* Панель поиска */}
+      {/* Панель поиска, индикатор закреплений и переключатель вида */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-zinc-400" />
@@ -528,12 +552,38 @@ export const NotesView: React.FC<NotesViewProps> = ({
           />
         </div>
 
-        {noteItems.filter((n) => Boolean(n.is_pinned)).length > 0 && (
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 flex items-center space-x-1.5 shadow-xs">
-            <Pin className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-            <span>{isEn ? `Pinned: ${noteItems.filter((n) => Boolean(n.is_pinned)).length}/4` : `Закреплено: ${noteItems.filter((n) => Boolean(n.is_pinned)).length}/4`}</span>
+        <div className="flex items-center space-x-2 shrink-0">
+          {/* Закреплено: просто иконка и число x/4 */}
+          <span 
+            className={`text-xs font-semibold px-2.5 py-1.5 rounded-full border flex items-center space-x-1.5 shadow-xs transition-colors ${
+              pinnedNotesCount > 0
+                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                : 'bg-zinc-100 dark:bg-[#222222] border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'
+            }`}
+            title={isEn ? `Pinned notes: ${pinnedNotesCount}/4` : `Закреплено заметок: ${pinnedNotesCount}/4`}
+          >
+            <Pin className={`w-3.5 h-3.5 ${pinnedNotesCount > 0 ? 'fill-amber-500 text-amber-500' : 'text-zinc-400'}`} />
+            <span>{pinnedNotesCount}/4</span>
           </span>
-        )}
+
+          {/* Переключатель вида (справа от "закреплено") */}
+          <button
+            type="button"
+            onClick={handleToggleViewMode}
+            className="p-2 rounded-full bg-white dark:bg-[#222222] hover:bg-zinc-100 dark:hover:bg-[#2b2b2b] border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all cursor-pointer shadow-xs active:scale-95"
+            title={
+              notesViewMode === 'grid'
+                ? (isEn ? 'Switch to list view' : 'Переключить на список')
+                : (isEn ? 'Switch to grid view' : 'Переключить на сетку')
+            }
+          >
+            {notesViewMode === 'grid' ? (
+              <List className="w-4 h-4" />
+            ) : (
+              <LayoutGrid className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       {sortedNotes.length === 0 ? (
@@ -548,7 +598,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
             {searchQuery ? t.notFoundDesc : (isEn ? 'Use the «+» button or press Ctrl+N to create notes, checklists, or ideas.' : 'Нажмите кнопку «+» внизу или нажмите Ctrl+N, чтобы записать справочную информацию, чек-лист или идеи.')}
           </p>
         </div>
-      ) : (
+      ) : notesViewMode === 'grid' ? (
+        /* Режим сетки (Grid) */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedNotes.map((note) => {
             const isPinned = Boolean(note.is_pinned);
@@ -617,6 +668,82 @@ export const NotesView: React.FC<NotesViewProps> = ({
                         setNoteToDelete(note);
                       }}
                       className="p-1.5 rounded-full text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      title={t.notesDeleteTrash}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Режим списка (List) */
+        <div className="space-y-2">
+          {sortedNotes.map((note) => {
+            const isPinned = Boolean(note.is_pinned);
+            const previewText = note.notes
+              ? note.notes.replace(/[#*`~_>\-[\]()]/g, ' ').replace(/\s+/g, ' ').trim()
+              : '';
+
+            return (
+              <div
+                key={note.id}
+                onClick={() => handleOpenNote(note)}
+                className={`px-4 py-3 bg-white dark:bg-[#222222] rounded-2xl border shadow-xs hover:shadow-md transition-all flex items-center justify-between group cursor-pointer ${
+                  isPinned
+                    ? 'border-amber-400/80 dark:border-amber-500/50 bg-amber-50/15 dark:bg-amber-950/10'
+                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                }`}
+              >
+                <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                  {isPinned && (
+                    <span className="shrink-0 text-amber-500">
+                      <Pin className="w-3.5 h-3.5 fill-amber-500" />
+                    </span>
+                  )}
+                  <div className="flex items-baseline space-x-3 min-w-0 flex-1">
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors truncate shrink-0 max-w-[280px] sm:max-w-[360px]">
+                      {note.title}
+                    </h4>
+                    {previewText && (
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate hidden sm:inline">
+                        {previewText}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 shrink-0">
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 hidden md:inline">
+                    {new Date(note.created_at).toLocaleDateString(isEn ? 'en-US' : 'ru-RU')}
+                  </span>
+                  {isPinned && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hidden sm:inline">
+                      {isEn ? 'Pinned' : 'Закреплено'}
+                    </span>
+                  )}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      type="button"
+                      onClick={(e) => handleTogglePin(note, e)}
+                      className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                        isPinned
+                          ? 'text-amber-500 bg-amber-100/70 dark:bg-amber-950/60'
+                          : 'text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                      }`}
+                      title={isPinned ? (isEn ? 'Unpin note' : 'Открепить заметку') : (isEn ? 'Pin note (up to 4)' : 'Закрепить заметку (до 4)')}
+                    >
+                      <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-amber-500' : ''}`} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNoteToDelete(note);
+                      }}
+                      className="p-1.5 rounded-full text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                       title={t.notesDeleteTrash}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
