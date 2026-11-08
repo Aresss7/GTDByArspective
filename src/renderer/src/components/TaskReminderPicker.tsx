@@ -45,9 +45,9 @@ export const TaskReminderPicker: React.FC<TaskReminderPickerProps> = ({
       {/* Верхняя строка: Колокольчик, Заголовок и Переключатель */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2.5 min-w-0">
-          <Bell className={`w-4 h-4 shrink-0 transition-colors ${isEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-400'}`} />
+          <Bell className={`w-4 h-4 shrink-0 transition-colors ${isEnabled ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`} />
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-            {isEn ? 'Notification / Reminder' : 'Уведомление / Напоминание'}
+            {isEn ? 'Notification' : 'Уведомление'}
           </span>
         </div>
 
@@ -58,12 +58,12 @@ export const TaskReminderPicker: React.FC<TaskReminderPickerProps> = ({
           aria-checked={isEnabled}
           onClick={handleToggle}
           className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
-            isEnabled ? 'bg-purple-600' : 'bg-zinc-300 dark:bg-zinc-700'
+            isEnabled ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-300 dark:bg-zinc-700'
           }`}
         >
           <div
-            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-              isEnabled ? 'translate-x-5' : 'translate-x-0'
+            className={`w-4 h-4 rounded-full shadow-md transform transition-transform ${
+              isEnabled ? 'translate-x-5 bg-white dark:bg-zinc-900' : 'translate-x-0 bg-white'
             }`}
           />
         </button>
@@ -81,7 +81,7 @@ export const TaskReminderPicker: React.FC<TaskReminderPickerProps> = ({
                 onClick={() => handleSelectOffset(opt.offset)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-purple-600 text-white font-bold shadow-xs'
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-bold shadow-xs'
                     : 'bg-white dark:bg-[#2a2a2a] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#333333]'
                 }`}
               >

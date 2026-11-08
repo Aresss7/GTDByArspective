@@ -64,6 +64,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onChangeAutoSaveNotesOnExit,
 }) => {
   const t = translations[language] || translations.ru;
+  const isEn = language === 'en';
   const { showToast } = useToast();
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -566,11 +567,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Секция: Уведомления и напоминания */}
+      {/* Секция: Уведомления */}
       <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
         <div>
           <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
-            <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <Bell className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
             <span>{t.notificationsSection}</span>
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
@@ -604,7 +605,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => handleUpdateNotificationSettings(opt.id as InboxReminderFrequency, inboxReminderDay, inboxReminderTime)}
                   className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all text-center cursor-pointer ${
                     isSelected
-                      ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+                      ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-xs'
                       : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#1e1e1e] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
                   }`}
                 >
@@ -625,13 +626,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </label>
                   <div className="grid grid-cols-7 gap-1.5">
                     {[
-                      { day: 1, label: 'Пн' },
-                      { day: 2, label: 'Вт' },
-                      { day: 3, label: 'Ср' },
-                      { day: 4, label: 'Чт' },
-                      { day: 5, label: 'Пт' },
-                      { day: 6, label: 'Сб' },
-                      { day: 7, label: 'Вс' },
+                      { day: 1, label: isEn ? 'Mon' : 'Пн' },
+                      { day: 2, label: isEn ? 'Tue' : 'Вт' },
+                      { day: 3, label: isEn ? 'Wed' : 'Ср' },
+                      { day: 4, label: isEn ? 'Thu' : 'Чт' },
+                      { day: 5, label: isEn ? 'Fri' : 'Пт' },
+                      { day: 6, label: isEn ? 'Sat' : 'Сб' },
+                      { day: 7, label: isEn ? 'Sun' : 'Вс' },
                     ].map((d) => {
                       const isSel = inboxReminderDay === d.day;
                       return (
@@ -641,7 +642,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           onClick={() => handleUpdateNotificationSettings(inboxReminderFreq, d.day, inboxReminderTime)}
                           className={`py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                             isSel
-                              ? 'bg-purple-600 text-white shadow-xs'
+                              ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-xs font-bold'
                               : 'bg-white dark:bg-[#1e1e1e] border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
                           }`}
                         >
@@ -674,10 +675,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div>
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
               <RefreshCw className="w-4 h-4 text-sky-500" />
-              <span>Обновления программы</span>
+              <span>{t.updatesSection}</span>
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Автоматическая проверка и скачивание релизов из GitHub
+              {t.updatesSubtitle}
             </p>
           </div>
 
@@ -688,7 +689,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="flex items-center space-x-2 px-4 py-2 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
-            <span>{checkingUpdate ? 'Проверка...' : 'Проверить обновления'}</span>
+            <span>{checkingUpdate ? t.updatesChecking : t.updatesCheckBtn}</span>
           </button>
         </div>
 
@@ -701,10 +702,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <AlertCircle className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-bold text-sky-950 dark:text-sky-200">
-                        Доступно обновление: {updateInfo.releaseName || updateInfo.latestVersion}
+                        {isEn ? 'Update available:' : 'Доступно обновление:'} {updateInfo.releaseName || updateInfo.latestVersion}
                       </h4>
                       <p className="text-xs text-sky-800 dark:text-sky-300 mt-0.5">
-                        Текущая версия: {updateInfo.currentVersion} • Новая версия: {updateInfo.latestVersion}
+                        {isEn ? 'Current version:' : 'Текущая версия:'} {updateInfo.currentVersion} • {isEn ? 'New version:' : 'Новая версия:'} {updateInfo.latestVersion}
                       </p>
                     </div>
                   </div>
@@ -713,9 +714,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     type="button"
                     onClick={() => handleOpenReleaseUrl(updateInfo.releaseUrl)}
                     className="text-[11px] text-sky-700 dark:text-sky-400 hover:underline flex items-center space-x-1 shrink-0"
-                    title="Открыть страницу релиза на GitHub"
+                    title={isEn ? 'Open release page on GitHub' : 'Открыть страницу релиза на GitHub'}
                   >
-                    <span>Страница релиза</span>
+                    <span>{t.updatesReleasePage}</span>
                     <ExternalLink className="w-3 h-3" />
                   </button>
                 </div>
@@ -726,14 +727,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                         <Check className="w-4 h-4" />
-                        <span>Файл обновления готов к установке</span>
+                        <span>{t.updatesReadyToInstall}</span>
                       </div>
                       <button
                         type="button"
                         onClick={handleInstallAndRestart}
                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
                       >
-                        Установить и перезапустить
+                        {t.updatesInstallAndRestart}
                       </button>
                     </div>
                   ) : downloading ? (
@@ -741,7 +742,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <div className="flex items-center justify-between text-xs text-sky-900 dark:text-sky-200 font-semibold">
                         <span className="flex items-center space-x-2">
                           <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
-                          <span>Скачивание обновления...</span>
+                          <span>{t.updatesDownloading}</span>
                         </span>
                         <span>{downloadPercent}%</span>
                       </div>
@@ -755,7 +756,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   ) : updateInfo.downloadUrl ? (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-sky-800 dark:text-sky-300">
-                        Файл: {updateInfo.fileName || 'Arspective GTD Setup.exe'}
+                        {isEn ? 'File:' : 'Файл:'} {updateInfo.fileName || 'Arspective GTD Setup.exe'}
                       </span>
                       <button
                         type="button"
@@ -763,20 +764,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>Скачать прямо в приложение</span>
+                        <span>{t.updatesDownloadToApp}</span>
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-sky-800 dark:text-sky-300">
-                        Прямой файл инсталлятора не найден в релизе.
+                        {t.updatesDirectFileNotFound}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleOpenReleaseUrl(updateInfo.releaseUrl)}
                         className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
                       >
-                        <span>Скачать вручную</span>
+                        <span>{t.updatesDownloadManual}</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -786,7 +787,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ) : (
               <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center space-x-2.5 text-xs text-emerald-800 dark:text-emerald-300">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>У вас установлена последняя версия приложения ({updateInfo.currentVersion}).</span>
+                <span>{t.updatesLatestInstalled} ({updateInfo.currentVersion}).</span>
               </div>
             )}
           </div>
