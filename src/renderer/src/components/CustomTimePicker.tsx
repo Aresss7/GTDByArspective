@@ -21,7 +21,13 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
   disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [textValue, setTextValue] = useState(value || '');
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTextValue(value || '');
+  }, [value]);
 
   const [currentH, currentM] = value && value.includes(':')
     ? value.split(':')
@@ -43,17 +49,77 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isOpen]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/[^0-9:]/g, '');
+    if (raw.length > 5) raw = raw.slice(0, 5);
+
+    // Автоматическая подстановка двоеточия после 2 цифр
+    if (raw.length === 2 && !raw.includes(':') && !textValue.endsWith(':')) {
+      raw = `${raw}:`;
+    }
+
+    setTextValue(raw);
+
+    if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(raw)) {
+      onChange(raw);
+    } else if (raw === '') {
+      onChange('');
+    }
+  };
+
+  const handleBlur = () => {
+    if (!textValue) {
+      onChange('');
+      return;
+    }
+    // Поддержка ввода 4 слитных цифр (например 1830 -> 18:30)
+    if (/^\d{4}$/.test(textValue)) {
+      const h = textValue.slice(0, 2);
+      const m = textValue.slice(2, 4);
+      if (Number(h) <= 23 && Number(m) <= 59) {
+        const formatted = `${h}:${m}`;
+        setTextValue(formatted);
+        onChange(formatted);
+        return;
+      }
+    }
+    // Поддержка 1 или 2 цифр (например "9" -> "09:00", "18" -> "18:00")
+    if (/^\d{1,2}$/.test(textValue)) {
+      const h = String(Math.min(23, Number(textValue))).padStart(2, '0');
+      const formatted = `${h}:00`;
+      setTextValue(formatted);
+      onChange(formatted);
+      return;
+    }
+    // Если формат невалидный, возвращаем исходное валидное значение
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(textValue)) {
+      setTextValue(value || '');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleBlur();
+      setIsOpen(false);
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  };
+
   const handleSelectHour = (h: string) => {
     const nextVal = `${h}:${selectedMinute}`;
+    setTextValue(nextVal);
     onChange(nextVal);
   };
 
   const handleSelectMinute = (m: string) => {
     const nextVal = `${selectedHour}:${m}`;
+    setTextValue(nextVal);
     onChange(nextVal);
   };
 
   const handleSetPreset = (preset: string) => {
+    setTextValue(preset);
     onChange(preset);
     setIsOpen(false);
   };
@@ -62,40 +128,57 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
     const m = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
-    onChange(`${h}:${m}`);
+    const formatted = `${h}:${m}`;
+    setTextValue(formatted);
+    onChange(formatted);
     setIsOpen(false);
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setTextValue('');
     onChange('');
     setIsOpen(false);
+    if (inputRef.current) inputRef.current.focus();
   };
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      {/* Кнопка открытия пикера */}
+      {/* Поле ввода времени с клавиатуры и открытием панели по клику */}
       <div
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs cursor-pointer transition-all select-none ${
-          disabled ? 'opacity-50 cursor-not-allowed bg-zinc-100 dark:bg-[#191919]' :
-          isOpen
-            ? 'border-purple-500 bg-white dark:bg-[#191919] ring-2 ring-purple-500/20 shadow-xs'
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all ${
+          disabled
+            ? 'opacity-50 cursor-not-allowed bg-zinc-100 dark:bg-[#191919]'
+            : isOpen
+            ? 'border-zinc-400 dark:border-zinc-500 bg-white dark:bg-[#191919] ring-2 ring-zinc-500/10 shadow-xs'
             : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-[#191919] hover:border-zinc-400 dark:hover:border-zinc-600'
         }`}
       >
-        <div className="flex items-center space-x-2 min-w-0">
-          <Clock className={`w-3.5 h-3.5 shrink-0 ${value ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-400'}`} />
-          <span className={`font-mono text-xs ${value ? 'font-semibold text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`}>
-            {value || placeholder}
-          </span>
+        <div className="flex items-center space-x-2 min-w-0 flex-1">
+          {/* Иконка часов сохраняет нейтральный цвет zinc-400 */}
+          <Clock
+            onClick={() => !disabled && setIsOpen(!isOpen)}
+            className="w-3.5 h-3.5 shrink-0 text-zinc-400 cursor-pointer"
+          />
+          <input
+            ref={inputRef}
+            type="text"
+            disabled={disabled}
+            value={textValue}
+            onChange={handleInputChange}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            onFocus={() => !disabled && setIsOpen(true)}
+            placeholder={placeholder}
+            className="w-full bg-transparent border-none p-0 text-xs font-mono font-semibold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-0"
+          />
         </div>
 
-        {value && !disabled && (
+        {textValue && !disabled && (
           <button
             type="button"
             onClick={handleClear}
-            className="p-1 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-1 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             title="Очистить время"
           >
             <X className="w-3 h-3" />
@@ -103,7 +186,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
         )}
       </div>
 
-      {/* Выпадающая панель времени */}
+      {/* Выпадающая панель быстрого выбора времени в монохромном стиле */}
       {isOpen && (
         <div className="absolute left-0 top-full mt-1.5 z-[100] w-64 bg-white dark:bg-[#1c1c1c] border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl p-3 animate-fadeIn select-none">
           {/* Быстрые пресеты */}
@@ -115,7 +198,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
                 onClick={() => handleSetPreset(preset)}
                 className={`px-1.5 py-1 text-[10px] font-mono font-semibold rounded-lg transition-colors cursor-pointer ${
                   value === preset
-                    ? 'bg-purple-600 text-white font-bold'
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-bold shadow-xs'
                     : 'bg-zinc-100 dark:bg-[#252525] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-[#303030]'
                 }`}
               >
@@ -141,7 +224,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
                       onClick={() => handleSelectHour(h)}
                       className={`w-full py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer ${
                         isSel
-                          ? 'bg-purple-600 text-white font-bold shadow-xs'
+                          ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-bold shadow-xs'
                           : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282828]'
                       }`}
                     >
@@ -167,7 +250,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
                       onClick={() => handleSelectMinute(m)}
                       className={`w-full py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer ${
                         isSel
-                          ? 'bg-purple-600 text-white font-bold shadow-xs'
+                          ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-bold shadow-xs'
                           : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282828]'
                       }`}
                     >
@@ -189,7 +272,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
               Сейчас
             </button>
             <div className="flex items-center space-x-2">
-              {value && (
+              {textValue && (
                 <button
                   type="button"
                   onClick={handleClear}
@@ -201,7 +284,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="px-3 py-1 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs transition-colors cursor-pointer"
+                className="px-3 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold shadow-xs transition-colors cursor-pointer"
               >
                 Готово
               </button>
