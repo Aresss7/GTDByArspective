@@ -142,51 +142,88 @@ export function registerSystemIpc(): void {
         throw new Error(`Update installer file not found at ${filePath}`);
       }
 
+      // Hide all windows immediately so user has smooth experience
+      const allWindows = BrowserWindow.getAllWindows();
+      for (const win of allWindows) {
+        try {
+          win.hide();
+        } catch {}
+      }
+
       const appDir = path.dirname(process.execPath);
       const appExe = process.execPath;
       const exeName = path.basename(appExe);
 
-      // Create a temporary batch runner that:
-      // 1. Waits for current app instance to exit completely
-      // 2. Runs the NSIS installer silently with --updated and --force-run to preserve shortcuts/pins
-      // 3. Verifies if app restarted, and if not, launches it directly
-      const tempDir = app.getPath('temp');
-      const runnerPath = path.join(tempDir, `gtd-updater-${Date.now()}.cmd`);
+      const cleanFilePath = filePath.replace(/"/g, '');
+      const cleanAppDir = appDir.replace(/"/g, '');
+      const cleanAppExe = appExe.replace(/"/g, '');
+      const cleanExeName = exeName.replace(/"/g, '').replace(/'/g, "''");
 
-      const cmdScript = `@echo off
-chcp 65001 >nul
-rem Wait for previous Electron process to terminate and release file locks
-timeout /t 2 /nobreak >nul
+      // On Windows: use wscript.exe (native Windows GUI host, zero console windows)
+      // to execute the silent installer, wait for it, ensure app starts, and self-clean.
+      if (process.platform === 'win32') {
+        const tempDir = app.getPath('temp');
+        const runnerPath = path.join(tempDir, `gtd-updater-${Date.now()}.vbs`);
 
-rem Execute silent update with flags that guarantee shortcut preservation and auto-start
-start /wait "" "${filePath}" /S --updated --force-run /D=${appDir}
+        const vbsScript = `Option Explicit
+On Error Resume Next
+Dim WshShell, fso
+Set WshShell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
 
-rem Wait for installation to settle
-timeout /t 1 /nobreak >nul
+' 1. Wait for current Electron instance to terminate and release file locks
+WScript.Sleep 1500
 
-rem Ensure the application is started
-tasklist /fi "imagename eq ${exeName}" 2>nul | find /i "${exeName}" >nul
-if errorlevel 1 (
-  start "" "${appExe}"
-)
+' 2. Execute silent NSIS update completely hidden (0 = SW_HIDE, True = wait for completion)
+WshShell.Run """${cleanFilePath}"" /S --updated --force-run /D=${cleanAppDir}", 0, True
 
-rem Self-delete runner script
-del /f /q "%~f0" >nul 2>&1
+' 3. Wait a moment for installation to settle
+WScript.Sleep 1000
+
+' 4. Ensure application is running, launch if needed
+Dim objWMIService, colProcesses
+Set objWMIService = GetObject("winmgmts:\\\\.\\root\\cimv2")
+Set colProcesses = objWMIService.ExecQuery("Select * from Win32_Process Where Name = '${cleanExeName}'")
+If colProcesses.Count = 0 Then
+  WshShell.Run """${cleanAppExe}""", 1, False
+End If
+
+' 5. Clean up runner script silently in background
+WshShell.Run "cmd /c ping 127.0.0.1 -n 2 >nul & del """ & WScript.ScriptFullName & """", 0, False
 `;
 
-      fs.writeFileSync(runnerPath, cmdScript, 'utf8');
+        fs.writeFileSync(runnerPath, vbsScript, 'utf8');
 
-      // Launch runner detached
-      const child = spawn('cmd.exe', ['/c', runnerPath], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-      });
-      child.unref();
+        try {
+          const child = spawn('wscript.exe', [runnerPath], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true,
+          });
+          child.unref();
+        } catch (vbsErr) {
+          console.warn('[InstallUpdate] wscript failed, falling back to direct spawn:', vbsErr);
+          const fallback = spawn(cleanFilePath, ['/S', '--updated', '--force-run', `/D=${cleanAppDir}`], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true,
+          });
+          fallback.unref();
+        }
+      } else {
+        const child = spawn(cleanFilePath, ['/S', '--updated', '--force-run', `/D=${cleanAppDir}`], {
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+      }
 
       setTimeout(() => {
         app.quit();
-      }, 500);
+        setTimeout(() => {
+          app.exit(0);
+        }, 1000);
+      }, 300);
 
       return true;
     } catch (err: any) {
