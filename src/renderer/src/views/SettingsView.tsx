@@ -21,11 +21,13 @@ import {
   Monitor,
   Minimize2,
   Power,
-  FileText
+  FileText,
+  Bell
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
-import { WindowCloseAction } from '@shared/types';
+import { CustomTimePicker } from '../components/CustomTimePicker';
+import { WindowCloseAction, InboxReminderFrequency } from '@shared/types';
 
 export type DefaultCaptureTabSetting = 'inbox' | 'current_menu';
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -68,6 +70,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [downloading, setDownloading] = useState(false);
   const [downloadPercent, setDownloadPercent] = useState(0);
   const [downloadedFilePath, setDownloadedFilePath] = useState<string | null>(null);
+
+  const [inboxReminderFreq, setInboxReminderFreq] = useState<InboxReminderFrequency>(() => {
+    return (localStorage.getItem('gtd-inbox-reminder-freq') as InboxReminderFrequency) || 'off';
+  });
+  const [inboxReminderDay, setInboxReminderDay] = useState<number>(() => {
+    const val = localStorage.getItem('gtd-inbox-reminder-day');
+    return val ? parseInt(val, 10) : 1; // 1 = Пн
+  });
+  const [inboxReminderTime, setInboxReminderTime] = useState<string>(() => {
+    return localStorage.getItem('gtd-inbox-reminder-time') || '18:00';
+  });
+
+  useEffect(() => {
+    if (window.gtdApi?.getNotificationSettings) {
+      window.gtdApi.getNotificationSettings().then((s) => {
+        if (s) {
+          if (s.inboxReminderFrequency) setInboxReminderFreq(s.inboxReminderFrequency);
+          if (s.inboxReminderDay) setInboxReminderDay(s.inboxReminderDay);
+          if (s.inboxReminderTime) setInboxReminderTime(s.inboxReminderTime);
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
+  const handleUpdateNotificationSettings = (
+    freq: InboxReminderFrequency,
+    day: number,
+    time: string
+  ) => {
+    setInboxReminderFreq(freq);
+    setInboxReminderDay(day);
+    setInboxReminderTime(time);
+    localStorage.setItem('gtd-inbox-reminder-freq', freq);
+    localStorage.setItem('gtd-inbox-reminder-day', String(day));
+    localStorage.setItem('gtd-inbox-reminder-time', time);
+
+    if (window.gtdApi?.updateNotificationSettings) {
+      window.gtdApi.updateNotificationSettings({
+        inboxReminderFrequency: freq,
+        inboxReminderDay: day,
+        inboxReminderTime: time,
+      }).catch(() => {});
+    }
+  };
 
   const [updateInfo, setUpdateInfo] = useState<{
     checked: boolean;
@@ -520,6 +566,108 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* Секция: Уведомления и напоминания */}
+      <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
+            <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <span>{t.notificationsSection}</span>
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            {t.notificationsSubtitle}
+          </p>
+        </div>
+
+        {/* Напоминание о разборе корзины */}
+        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-[#252525] border border-zinc-200 dark:border-zinc-700/80 space-y-3.5">
+          <div>
+            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">
+              {t.inboxReminderTitle}
+            </span>
+            <span className="text-[11px] text-zinc-400">
+              {t.inboxReminderDesc}
+            </span>
+          </div>
+
+          {/* Варианты: Отключить / Раз в день / Раз в неделю */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'off', label: t.reminderOff },
+              { id: 'daily', label: t.reminderDaily },
+              { id: 'weekly', label: t.reminderWeekly },
+            ].map((opt) => {
+              const isSelected = inboxReminderFreq === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleUpdateNotificationSettings(opt.id as InboxReminderFrequency, inboxReminderDay, inboxReminderTime)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all text-center cursor-pointer ${
+                    isSelected
+                      ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold shadow-xs'
+                      : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#1e1e1e] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Дополнительные параметры при выборе 'daily' или 'weekly' */}
+          {inboxReminderFreq !== 'off' && (
+            <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-700/60 space-y-3 animate-fadeIn">
+              {/* При раз в неделю: выбор дня недели */}
+              {inboxReminderFreq === 'weekly' && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
+                    {t.reminderDayLabel}
+                  </label>
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {[
+                      { day: 1, label: 'Пн' },
+                      { day: 2, label: 'Вт' },
+                      { day: 3, label: 'Ср' },
+                      { day: 4, label: 'Чт' },
+                      { day: 5, label: 'Пт' },
+                      { day: 6, label: 'Сб' },
+                      { day: 7, label: 'Вс' },
+                    ].map((d) => {
+                      const isSel = inboxReminderDay === d.day;
+                      return (
+                        <button
+                          key={d.day}
+                          type="button"
+                          onClick={() => handleUpdateNotificationSettings(inboxReminderFreq, d.day, inboxReminderTime)}
+                          className={`py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-purple-600 text-white shadow-xs'
+                              : 'bg-white dark:bg-[#1e1e1e] border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Выбор времени (для daily и weekly) */}
+              <div className="max-w-xs">
+                <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
+                  {t.reminderTimeLabel}
+                </label>
+                <CustomTimePicker
+                  value={inboxReminderTime}
+                  onChange={(newTime) => handleUpdateNotificationSettings(inboxReminderFreq, inboxReminderDay, newTime || '18:00')}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Секция: Обновления с GitHub */}
       <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
@@ -653,7 +801,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         <div className="flex items-center justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
           <span>{t.aboutVersion}</span>
-          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.5.8</span>
+          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.6.0</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <span>{t.aboutDeveloper}</span>

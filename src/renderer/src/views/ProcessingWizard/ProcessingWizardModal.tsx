@@ -20,6 +20,7 @@ import { Task, GTDQuestionId, Project } from '@shared/types';
 import { GTDStateMachine } from '@domain/gtd/stateMachine';
 import { GTDAnswer } from '@domain/gtd/types';
 import { CustomDatePicker } from '../../components/CustomDatePicker';
+import { CustomTimePicker } from '../../components/CustomTimePicker';
 
 interface ProcessingWizardModalProps {
   isOpen: boolean;
@@ -746,11 +747,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
                           Время (необязательно)
                         </label>
-                        <input
-                          type="time"
+                        <CustomTimePicker
                           value={scheduledTime}
-                          onChange={(e) => setScheduledTime(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          onChange={setScheduledTime}
                         />
                       </div>
                     </div>

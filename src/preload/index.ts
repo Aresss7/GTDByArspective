@@ -93,6 +93,10 @@ const api: GtdApi = {
     ipcRenderer.invoke('system:fetchLinkPreview', url),
   showNotification: (options: { title: string; body: string; silent?: boolean }) =>
     ipcRenderer.invoke('system:showNotification', options),
+  updateNotificationSettings: (settings: import('../shared/types').NotificationSettings) =>
+    ipcRenderer.invoke('system:updateNotificationSettings', settings),
+  getNotificationSettings: () =>
+    ipcRenderer.invoke('system:getNotificationSettings'),
 
   // Window Controls
   minimizeWindow: () =>

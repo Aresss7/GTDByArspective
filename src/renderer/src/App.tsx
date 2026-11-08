@@ -489,13 +489,14 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleConfirmSchedule = async (taskId: string, scheduledDate: string, scheduledTime?: string) => {
+  const handleConfirmSchedule = async (taskId: string, scheduledDate: string, scheduledTime?: string, reminderOffset?: number | null) => {
     if (window.gtdApi) {
       try {
         await window.gtdApi.updateTask(taskId, {
           destination: 'calendar',
           scheduled_date: scheduledDate,
           scheduled_time: scheduledTime || null,
+          reminder_offset: reminderOffset !== undefined ? reminderOffset : null,
         });
         await refreshData();
       } catch (e) {
@@ -1011,11 +1012,6 @@ export const App: React.FC = () => {
                               {task.waiting_for && (
                                 <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-600 dark:text-zinc-300">
                                   Ожидается: {task.waiting_for}
-                                </span>
-                              )}
-                              {task.due_date && (
-                                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 font-semibold">
-                                  ⏱ дедлайн: {task.due_date}
                                 </span>
                               )}
                             </div>

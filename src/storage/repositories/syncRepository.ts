@@ -361,6 +361,7 @@ export class SyncRepository {
           const tCheckDate = t.check_date || t.checkDate || null;
           const tIsPinned = t.is_pinned !== undefined ? (t.is_pinned ? 1 : 0) : (t.isPinned !== undefined ? (t.isPinned ? 1 : 0) : 0);
           const tPreviousDestination = t.previous_destination || t.previousDestination || null;
+          const tReminderOffset = t.reminder_offset !== undefined ? t.reminder_offset : (t.reminderOffset !== undefined ? t.reminderOffset : null);
           const tCreatedAt = t.created_at || t.createdAt || new Date().toISOString();
           const tUpdatedAt = t.updated_at || t.updatedAt || new Date().toISOString();
           const tCompletedAt = t.completed_at || t.completedAt || null;
@@ -397,6 +398,7 @@ export class SyncRepository {
               check_date: tCheckDate || undefined,
               is_pinned: tIsPinned,
               previous_destination: tPreviousDestination || undefined,
+              reminder_offset: tReminderOffset,
             });
             // Фиксируем исходные даты создания/обновления с клиента
             this.db.prepare(`
@@ -440,6 +442,7 @@ export class SyncRepository {
                   check_date = @check_date,
                   is_pinned = @is_pinned,
                   previous_destination = @previous_destination,
+                  reminder_offset = @reminder_offset,
                   updated_at = @updated_at,
                   completed_at = @completed_at,
                   deleted_at = @deleted_at
@@ -462,6 +465,7 @@ export class SyncRepository {
                 check_date: tCheckDate,
                 is_pinned: tIsPinned !== undefined ? tIsPinned : (local.is_pinned ? 1 : 0),
                 previous_destination: tPreviousDestination || local.previous_destination || null,
+                reminder_offset: tReminderOffset !== undefined ? tReminderOffset : (local.reminder_offset !== undefined ? local.reminder_offset : null),
                 updated_at: tUpdatedAt,
                 completed_at: tCompletedAt,
                 deleted_at: tDeletedAt,

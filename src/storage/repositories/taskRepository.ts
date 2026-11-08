@@ -60,6 +60,7 @@ export class TaskRepository {
       check_date: data.check_date || undefined,
       is_pinned: data.is_pinned ? 1 : 0,
       previous_destination: data.previous_destination || undefined,
+      reminder_offset: data.reminder_offset !== undefined ? data.reminder_offset : undefined,
       created_at: now,
       updated_at: now,
       completed_at: data.status === 'completed' ? now : undefined,
@@ -71,11 +72,13 @@ export class TaskRepository {
         id, title, notes, destination, status, project_id, project_order,
         due_date, due_time, scheduled_date, scheduled_time, delegated_to,
         delegated_date, waiting_for, check_date, is_pinned, previous_destination,
+        reminder_offset,
         created_at, updated_at, completed_at, deleted_at
       ) VALUES (
         @id, @title, @notes, @destination, @status, @project_id, @project_order,
         @due_date, @due_time, @scheduled_date, @scheduled_time, @delegated_to,
         @delegated_date, @waiting_for, @check_date, @is_pinned, @previous_destination,
+        @reminder_offset,
         @created_at, @updated_at, @completed_at, @deleted_at
       )
     `);
@@ -98,6 +101,7 @@ export class TaskRepository {
       check_date: task.check_date || null,
       is_pinned: task.is_pinned ? 1 : 0,
       previous_destination: task.previous_destination || null,
+      reminder_offset: task.reminder_offset !== undefined ? task.reminder_offset : null,
       created_at: task.created_at,
       updated_at: task.updated_at,
       completed_at: task.completed_at || null,
@@ -148,6 +152,7 @@ export class TaskRepository {
       ...existing,
       ...updates,
       is_pinned: updates.is_pinned !== undefined ? (updates.is_pinned ? 1 : 0) : existing.is_pinned,
+      reminder_offset: updates.reminder_offset !== undefined ? updates.reminder_offset : existing.reminder_offset,
       updated_at: now,
       completed_at: completedAt,
       previous_destination: previousDest || null,
@@ -172,6 +177,7 @@ export class TaskRepository {
         check_date = @check_date,
         is_pinned = @is_pinned,
         previous_destination = @previous_destination,
+        reminder_offset = @reminder_offset,
         updated_at = @updated_at,
         completed_at = @completed_at,
         deleted_at = @deleted_at
@@ -196,6 +202,7 @@ export class TaskRepository {
       check_date: updatedTask.check_date || null,
       is_pinned: updatedTask.is_pinned ? 1 : 0,
       previous_destination: updatedTask.previous_destination || null,
+      reminder_offset: updatedTask.reminder_offset !== undefined ? updatedTask.reminder_offset : null,
       updated_at: updatedTask.updated_at,
       completed_at: updatedTask.completed_at || null,
       deleted_at: updatedTask.deleted_at || null,

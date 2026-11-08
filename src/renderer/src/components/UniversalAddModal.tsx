@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { Task, Project, TaskDestination } from '@shared/types';
 import { CustomDatePicker } from './CustomDatePicker';
+import { CustomTimePicker } from './CustomTimePicker';
+import { TaskReminderPicker } from './TaskReminderPicker';
 import { ProjectSelect } from './ProjectSelect';
 import { DefaultCaptureTabSetting } from '../views/SettingsView';
 import { Language } from '../i18n/translations';
@@ -69,6 +71,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   const [projectId, setProjectId] = useState<string>('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
+  const [reminderOffset, setReminderOffset] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState('');
   const [delegatedTo, setDelegatedTo] = useState('');
   const [delegatedDate, setDelegatedDate] = useState(todayStr);
@@ -355,6 +358,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         project_id: projectId || undefined,
         scheduled_date: destination === 'calendar' ? scheduledDate || undefined : undefined,
         scheduled_time: destination === 'calendar' ? scheduledTime || undefined : undefined,
+        reminder_offset: destination === 'calendar' ? (reminderOffset !== null ? reminderOffset : undefined) : undefined,
         due_date: dueDate || undefined,
         delegated_to: destination === 'waiting_for' ? delegatedTo || undefined : undefined,
         delegated_date: destination === 'waiting_for' ? delegatedDate || todayStr : undefined,
@@ -773,14 +777,19 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                       <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                         {isEn ? 'Time (optional)' : 'Время (необязательно)'}
                       </label>
-                      <input
-                        type="time"
+                      <CustomTimePicker
                         value={scheduledTime}
-                        onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#222222] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
+                        onChange={setScheduledTime}
                       />
                     </div>
                   </div>
+
+                  {/* Напоминание / Уведомление */}
+                  <TaskReminderPicker
+                    reminderOffset={reminderOffset}
+                    onChange={setReminderOffset}
+                    language={language}
+                  />
                 </div>
               )}
 

@@ -29,6 +29,7 @@ export interface Task {
   check_date?: string | null;     // YYYY-MM-DD
   is_pinned?: boolean | number;
   previous_destination?: TaskDestination | null;
+  reminder_offset?: number | null; // minutes before event: 0, 10, 15, 30, 60, 120, 1440 or null (disabled)
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
@@ -199,6 +200,8 @@ export interface GtdApi {
   fetchLinkPreview: (url: string) => Promise<LinkPreviewData>;
   openExternalUrl: (url: string) => Promise<boolean>;
   showNotification: (options: { title: string; body: string; silent?: boolean }) => Promise<boolean>;
+  updateNotificationSettings?: (settings: NotificationSettings) => Promise<boolean>;
+  getNotificationSettings?: () => Promise<NotificationSettings>;
 
   // System
   getAppVersion: () => Promise<string>;
@@ -233,6 +236,14 @@ export interface GtdApi {
 }
 
 export type WindowCloseAction = 'tray' | 'quit';
+
+export type InboxReminderFrequency = 'off' | 'daily' | 'weekly';
+
+export interface NotificationSettings {
+  inboxReminderFrequency: InboxReminderFrequency;
+  inboxReminderDay?: number; // 1 (Mon) - 7 (Sun)
+  inboxReminderTime?: string; // HH:mm (e.g. "18:00")
+}
 
 declare global {
   interface Window {
