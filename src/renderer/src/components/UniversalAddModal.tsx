@@ -676,7 +676,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
 
           {/* КОНТЕНТ: Режим 2 — Полная форма: Задача для любого раздела (строгий монохром) */}
           {modalMode === 'full' && !isProjectsTab && (
-            <form onSubmit={handleTaskSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <h3 className="text-base font-bold tracking-tight">
                   {isEn ? 'New Task' : 'Новая задача'}
@@ -874,14 +874,15 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                   {isEn ? 'Cancel (Esc)' : 'Отмена (Esc)'}
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleTaskSubmit}
                   disabled={isSubmitting || !taskTitle.trim()}
                   className="px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   {isEn ? 'Save Task' : 'Сохранить задачу'}
                 </button>
               </div>
-            </form>
+            </div>
           )}
         </div>
       </div>
