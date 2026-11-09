@@ -169,7 +169,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         </div>
 
         {/* Форма */}
-        <form onSubmit={handleSubmit} onKeyDown={handleCtrlEnter} className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+        <div onKeyDown={handleCtrlEnter} className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           {/* Название */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
@@ -374,7 +374,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 Отмена
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 disabled={isSubmitting || !title.trim()}
                 className="px-6 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
               >
@@ -382,7 +383,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
               </button>
             </div>
           </div>
-        </form>
+        </div>
       </div>
 
       <ConfirmDeleteModal
