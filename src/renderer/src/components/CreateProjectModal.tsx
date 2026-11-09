@@ -59,12 +59,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!title.trim() || !firstStepTitle.trim() || isSubmitting) return;
-
+    if (!title.trim()) {
+      alert('Пожалуйста, укажите название проекта.');
+      return;
+    }
+    if (!firstStepTitle.trim()) {
+      alert('Пожалуйста, укажите первый физический шаг проекта.');
+      return;
+    }
     if (!completionCriteria.trim()) {
       alert('Пожалуйста, укажите критерий завершения проекта (обязательное поле).');
       return;
     }
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -92,7 +99,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn select-none">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn select-none">
       <div 
         className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800 transition-colors"
         onClick={(e) => e.stopPropagation()}

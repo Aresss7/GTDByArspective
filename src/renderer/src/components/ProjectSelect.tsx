@@ -30,6 +30,7 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [extraProjects, setExtraProjects] = useState<Project[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,10 +39,11 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
   const t = translations[language] || translations.ru;
   const isEn = language === 'en';
 
-  const selectedProject = projects.find((p) => p.id === value);
+  const combinedProjects = [...extraProjects, ...projects.filter((p) => !extraProjects.some((ep) => ep.id === p.id))];
+  const selectedProject = combinedProjects.find((p) => p.id === value);
 
   // Отображаем только незавершённые и неудалённые проекты для выбора
-  const activeProjects = projects.filter((p) => p.status !== 'completed' && !p.deleted_at);
+  const activeProjects = combinedProjects.filter((p) => p.status !== 'completed' && !p.deleted_at);
 
   const filteredProjects = activeProjects.filter((p) => {
     if (!searchQuery.trim()) return true;
@@ -158,14 +160,15 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
           <div className="px-1 pb-1 mb-1 border-b border-zinc-100 dark:border-zinc-800">
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsOpen(false);
                 setIsCreateModalOpen(true);
               }}
               className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer text-left"
             >
               <Plus className="w-3.5 h-3.5 shrink-0" />
-              <span>{isEn ? '+ Create New Project' : '+ Новый проект (открыть форму создания)'}</span>
+              <span>{isEn ? 'New project' : 'Новый проект'}</span>
             </button>
           </div>
 
@@ -260,6 +263,7 @@ export const ProjectSelect: React.FC<ProjectSelectProps> = ({
         existingTaskId={taskId}
         defaultFirstStepTitle={taskTitle}
         onProjectCreated={async ({ project }) => {
+          setExtraProjects((prev) => [project, ...prev.filter((p) => p.id !== project.id)]);
           onChange(project.id);
           if (onProjectCreated) {
             onProjectCreated(project);

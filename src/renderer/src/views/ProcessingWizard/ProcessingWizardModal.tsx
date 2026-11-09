@@ -74,6 +74,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
 
   const isInitializedRef = useRef(false);
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const yesButtonRef = useRef<HTMLButtonElement | null>(null);
+  const noButtonRef = useRef<HTMLButtonElement | null>(null);
+  const projectButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Инициализация задачи и сессии строго один раз при открытии модального окна
   useEffect(() => {
@@ -130,11 +133,15 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     initWizard();
   }, [isOpen, initialTask?.id]);
 
-  // Фокус на кнопку выбора при смене вопроса для удобной навигации Tab + Enter
+  // Фокус на кнопку выбора при смене вопроса для удобной навигации Tab + Enter / Arrow
   useEffect(() => {
     if (!isOpen || !currentTask) return;
     const timer = setTimeout(() => {
-      primaryButtonRef.current?.focus();
+      if (yesButtonRef.current) {
+        yesButtonRef.current.focus();
+      } else {
+        primaryButtonRef.current?.focus();
+      }
     }, 50);
     return () => clearTimeout(timer);
   }, [isOpen, currentQuestion, currentTask?.id]);
@@ -150,12 +157,11 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     }
   }, [currentQuestion, currentTask?.id]);
 
-  // Управление с клавиатуры: стрелки влево/вправо/вниз и быстрые клавиши
+  // Управление с клавиатуры: стрелки наводят фокус на кнопки, подтверждение через Enter, Backspace - назад
   useEffect(() => {
     if (!isOpen || !currentTask || isSelectProjectModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Игнорируем нажатия, если пользователь вводит текст в поле
       const activeEl = document.activeElement;
       const isInput = activeEl && (
         activeEl.tagName === 'INPUT' ||
@@ -163,33 +169,69 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         activeEl.tagName === 'SELECT' ||
         (activeEl as HTMLElement).isContentEditable
       );
+
+      // Кнопка «Назад» через Backspace, если не введено/не выделено текстовое поле
+      if (e.key === 'Backspace' && !isInput && historyStack.length > 0) {
+        e.preventDefault();
+        handleStepBack();
+        return;
+      }
+
       if (isInput) return;
 
+      // Навигация стрелками: только наведение фокуса (навестись), подтверждение строго через Enter/Space
       if (currentQuestion === 'IS_SINGLE_STEP') {
-        if (e.key === 'ArrowLeft' || e.key === '1') {
+        if (e.key === 'ArrowRight') {
           e.preventDefault();
-          handleStepAnswer('YES');
-        } else if (e.key === 'ArrowRight' || e.key === '2') {
+          noButtonRef.current?.focus();
+        } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          handleStepAnswer('NO');
-        } else if (e.key === 'ArrowDown' || e.key === '3') {
+          yesButtonRef.current?.focus();
+        } else if (e.key === 'ArrowDown') {
           e.preventDefault();
-          setIsSelectProjectModalOpen(true);
+          projectButtonRef.current?.focus();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          yesButtonRef.current?.focus();
         }
       } else if (['ACTIONABLE', 'FOR_ME', 'IS_NOW'].includes(currentQuestion)) {
-        if (e.key === 'ArrowLeft' || e.key === '1') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault();
-          handleStepAnswer('YES');
-        } else if (e.key === 'ArrowRight' || e.key === '2') {
+          noButtonRef.current?.focus();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
           e.preventDefault();
-          handleStepAnswer('NO');
+          yesButtonRef.current?.focus();
+        }
+      } else if (currentQuestion === 'IS_TWO_MINUTES') {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          noButtonRef.current?.focus();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          yesButtonRef.current?.focus();
+        }
+      } else if (currentQuestion === 'CHOOSE_NOT_ACTIONABLE') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          noButtonRef.current?.focus();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          yesButtonRef.current?.focus();
+        }
+      } else if (currentQuestion === 'WHAT_IS_IT') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          noButtonRef.current?.focus();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          yesButtonRef.current?.focus();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentTask, currentQuestion, isSelectProjectModalOpen]);
+  }, [isOpen, currentTask, currentQuestion, isSelectProjectModalOpen, historyStack.length]);
 
   if (!isOpen) return null;
 
@@ -617,7 +659,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3 pt-2">
                       <button
-                        ref={primaryButtonRef}
+                        ref={yesButtonRef}
                         onClick={() => {
                           const trimmed = taskNotes.trim();
                           const original = (currentTask.notes || '').trim();
@@ -631,6 +673,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                         Продолжить
                       </button>
                       <button
+                        ref={noButtonRef}
                         onClick={() => handleStepAnswer('SKIP')}
                         className="py-3.5 px-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 font-bold text-sm transition-all active:scale-[0.98] cursor-pointer text-center focus:ring-4 focus:ring-zinc-400 outline-none"
                       >
@@ -644,13 +687,14 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 {['ACTIONABLE', 'FOR_ME', 'IS_NOW'].includes(currentQuestion) && (
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
-                      ref={primaryButtonRef}
+                      ref={yesButtonRef}
                       onClick={() => handleStepAnswer('YES')}
                       className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-emerald-500/50 outline-none"
                     >
                       <span>Да</span>
                     </button>
                     <button
+                      ref={noButtonRef}
                       onClick={() => handleStepAnswer('NO')}
                       className="py-5 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none"
                     >
@@ -664,13 +708,14 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   <div className="w-full space-y-3">
                     <div className="grid grid-cols-2 gap-4 w-full">
                       <button
-                        ref={primaryButtonRef}
+                        ref={yesButtonRef}
                         onClick={() => handleStepAnswer('YES')}
                         className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-emerald-500/50 outline-none"
                       >
                         <span>Да</span>
                       </button>
                       <button
+                        ref={noButtonRef}
                         onClick={() => handleStepAnswer('NO')}
                         className="py-5 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none"
                       >
@@ -679,8 +724,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     </div>
 
                     <button
+                      ref={projectButtonRef}
                       onClick={() => setIsSelectProjectModalOpen(true)}
-                      className="w-full py-4 px-6 rounded-3xl border-2 border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 hover:bg-purple-600 text-purple-800 dark:text-purple-300 hover:text-white font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-purple-500/50 outline-none"
+                      className="w-full py-4 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 text-purple-600 dark:text-purple-400 font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-purple-500/40 outline-none"
                     >
                       <FolderKanban className="w-5 h-5 shrink-0" />
                       <span>Да, выбрать проект</span>
@@ -692,8 +738,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 {currentQuestion === 'CHOOSE_NOT_ACTIONABLE' && (
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
+                      ref={yesButtonRef}
                       onClick={() => handleStepAnswer('CHOOSE_TRASH')}
-                      className="p-6 rounded-3xl border-2 border-zinc-200 dark:border-zinc-800 hover:border-rose-400 bg-white dark:bg-zinc-850 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 text-left transition-all group cursor-pointer"
+                      className="p-6 rounded-3xl border-2 border-zinc-200 dark:border-zinc-800 hover:border-rose-400 bg-white dark:bg-zinc-850 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 text-left transition-all group cursor-pointer focus:ring-4 focus:ring-rose-500/30 outline-none"
                     >
                       <Trash2 className="w-8 h-8 text-rose-500 mb-3 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-zinc-800 dark:text-zinc-200 text-base mb-1">Мусор</h4>
@@ -703,8 +750,9 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     </button>
 
                     <button
+                      ref={noButtonRef}
                       onClick={() => handleStepAnswer('CHOOSE_NOTES')}
-                      className="p-6 rounded-3xl border-2 border-zinc-200 dark:border-zinc-800 hover:border-indigo-400 bg-white dark:bg-zinc-850 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 text-left transition-all group cursor-pointer"
+                      className="p-6 rounded-3xl border-2 border-zinc-200 dark:border-zinc-800 hover:border-indigo-400 bg-white dark:bg-zinc-850 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 text-left transition-all group cursor-pointer focus:ring-4 focus:ring-indigo-500/30 outline-none"
                     >
                       <FileText className="w-8 h-8 text-indigo-500 mb-3 group-hover:scale-110 transition-transform" />
                       <h4 className="font-bold text-zinc-800 dark:text-zinc-200 text-base mb-1">Заметки</h4>
@@ -863,7 +911,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                 {currentQuestion === 'IS_TWO_MINUTES' && (
                   <div className="space-y-3 w-full">
                     <button
-                      ref={primaryButtonRef}
+                      ref={yesButtonRef}
                       onClick={() => handleStepAnswer('DO_NOW')}
                       className="w-full py-4 px-6 rounded-full border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-base flex items-center justify-center space-x-2 transition-all shadow-sm cursor-pointer focus:ring-4 focus:ring-emerald-500/50 outline-none"
                     >
@@ -872,6 +920,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                     </button>
 
                     <button
+                      ref={noButtonRef}
                       onClick={() => handleStepAnswer('DEFER_TO_NEXT_ACTIONS')}
                       className="w-full py-4 px-6 rounded-full border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-base flex items-center justify-center space-x-2 transition-all cursor-pointer focus:ring-4 focus:ring-zinc-400 outline-none"
                     >
