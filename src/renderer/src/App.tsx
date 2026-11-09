@@ -275,13 +275,45 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Навигация по пунктам меню с помощью клавиш Ctrl+Tab и Ctrl+Shift+Tab
+  // Навигация по пунктам меню с помощью клавиш Ctrl+Tab / Ctrl+Shift+Tab и стрелок
   useEffect(() => {
     const handleTabNav = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab' || (!e.ctrlKey && !e.metaKey)) return;
-
       // Если открыт мастер разбора или другие модальные окна — не перехватываем
       if (isProcessingOpen || isAddModalOpen || editingTask || taskToDelete) return;
+
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        (activeEl as HTMLElement).isContentEditable
+      );
+
+      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+      const isTab = e.key === 'Tab';
+      const isArrowDown = e.key === 'ArrowDown';
+      const isArrowUp = e.key === 'ArrowUp';
+      const isArrowRight = e.key === 'ArrowRight';
+      const isArrowLeft = e.key === 'ArrowLeft';
+
+      let direction: 'next' | 'prev' | null = null;
+
+      if (isCtrlOrMeta && isTab) {
+        direction = e.shiftKey ? 'prev' : 'next';
+      } else if (isCtrlOrMeta && (isArrowDown || isArrowRight)) {
+        direction = 'next';
+      } else if (isCtrlOrMeta && (isArrowUp || isArrowLeft)) {
+        direction = 'prev';
+      } else if (!isInputFocused && !isCtrlOrMeta && !e.altKey) {
+        // Управление стрелками при фокусе вне полей ввода
+        if (isArrowDown || isArrowRight) {
+          direction = 'next';
+        } else if (isArrowUp || isArrowLeft) {
+          direction = 'prev';
+        }
+      }
+
+      if (!direction) return;
 
       e.preventDefault();
       const tabs: NavigationTab[] = [
@@ -300,7 +332,7 @@ export const App: React.FC = () => {
       if (currentIndex === -1) return;
 
       let nextIndex: number;
-      if (e.shiftKey) {
+      if (direction === 'prev') {
         nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
       } else {
         nextIndex = (currentIndex + 1) % tabs.length;
