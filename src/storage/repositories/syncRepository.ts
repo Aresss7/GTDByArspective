@@ -9,6 +9,20 @@ import {
 import { TaskRepository } from './taskRepository';
 import { ProjectRepository } from './projectRepository';
 
+function parseTimestamp(ts: any): number {
+  if (!ts) return 0;
+  if (typeof ts === 'number') return ts;
+  const num = Number(ts);
+  if (!isNaN(num) && num > 1000000000) return num;
+  let str = String(ts).trim();
+  // Поддержка стандартного формата SQLite "YYYY-MM-DD HH:MM:SS"
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(str)) {
+    str = str.replace(' ', 'T') + (str.includes('Z') || str.includes('+') ? '' : 'Z');
+  }
+  const parsed = Date.parse(str);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 export class SyncRepository {
   private taskRepo: TaskRepository;
   private projectRepo: ProjectRepository;
@@ -308,7 +322,11 @@ export class SyncRepository {
             appliedProjects++;
           } else {
             // Проект уже существует: сравниваем даты обновления
-            if (pUpdatedAt > local.updated_at) {
+            const clientProjTs = parseTimestamp(pUpdatedAt);
+            const localProjTs = parseTimestamp(local.updated_at);
+            const isProjClientNewer = clientProjTs > localProjTs || Math.abs(clientProjTs - localProjTs) <= 60000;
+
+            if (isProjClientNewer) {
               const mergedDeletedAt = pDeletedAt !== null ? pDeletedAt : (pStatus === 'trash' ? (local.deleted_at || pUpdatedAt) : local.deleted_at);
               this.db.prepare(`
                 UPDATE projects SET
@@ -330,7 +348,7 @@ export class SyncRepository {
                 approximate_plan: pPlan,
                 completion_criteria: pCriteria,
                 status: pStatus,
-                updated_at: pUpdatedAt,
+                updated_at: clientProjTs >= localProjTs ? pUpdatedAt : new Date().toISOString(),
                 completed_at: pCompletedAt,
                 deleted_at: mergedDeletedAt,
               });
@@ -346,22 +364,45 @@ export class SyncRepository {
           const t = rawT as any;
           const taskId = t.id;
           const tTitle = t.title;
-          const tNotes = t.notes || null;
+          const tNotes = t.notes !== undefined ? t.notes : null;
           const tDestination = t.destination;
           const tStatus = t.status;
           const tProjectId = t.project_id || t.projectId || null;
-          const tProjectOrder = t.project_order || t.projectOrder || 0;
-          const tDueDate = t.due_date || t.dueDate || null;
-          const tDueTime = t.due_time || t.dueTime || null;
-          const tScheduledDate = t.scheduled_date || t.scheduledDate || null;
-          const tScheduledTime = t.scheduled_time || t.scheduledTime || null;
-          const tDelegatedTo = t.delegated_to || t.delegatedTo || null;
-          const tDelegatedDate = t.delegated_date || t.delegatedDate || null;
-          const tWaitingFor = t.waiting_for || t.waitingFor || null;
-          const tCheckDate = t.check_date || t.checkDate || null;
+          const tProjectOrder = t.project_order !== undefined ? t.project_order : (t.projectOrder !== undefined ? t.projectOrder : 0);
+          const tDueDate = t.due_date !== undefined ? t.due_date : (t.dueDate !== undefined ? t.dueDate : null);
+          const tDueTime = t.due_time !== undefined ? t.due_time : (t.dueTime !== undefined ? t.dueTime : null);
+          const tScheduledDate = t.scheduled_date !== undefined ? t.scheduled_date : (t.scheduledDate !== undefined ? t.scheduledDate : null);
+          const tScheduledTime = t.scheduled_time !== undefined ? t.scheduled_time : (t.scheduledTime !== undefined ? t.scheduledTime : null);
+          const tDelegatedTo = t.delegated_to !== undefined ? t.delegated_to : (t.delegatedTo !== undefined ? t.delegatedTo : null);
+          const tDelegatedDate = t.delegated_date !== undefined ? t.delegated_date : (t.delegatedDate !== undefined ? t.delegatedDate : null);
+          const tWaitingFor = t.waiting_for !== undefined ? t.waiting_for : (t.waitingFor !== undefined ? t.waitingFor : null);
+          const tCheckDate = t.check_date !== undefined ? t.check_date : (t.checkDate !== undefined ? t.checkDate : null);
           const tIsPinned = t.is_pinned !== undefined ? (t.is_pinned ? 1 : 0) : (t.isPinned !== undefined ? (t.isPinned ? 1 : 0) : 0);
           const tPreviousDestination = t.previous_destination || t.previousDestination || null;
-          const tReminderOffset = t.reminder_offset !== undefined ? t.reminder_offset : (t.reminderOffset !== undefined ? t.reminderOffset : null);
+          
+          // Гибкое и отказоустойчивое распознавание reminder_offset в различных форматах клиента (Android/Web)
+          let rawReminder: any = undefined;
+          if (t.reminder_offset !== undefined) rawReminder = t.reminder_offset;
+          else if (t.reminderOffset !== undefined) rawReminder = t.reminderOffset;
+          else if (t.reminder_minutes !== undefined) rawReminder = t.reminder_minutes;
+          else if (t.reminderMinutes !== undefined) rawReminder = t.reminderMinutes;
+          else if (t.reminder !== undefined) rawReminder = t.reminder;
+          else if (t.reminder_offset_minutes !== undefined) rawReminder = t.reminder_offset_minutes;
+          else if (t.notification_offset !== undefined) rawReminder = t.notification_offset;
+          else if (t.notificationOffset !== undefined) rawReminder = t.notificationOffset;
+
+          let tReminderOffset: number | null | undefined = undefined;
+          if (rawReminder !== undefined) {
+            if (rawReminder === null || rawReminder === '' || rawReminder === 'null') {
+              tReminderOffset = null;
+            } else if (typeof rawReminder === 'boolean') {
+              tReminderOffset = rawReminder ? 0 : null;
+            } else {
+              const num = Number(rawReminder);
+              tReminderOffset = !isNaN(num) ? num : null;
+            }
+          }
+
           const tCreatedAt = t.created_at || t.createdAt || new Date().toISOString();
           const tUpdatedAt = t.updated_at || t.updatedAt || new Date().toISOString();
           const tCompletedAt = t.completed_at || t.completedAt || null;
@@ -382,10 +423,10 @@ export class SyncRepository {
             // Новая задача с телефона
             this.taskRepo.create({
               id: taskId,
-              title: tTitle,
+              title: tTitle || 'Без названия',
               notes: tNotes || undefined,
-              destination: tDestination,
-              status: tStatus,
+              destination: tDestination || 'inbox',
+              status: tStatus || 'active',
               project_id: tProjectId || undefined,
               project_order: tProjectOrder,
               due_date: tDueDate || undefined,
@@ -398,7 +439,7 @@ export class SyncRepository {
               check_date: tCheckDate || undefined,
               is_pinned: tIsPinned,
               previous_destination: tPreviousDestination || undefined,
-              reminder_offset: tReminderOffset,
+              reminder_offset: tReminderOffset !== undefined ? tReminderOffset : null,
             });
             // Фиксируем исходные даты создания/обновления с клиента
             this.db.prepare(`
@@ -409,10 +450,40 @@ export class SyncRepository {
 
             appliedTasks++;
           } else {
-            // Задача существует на обоих устройствах
-            if (tUpdatedAt > local.updated_at) {
-              // Версия клиента новее. Проверяем, не было ли значимого конфликта заметок/описания
-              let mergedNotes = tNotes;
+            // Задача существует на обоих устройствах.
+            // Сравниваем временные метки через parseTimestamp (устраняя проблемы со строковым сравнением SQLite дат с пробелом и ISO)
+            const clientTs = parseTimestamp(tUpdatedAt);
+            const localTs = parseTimestamp(local.updated_at);
+
+            // Проверяем, изменились ли конкретные полезные данные клиентом
+            const reminderChanged = tReminderOffset !== undefined && tReminderOffset !== local.reminder_offset;
+            const titleChanged = Boolean(tTitle && tTitle !== local.title);
+            const notesChanged = Boolean(tNotes !== null && tNotes !== local.notes);
+            const destinationChanged = Boolean(tDestination && tDestination !== local.destination);
+            const statusChanged = Boolean(tStatus && tStatus !== local.status);
+            const datesChanged = Boolean(
+              (tScheduledDate !== null && tScheduledDate !== local.scheduled_date) ||
+              (tScheduledTime !== null && tScheduledTime !== local.scheduled_time) ||
+              (tDueDate !== null && tDueDate !== local.due_date)
+            );
+            const pinnedChanged = (t.is_pinned !== undefined || t.isPinned !== undefined) && tIsPinned !== local.is_pinned;
+
+            const hasClientDataChanges = reminderChanged || titleChanged || notesChanged || destinationChanged || statusChanged || datesChanged || pinnedChanged;
+
+            // Версия клиента принимается, если:
+            // 1. clientTs > localTs (клиент новее)
+            // 2. hasClientDataChanges и разница во времени в пределах допустимого дрифта часов (до 5 минут)
+            // 3. hasClientDataChanges при равных timestamp (клиент не обновил updated_at при изменении)
+            // 4. reminderChanged явно отличается (состояние уведомления изменено на телефоне)
+            const shouldApplyClient = clientTs > localTs || 
+                                      (hasClientDataChanges && Math.abs(clientTs - localTs) <= 300000) ||
+                                      (hasClientDataChanges && clientTs === localTs) ||
+                                      (reminderChanged);
+
+            if (shouldApplyClient) {
+              // Версия клиента новее или содержит актуальные изменения с мобильного.
+              // Проверяем, не было ли значимого конфликта заметок/описания
+              let mergedNotes = tNotes !== null ? tNotes : local.notes;
               if (
                 local.notes && 
                 tNotes && 
@@ -423,6 +494,12 @@ export class SyncRepository {
                 mergedNotes = `${tNotes}\n\n[Версия с компьютера (${local.updated_at})]:\n${local.notes}`;
                 conflictsResolved++;
               }
+
+              const finalReminderOffset = tReminderOffset !== undefined 
+                ? tReminderOffset 
+                : (local.reminder_offset !== undefined ? local.reminder_offset : null);
+
+              const finalUpdatedAt = clientTs >= localTs ? tUpdatedAt : new Date().toISOString();
 
               this.db.prepare(`
                 UPDATE tasks SET
@@ -449,30 +526,30 @@ export class SyncRepository {
                 WHERE id = @id
               `).run({
                 id: taskId,
-                title: tTitle,
+                title: tTitle || local.title,
                 notes: mergedNotes,
-                destination: tDestination,
-                status: tStatus,
-                project_id: tProjectId,
-                project_order: tProjectOrder,
-                due_date: tDueDate,
-                due_time: tDueTime,
-                scheduled_date: tScheduledDate,
-                scheduled_time: tScheduledTime,
-                delegated_to: tDelegatedTo,
-                delegated_date: tDelegatedDate,
-                waiting_for: tWaitingFor,
-                check_date: tCheckDate,
-                is_pinned: tIsPinned !== undefined ? tIsPinned : (local.is_pinned ? 1 : 0),
+                destination: tDestination || local.destination,
+                status: tStatus || local.status,
+                project_id: tProjectId !== undefined ? tProjectId : local.project_id,
+                project_order: tProjectOrder !== undefined ? tProjectOrder : local.project_order,
+                due_date: tDueDate !== undefined ? tDueDate : local.due_date,
+                due_time: tDueTime !== undefined ? tDueTime : local.due_time,
+                scheduled_date: tScheduledDate !== undefined ? tScheduledDate : local.scheduled_date,
+                scheduled_time: tScheduledTime !== undefined ? tScheduledTime : local.scheduled_time,
+                delegated_to: tDelegatedTo !== undefined ? tDelegatedTo : local.delegated_to,
+                delegated_date: tDelegatedDate !== undefined ? tDelegatedDate : local.delegated_date,
+                waiting_for: tWaitingFor !== undefined ? tWaitingFor : local.waiting_for,
+                check_date: tCheckDate !== undefined ? tCheckDate : local.check_date,
+                is_pinned: (t.is_pinned !== undefined || t.isPinned !== undefined) ? tIsPinned : (local.is_pinned ? 1 : 0),
                 previous_destination: tPreviousDestination || local.previous_destination || null,
-                reminder_offset: tReminderOffset !== undefined ? tReminderOffset : (local.reminder_offset !== undefined ? local.reminder_offset : null),
-                updated_at: tUpdatedAt,
-                completed_at: tCompletedAt,
-                deleted_at: tDeletedAt,
+                reminder_offset: finalReminderOffset,
+                updated_at: finalUpdatedAt,
+                completed_at: tCompletedAt !== undefined ? tCompletedAt : local.completed_at,
+                deleted_at: tDeletedAt !== undefined ? tDeletedAt : local.deleted_at,
               });
 
               appliedTasks++;
-            } else if (local.updated_at > tUpdatedAt) {
+            } else if (localTs > clientTs) {
               // Версия на компьютере новее — компьютерные изменения вернутся клиенту в serverChanges
             }
           }

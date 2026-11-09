@@ -21,6 +21,7 @@ import { GTDStateMachine } from '@domain/gtd/stateMachine';
 import { GTDAnswer } from '@domain/gtd/types';
 import { CustomDatePicker } from '../../components/CustomDatePicker';
 import { CustomTimePicker } from '../../components/CustomTimePicker';
+import { SelectProjectModal } from '../../components/SelectProjectModal';
 
 interface ProcessingWizardModalProps {
   isOpen: boolean;
@@ -69,6 +70,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
   const [projectApproximatePlanDraft, setProjectApproximatePlanDraft] = useState('');
   const [projectCriteriaDraft, setProjectCriteriaDraft] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isSelectProjectModalOpen, setIsSelectProjectModalOpen] = useState(false);
 
   const isInitializedRef = useRef(false);
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -154,6 +156,15 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     if (!currentTask) return;
 
     try {
+      // Если пользователь ранее выбрал проект, вернулся назад на «Одношаговая?» и нажал «Да» (автономная задача)
+      if (currentQuestion === 'IS_SINGLE_STEP' && answer === 'YES' && currentTask.project_id) {
+        if (window.gtdApi) {
+          await window.gtdApi.updateTask(currentTask.id, { project_id: null });
+        }
+        currentTask.project_id = null;
+        await onTaskUpdated();
+      }
+
       // Для первого шага проекта: если он на шаге IS_NOW отвечает YES,
       // мы пропускаем IS_SINGLE_STEP (так как он заведомо одношаговый)
       // и переходим сразу к IS_TWO_MINUTES!
@@ -230,6 +241,11 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     } catch (err: any) {
       alert(err.message || 'Ошибка при обработке шага');
     }
+  };
+
+  const handleChooseProjectForTask = async (project: Project) => {
+    setIsSelectProjectModalOpen(false);
+    await handleStepAnswer('SELECT_PROJECT', { projectId: project.id });
   };
 
   const handleSkipCurrentTask = async () => {
@@ -327,7 +343,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     }
   };
 
-  const progress = GTDStateMachine.getStepNumber(currentQuestion, !!currentTask?.project_id);
+  const isProjectFirstStepReview = Boolean(initialTask?.project_id || historyStack.includes('CREATE_PROJECT_FORM'));
+  const progress = GTDStateMachine.getStepNumber(currentQuestion, isProjectFirstStepReview);
   const questionTitle = GTDStateMachine.getQuestionTitle(currentQuestion);
   const currentProject = currentTask?.project_id ? projects.find((p) => p.id === currentTask.project_id) : null;
 
@@ -582,8 +599,8 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   </div>
                 )}
 
-                {/* 1. Бинарные вопросы: ACTIONABLE, FOR_ME, IS_NOW, IS_SINGLE_STEP */}
-                {['ACTIONABLE', 'FOR_ME', 'IS_NOW', 'IS_SINGLE_STEP'].includes(currentQuestion) && (
+                {/* 1. Бинарные вопросы: ACTIONABLE, FOR_ME, IS_NOW */}
+                {['ACTIONABLE', 'FOR_ME', 'IS_NOW'].includes(currentQuestion) && (
                   <div className="grid grid-cols-2 gap-4 w-full">
                     <button
                       ref={primaryButtonRef}
@@ -597,6 +614,32 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                       className="py-5 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none"
                     >
                       Нет
+                    </button>
+                  </div>
+                )}
+
+                {/* Вопрос «Одношаговая?»: Да / Нет / Да, выбрать проект */}
+                {currentQuestion === 'IS_SINGLE_STEP' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+                    <button
+                      ref={primaryButtonRef}
+                      onClick={() => handleStepAnswer('YES')}
+                      className="py-5 px-4 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-emerald-500/50 outline-none text-center"
+                    >
+                      <span>Да</span>
+                    </button>
+                    <button
+                      onClick={() => handleStepAnswer('NO')}
+                      className="py-5 px-4 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none text-center"
+                    >
+                      Нет
+                    </button>
+                    <button
+                      onClick={() => setIsSelectProjectModalOpen(true)}
+                      className="py-5 px-3 rounded-3xl border-2 border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 hover:bg-purple-600 text-purple-800 dark:text-purple-300 hover:text-white font-bold text-sm sm:text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-1.5 focus:ring-4 focus:ring-purple-500/50 outline-none text-center"
+                    >
+                      <FolderKanban className="w-5 h-5 shrink-0" />
+                      <span className="truncate">Да, выбрать проект</span>
                     </button>
                   </div>
                 )}
@@ -824,6 +867,14 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
             </div>
           )}
       </div>
+
+      {/* Модальное окно выбора проекта на шаге «Одношаговая?» */}
+      <SelectProjectModal
+        isOpen={isSelectProjectModalOpen}
+        onClose={() => setIsSelectProjectModalOpen(false)}
+        projects={projects}
+        onSelectProject={handleChooseProjectForTask}
+      />
     </div>
   );
 };

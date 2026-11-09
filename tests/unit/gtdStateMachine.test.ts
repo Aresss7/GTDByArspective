@@ -109,6 +109,18 @@ describe('GTD State Machine Business Logic', () => {
       const res = GTDStateMachine.transition('IS_SINGLE_STEP', 'YES');
       expect(res.nextQuestion).toBe('IS_TWO_MINUTES');
     });
+
+    it('should transition to IS_TWO_MINUTES and assign project_id on SELECT_PROJECT', () => {
+      const res = GTDStateMachine.transition('IS_SINGLE_STEP', 'SELECT_PROJECT', { projectId: 'proj_abc' });
+      expect(res.nextQuestion).toBe('IS_TWO_MINUTES');
+      expect(res.taskUpdates?.project_id).toBe('proj_abc');
+    });
+
+    it('should transition to IS_TWO_MINUTES without project_id on SELECT_PROJECT if no payload', () => {
+      const res = GTDStateMachine.transition('IS_SINGLE_STEP', 'SELECT_PROJECT');
+      expect(res.nextQuestion).toBe('IS_TWO_MINUTES');
+      expect(res.taskUpdates?.project_id).toBeUndefined();
+    });
   });
 
   describe('Step 5: «Можно сделать за 2 минуты?» (IS_TWO_MINUTES)', () => {

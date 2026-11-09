@@ -176,5 +176,75 @@ describe('SyncRepository', () => {
       expect(inTrash?.destination).toBe('trash');
       expect(inTrash?.is_pinned).toBe(0);
     });
+
+    it('should successfully apply reminder_offset changes from phone to desktop', () => {
+      const device = syncRepo.registerDevice('Galaxy S24', 'token-galaxy-s24');
+
+      // 1. Создаём задачу на ПК без напоминания
+      const task = taskRepo.create({
+        title: 'Встреча в офисе',
+        destination: 'calendar',
+        scheduled_date: '2026-11-15',
+        scheduled_time: '14:00',
+        reminder_offset: null,
+      });
+
+      expect(taskRepo.getById(task.id)?.reminder_offset).toBeNull();
+
+      // 2. Телефон присылает обновление: включено напоминание за 15 минут
+      // Эмулируем формат даты SQLite с пробелом "YYYY-MM-DD HH:MM:SS"
+      const result = syncRepo.applyClientChanges(
+        {
+          tasks: [
+            {
+              id: task.id,
+              title: task.title,
+              destination: task.destination,
+              scheduled_date: task.scheduled_date,
+              scheduled_time: task.scheduled_time,
+              reminder_offset: 15,
+              updated_at: '2026-11-15 12:00:00',
+            } as any,
+          ],
+        },
+        device.id
+      );
+
+      expect(result.appliedTasks).toBe(1);
+      const afterPhoneSync = taskRepo.getById(task.id);
+      expect(afterPhoneSync?.reminder_offset).toBe(15);
+
+      // 3. Телефон меняет напоминание на другое значение через reminderOffset (camelCase)
+      syncRepo.applyClientChanges(
+        {
+          tasks: [
+            {
+              id: task.id,
+              reminderOffset: 60,
+              updated_at: new Date().toISOString(),
+            } as any,
+          ],
+        },
+        device.id
+      );
+
+      expect(taskRepo.getById(task.id)?.reminder_offset).toBe(60);
+
+      // 4. Телефон отключает напоминание (null)
+      syncRepo.applyClientChanges(
+        {
+          tasks: [
+            {
+              id: task.id,
+              reminder_offset: null,
+              updated_at: new Date().toISOString(),
+            } as any,
+          ],
+        },
+        device.id
+      );
+
+      expect(taskRepo.getById(task.id)?.reminder_offset).toBeNull();
+    });
   });
 });
