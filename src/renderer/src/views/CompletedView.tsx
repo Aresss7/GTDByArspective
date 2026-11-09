@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { CheckCircle2, RotateCcw, Search, Check, FolderKanban, CheckSquare, FileCheck } from 'lucide-react';
+import { CheckCircle2, RotateCcw, Search, Check, FolderKanban, CheckSquare, FileCheck, Calendar, Filter } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
 import { useToast } from '../components/ToastNotification';
 import { Language, translations } from '../i18n/translations';
 import { ProjectDetailModal } from './ProjectDetailModal';
+import { CustomDatePicker } from '../components/CustomDatePicker';
+
+type DateFilterType = 'all' | 'today' | 'yesterday' | 'last7days' | 'custom';
 
 interface CompletedViewProps {
   tasks: Task[];
@@ -24,16 +27,64 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
   const [activeTab, setActiveTab] = useState<'tasks' | 'projects'>('tasks');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
+  // Фильтрация по дням
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
   const t = translations[language] || translations.ru;
   const isEn = language === 'en';
 
-  const q = searchQuery.toLowerCase().trim();
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getItemDateStr = (item: { completed_at?: string | null; updated_at?: string; created_at?: string }): string | null => {
+    const rawDate = item.completed_at || item.updated_at || item.created_at;
+    if (!rawDate) return null;
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return null;
+    return formatLocalDate(d);
+  };
+
+  const matchesDateFilter = (item: { completed_at?: string | null; updated_at?: string; created_at?: string }): boolean => {
+    if (dateFilter === 'all') return true;
+    const itemDateStr = getItemDateStr(item);
+    if (!itemDateStr) return false;
+
+    const now = new Date();
+    const todayStr = formatLocalDate(now);
+
+    if (dateFilter === 'today') {
+      return itemDateStr === todayStr;
+    }
+    if (dateFilter === 'yesterday') {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return itemDateStr === formatLocalDate(yesterday);
+    }
+    if (dateFilter === 'last7days') {
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const minStr = formatLocalDate(sevenDaysAgo);
+      return itemDateStr >= minStr && itemDateStr <= todayStr;
+    }
+    if (dateFilter === 'custom') {
+      if (customStartDate && itemDateStr < customStartDate) return false;
+      if (customEndDate && itemDateStr > customEndDate) return false;
+      return true;
+    }
+    return true;
+  };
 
   const allCompletedTasks = tasks.filter((t) => t.status === 'completed' && !t.deleted_at && t.destination !== 'trash');
   const allCompletedProjects = projects.filter((p) => p.status === 'completed' && !p.deleted_at);
 
-  const completedTasks = allCompletedTasks.filter((t) => matchesSearch(t, searchQuery));
-  const completedProjects = allCompletedProjects.filter((p) => matchesSearch(p, searchQuery));
+  const completedTasks = allCompletedTasks.filter((t) => matchesSearch(t, searchQuery) && matchesDateFilter(t));
+  const completedProjects = allCompletedProjects.filter((p) => matchesSearch(p, searchQuery) && matchesDateFilter(p));
 
   const getDestinationName = (destination: string) => {
     switch (destination) {
@@ -135,6 +186,110 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-500 text-xs focus:outline-none transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 shadow-xs"
           />
         </div>
+      </div>
+
+      {/* Панель фильтрации по времени: За всё время, Сегодня, Вчера, Последние 7 дней, Выбрать отрезок */}
+      <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+        <div className="flex items-center space-x-1.5 p-1 bg-zinc-100 dark:bg-[#1c1c1e] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setDateFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              dateFilter === 'all'
+                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            {isEn ? 'All time' : 'За всё время'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDateFilter('today')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              dateFilter === 'today'
+                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            {isEn ? 'Today' : 'Сегодня'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDateFilter('yesterday')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              dateFilter === 'yesterday'
+                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            {isEn ? 'Yesterday' : 'Вчера'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDateFilter('last7days')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              dateFilter === 'last7days'
+                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            {isEn ? 'Last 7 days' : 'Последние 7 дней'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDateFilter('custom')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              dateFilter === 'custom'
+                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>{isEn ? 'Custom range' : 'Выбрать временной отрезок'}</span>
+          </button>
+        </div>
+
+        {/* Поля выбора временного отрезка, если активен режим custom */}
+        {dateFilter === 'custom' && (
+          <div className="flex items-center space-x-2 animate-fadeIn">
+            <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-[#1c1c1e] px-2.5 py-1 rounded-2xl border border-zinc-200/80 dark:border-zinc-800">
+              <span className="text-[11px] text-zinc-400 font-medium">{isEn ? 'From:' : 'От:'}</span>
+              <CustomDatePicker
+                value={customStartDate}
+                onChange={setCustomStartDate}
+                placeholder={isEn ? 'Start date' : 'Дата начала'}
+                className="w-36"
+              />
+            </div>
+
+            <div className="flex items-center space-x-1.5 bg-zinc-100 dark:bg-[#1c1c1e] px-2.5 py-1 rounded-2xl border border-zinc-200/80 dark:border-zinc-800">
+              <span className="text-[11px] text-zinc-400 font-medium">{isEn ? 'To:' : 'До:'}</span>
+              <CustomDatePicker
+                value={customEndDate}
+                onChange={setCustomEndDate}
+                placeholder={isEn ? 'End date' : 'Дата конца'}
+                className="w-36"
+              />
+            </div>
+
+            {(customStartDate || customEndDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomStartDate('');
+                  setCustomEndDate('');
+                }}
+                className="px-2.5 py-1.5 rounded-xl text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer"
+              >
+                {isEn ? 'Reset' : 'Сбросить'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pb-1">

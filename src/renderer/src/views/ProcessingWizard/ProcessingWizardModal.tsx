@@ -150,6 +150,47 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     }
   }, [currentQuestion, currentTask?.id]);
 
+  // Управление с клавиатуры: стрелки влево/вправо/вниз и быстрые клавиши
+  useEffect(() => {
+    if (!isOpen || !currentTask || isSelectProjectModalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Игнорируем нажатия, если пользователь вводит текст в поле
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        (activeEl as HTMLElement).isContentEditable
+      );
+      if (isInput) return;
+
+      if (currentQuestion === 'IS_SINGLE_STEP') {
+        if (e.key === 'ArrowLeft' || e.key === '1') {
+          e.preventDefault();
+          handleStepAnswer('YES');
+        } else if (e.key === 'ArrowRight' || e.key === '2') {
+          e.preventDefault();
+          handleStepAnswer('NO');
+        } else if (e.key === 'ArrowDown' || e.key === '3') {
+          e.preventDefault();
+          setIsSelectProjectModalOpen(true);
+        }
+      } else if (['ACTIONABLE', 'FOR_ME', 'IS_NOW'].includes(currentQuestion)) {
+        if (e.key === 'ArrowLeft' || e.key === '1') {
+          e.preventDefault();
+          handleStepAnswer('YES');
+        } else if (e.key === 'ArrowRight' || e.key === '2') {
+          e.preventDefault();
+          handleStepAnswer('NO');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentTask, currentQuestion, isSelectProjectModalOpen]);
+
   if (!isOpen) return null;
 
   const handleStepAnswer = async (answer: GTDAnswer, payload?: any) => {
@@ -618,28 +659,31 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                   </div>
                 )}
 
-                {/* Вопрос «Одношаговая?»: Да / Нет / Да, выбрать проект */}
+                {/* Вопрос «Одношаговая?»: Да и Нет сверху, а ниже кнопка «Да, выбрать проект» на всю ширину двух кнопок */}
                 {currentQuestion === 'IS_SINGLE_STEP' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-                    <button
-                      ref={primaryButtonRef}
-                      onClick={() => handleStepAnswer('YES')}
-                      className="py-5 px-4 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-emerald-500/50 outline-none text-center"
-                    >
-                      <span>Да</span>
-                    </button>
-                    <button
-                      onClick={() => handleStepAnswer('NO')}
-                      className="py-5 px-4 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none text-center"
-                    >
-                      Нет
-                    </button>
+                  <div className="w-full space-y-3">
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                      <button
+                        ref={primaryButtonRef}
+                        onClick={() => handleStepAnswer('YES')}
+                        className="py-5 px-6 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-500 text-emerald-800 dark:text-emerald-300 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-emerald-500/50 outline-none"
+                      >
+                        <span>Да</span>
+                      </button>
+                      <button
+                        onClick={() => handleStepAnswer('NO')}
+                        className="py-5 px-6 rounded-3xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-white font-bold text-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer focus:ring-4 focus:ring-zinc-400 dark:focus:ring-zinc-500 outline-none"
+                      >
+                        Нет
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => setIsSelectProjectModalOpen(true)}
-                      className="py-5 px-3 rounded-3xl border-2 border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 hover:bg-purple-600 text-purple-800 dark:text-purple-300 hover:text-white font-bold text-sm sm:text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-1.5 focus:ring-4 focus:ring-purple-500/50 outline-none text-center"
+                      className="w-full py-4 px-6 rounded-3xl border-2 border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 hover:bg-purple-600 text-purple-800 dark:text-purple-300 hover:text-white font-bold text-base shadow-sm transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center space-x-2 focus:ring-4 focus:ring-purple-500/50 outline-none"
                     >
                       <FolderKanban className="w-5 h-5 shrink-0" />
-                      <span className="truncate">Да, выбрать проект</span>
+                      <span>Да, выбрать проект</span>
                     </button>
                   </div>
                 )}

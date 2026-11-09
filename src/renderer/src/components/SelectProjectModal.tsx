@@ -16,32 +16,19 @@ export const SelectProjectModal: React.FC<SelectProjectModalProps> = ({
   onSelectProject,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Сброс поиска и фокус на поле ввода при открытии
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('');
+      setSelectedIndex(0);
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
     }
   }, [isOpen]);
-
-  // Закрытие по клавише Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   // Фильтруем только существующие активные проекты (не удалённые и не завершённые)
   const activeProjects = projects.filter(
@@ -52,6 +39,40 @@ export const SelectProjectModal: React.FC<SelectProjectModalProps> = ({
   const filteredProjects = activeProjects.filter((p) =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
   );
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [searchQuery]);
+
+  // Закрытие по Escape и навигация стрелками + Enter
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (filteredProjects.length > 0) {
+          setSelectedIndex((prev) => (prev + 1) % filteredProjects.length);
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (filteredProjects.length > 0) {
+          setSelectedIndex((prev) => (prev - 1 + filteredProjects.length) % filteredProjects.length);
+        }
+      } else if (e.key === 'Enter') {
+        if (filteredProjects.length > 0 && filteredProjects[selectedIndex]) {
+          e.preventDefault();
+          onSelectProject(filteredProjects[selectedIndex]);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, filteredProjects, selectedIndex, onSelectProject]);
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -133,33 +154,43 @@ export const SelectProjectModal: React.FC<SelectProjectModalProps> = ({
               </p>
             </div>
           ) : (
-            filteredProjects.map((project) => (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => onSelectProject(project)}
-                className="w-full p-3 rounded-2xl text-left border border-zinc-200/60 dark:border-zinc-800/80 hover:border-purple-500/50 bg-white dark:bg-zinc-850 hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-all flex items-center justify-between group cursor-pointer shadow-2xs"
-              >
-                <div className="flex items-center space-x-3 min-w-0 pr-2">
-                  <div className="p-2 rounded-xl bg-purple-100/70 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
-                    <FolderKanban className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                      {project.title}
+            filteredProjects.map((project, idx) => {
+              const isHighlighted = idx === selectedIndex;
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => onSelectProject(project)}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  className={`w-full p-3 rounded-2xl text-left border transition-all flex items-center justify-between group cursor-pointer shadow-2xs ${
+                    isHighlighted
+                      ? 'border-purple-500 bg-purple-50/60 dark:bg-purple-950/40 ring-1 ring-purple-500/30'
+                      : 'border-zinc-200/60 dark:border-zinc-800/80 hover:border-purple-500/50 bg-white dark:bg-zinc-850 hover:bg-purple-50/40 dark:hover:bg-purple-950/20'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 min-w-0 pr-2">
+                    <div className="p-2 rounded-xl bg-purple-100/70 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
+                      <FolderKanban className="w-4 h-4" />
                     </div>
-                    {project.description && (
-                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-                        {project.description}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                        {project.title}
                       </div>
-                    )}
+                      {project.description && (
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                          {project.description}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-2 py-0.5 rounded-lg bg-purple-100/60 dark:bg-purple-900/40">
-                  Выбрать
-                </span>
-              </button>
-            ))
+                  <span className={`text-[10px] font-semibold text-purple-600 dark:text-purple-400 transition-opacity shrink-0 px-2 py-0.5 rounded-lg bg-purple-100/60 dark:bg-purple-900/40 ${
+                    isHighlighted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}>
+                    Выбрать
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
 

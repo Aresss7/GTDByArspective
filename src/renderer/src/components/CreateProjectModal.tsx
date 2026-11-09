@@ -6,18 +6,22 @@ interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   sourceTask?: Task | null;
-  onProjectCreated: (result: { project: Project; firstStep: Task }) => Promise<void>;
+  existingTaskId?: string;
+  defaultFirstStepTitle?: string;
+  onProjectCreated: (result: { project: Project; firstStep?: Task }) => Promise<void> | void;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   isOpen,
   onClose,
   sourceTask,
+  existingTaskId,
+  defaultFirstStepTitle,
   onProjectCreated,
 }) => {
   const [title, setTitle] = useState(sourceTask ? sourceTask.title : '');
   const [description, setDescription] = useState(sourceTask ? sourceTask.notes || '' : '');
-  const [firstStepTitle, setFirstStepTitle] = useState('');
+  const [firstStepTitle, setFirstStepTitle] = useState(defaultFirstStepTitle || '');
   const [approximatePlan, setApproximatePlan] = useState('');
   const [completionCriteria, setCompletionCriteria] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,14 +30,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     if (sourceTask) {
       setTitle(sourceTask.title);
       setDescription(sourceTask.notes || '');
+      setFirstStepTitle(sourceTask.title);
     } else {
       setTitle('');
       setDescription('');
+      setFirstStepTitle(defaultFirstStepTitle || '');
     }
-    setFirstStepTitle('');
     setApproximatePlan('');
     setCompletionCriteria('');
-  }, [sourceTask, isOpen]);
+  }, [sourceTask, isOpen, defaultFirstStepTitle]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -71,9 +76,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           approximatePlan: approximatePlan.trim() || undefined,
           completionCriteria: completionCriteria.trim(),
           sourceTaskId: sourceTask?.id,
+          existingTaskId: existingTaskId,
         });
 
-        if (result.firstStep) {
+        if (result && result.project) {
           await onProjectCreated({ project: result.project, firstStep: result.firstStep });
         }
         onClose();
