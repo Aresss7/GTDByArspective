@@ -5,6 +5,7 @@ export type GTDAnswer =
   | 'SKIP'
   | 'YES'
   | 'NO'
+  | 'SELECT_PROJECT'
   | 'CHOOSE_TRASH'
   | 'CHOOSE_NOTES'
   | 'SUBMIT_DELEGATION'

@@ -156,6 +156,12 @@ export class GTDStateMachine {
         if (answer === 'NO') {
           return { nextQuestion: 'CREATE_PROJECT_FORM' };
         }
+        if (answer === 'SELECT_PROJECT') {
+          return {
+            nextQuestion: 'IS_TWO_MINUTES',
+            taskUpdates: payload?.projectId ? { project_id: payload.projectId } : undefined,
+          };
+        }
         break;
       }
 

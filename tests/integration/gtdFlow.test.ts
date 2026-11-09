@@ -128,4 +128,64 @@ describe('End-to-End GTD Workflow Integration', () => {
     expect(resumedSession?.current_task_id).toBe(task.id);
     expect(resumedSession?.current_question).toBe('IS_NOW');
   });
+
+  it('Scenario 4: Adding existing Inbox task to an existing Project via «Да, выбрать проект»', () => {
+    // 1. Создаем существующий активный проект
+    const { project } = projectRepo.createWithFirstStep({
+      title: 'Ремонт на кухне',
+      completionCriteria: 'Кухня отремонтирована',
+    });
+
+    // 2. Создаем задачу в корзине
+    const inboxTask = taskRepo.create({ title: 'Купить влагостойкую краску для стен' });
+    expect(inboxTask.destination).toBe('inbox');
+    expect(inboxTask.project_id).toBeUndefined();
+
+    // 3. Запускаем разбор корзины
+    const session = sessionRepo.createSession(inboxTask.id, 'ACTIONABLE');
+
+    // Проходим шаги: «С этим надо что-то делать?» -> Да
+    sessionRepo.pushHistory(session.id, 'ACTIONABLE', 'YES', { nextQuestion: 'FOR_ME' });
+    sessionRepo.updateSession(session.id, { current_question: 'FOR_ME' });
+
+    // «Мне?» -> Да
+    sessionRepo.pushHistory(session.id, 'FOR_ME', 'YES', { nextQuestion: 'IS_NOW' });
+    sessionRepo.updateSession(session.id, { current_question: 'IS_NOW' });
+
+    // «Сейчас?» -> Да
+    sessionRepo.pushHistory(session.id, 'IS_NOW', 'YES', { nextQuestion: 'IS_SINGLE_STEP' });
+    sessionRepo.updateSession(session.id, { current_question: 'IS_SINGLE_STEP' });
+
+    // «Одношаговая?» -> Пользователь нажимает «Да, выбрать проект» и выбирает проект «Ремонт на кухне»
+    const transition = GTDStateMachine.transition('IS_SINGLE_STEP', 'SELECT_PROJECT', { projectId: project.id });
+    expect(transition.nextQuestion).toBe('IS_TWO_MINUTES');
+    expect(transition.taskUpdates?.project_id).toBe(project.id);
+
+    // Привязываем задачу к выбранному проекту в БД
+    const linkedTask = taskRepo.update(inboxTask.id, transition.taskUpdates!);
+    expect(linkedTask.project_id).toBe(project.id);
+
+    sessionRepo.pushHistory(session.id, 'IS_SINGLE_STEP', 'SELECT_PROJECT', {
+      nextQuestion: 'IS_TWO_MINUTES',
+      payload: { projectId: project.id },
+    });
+    sessionRepo.updateSession(session.id, { current_question: 'IS_TWO_MINUTES' });
+
+    // «Можно сделать за 2 минуты?» -> Нет / Добавить в текущие действия
+    const finalTransition = GTDStateMachine.transition('IS_TWO_MINUTES', 'DEFER_TO_NEXT_ACTIONS');
+    expect(finalTransition.isCompletedItem).toBe(true);
+
+    const completedTask = taskRepo.update(linkedTask.id, finalTransition.taskUpdates!);
+    expect(completedTask.destination).toBe('next_actions');
+    expect(completedTask.status).toBe('active');
+    expect(completedTask.project_id).toBe(project.id);
+
+    // Завершаем сессию
+    sessionRepo.deleteSession(session.id);
+    expect(sessionRepo.getActiveSession()).toBeNull();
+
+    // Проверяем, что задача теперь находится в списке шагов проекта
+    const projectWithSteps = projectRepo.getProjectWithSteps(project.id);
+    expect(projectWithSteps?.steps.some((s) => s.id === inboxTask.id)).toBe(true);
+  });
 });
