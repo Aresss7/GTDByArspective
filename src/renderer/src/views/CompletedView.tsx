@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckCircle2, RotateCcw, Search, Check, FolderKanban, CheckSquare, FileCheck, Calendar, Filter } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CheckCircle2, RotateCcw, Search, Check, FolderKanban, CheckSquare, FileCheck, Calendar, Filter, ChevronDown } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
 import { useToast } from '../components/ToastNotification';
@@ -8,6 +8,14 @@ import { ProjectDetailModal } from './ProjectDetailModal';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 
 type DateFilterType = 'all' | 'today' | 'yesterday' | 'last7days' | 'custom';
+
+const DATE_FILTER_LABELS: Record<DateFilterType, { ru: string; en: string }> = {
+  all: { ru: 'За всё время', en: 'All time' },
+  today: { ru: 'Сегодня', en: 'Today' },
+  yesterday: { ru: 'Вчера', en: 'Yesterday' },
+  last7days: { ru: 'Последние 7 дней', en: 'Last 7 days' },
+  custom: { ru: 'Выбрать временной отрезок', en: 'Custom range' },
+};
 
 interface CompletedViewProps {
   tasks: Task[];
@@ -29,8 +37,22 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
 
   // Фильтрация по дням
   const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node)) {
+        setIsDateDropdownOpen(false);
+      }
+    };
+    if (isDateDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDateDropdownOpen]);
 
   const t = translations[language] || translations.ru;
   const isEn = language === 'en';
@@ -188,69 +210,44 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         </div>
       </div>
 
-      {/* Панель фильтрации по времени: За всё время, Сегодня, Вчера, Последние 7 дней, Выбрать отрезок */}
-      <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
-        <div className="flex items-center space-x-1.5 p-1 bg-zinc-100 dark:bg-[#1c1c1e] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-2xs">
+      {/* Фильтрация по времени через выпадающий список */}
+      <div className="flex flex-wrap items-center gap-2.5 pt-1 pb-1">
+        <div ref={dateDropdownRef} className="relative inline-block">
           <button
             type="button"
-            onClick={() => setDateFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              dateFilter === 'all'
-                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
+            onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+            className="flex items-center space-x-2 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#222222] hover:bg-zinc-100 dark:hover:bg-[#282828] border border-zinc-200 dark:border-zinc-700/80 text-xs font-semibold text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer shadow-xs select-none"
           >
-            {isEn ? 'All time' : 'За всё время'}
+            <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+            <span>{isEn ? DATE_FILTER_LABELS[dateFilter].en : DATE_FILTER_LABELS[dateFilter].ru}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-150 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          <button
-            type="button"
-            onClick={() => setDateFilter('today')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              dateFilter === 'today'
-                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            {isEn ? 'Today' : 'Сегодня'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setDateFilter('yesterday')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              dateFilter === 'yesterday'
-                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            {isEn ? 'Yesterday' : 'Вчера'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setDateFilter('last7days')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              dateFilter === 'last7days'
-                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            {isEn ? 'Last 7 days' : 'Последние 7 дней'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setDateFilter('custom')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-              dateFilter === 'custom'
-                ? 'bg-white dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold shadow-xs border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>{isEn ? 'Custom range' : 'Выбрать временной отрезок'}</span>
-          </button>
+          {isDateDropdownOpen && (
+            <div className="absolute left-0 top-full mt-1.5 z-30 min-w-[210px] bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-xl p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 select-none">
+              {(['all', 'today', 'yesterday', 'last7days', 'custom'] as DateFilterType[]).map((key) => {
+                const isSelected = dateFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setDateFilter(key);
+                      setIsDateDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
+                      isSelected
+                        ? 'bg-zinc-100 dark:bg-[#2c2c2e] text-zinc-900 dark:text-white font-bold'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-[#252528] hover:text-zinc-900 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <span>{isEn ? DATE_FILTER_LABELS[key].en : DATE_FILTER_LABELS[key].ru}</span>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-white shrink-0 ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Поля выбора временного отрезка, если активен режим custom */}
