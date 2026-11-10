@@ -76,6 +76,10 @@ const api: GtdApi = {
     ipcRenderer.invoke('system:createBackup'),
   restoreBackup: (filePath: string) =>
     ipcRenderer.invoke('system:restoreBackup', filePath),
+  exportData: () =>
+    ipcRenderer.invoke('system:exportData'),
+  importData: () =>
+    ipcRenderer.invoke('system:importData'),
   checkUpdate: () =>
     ipcRenderer.invoke('system:checkUpdate'),
   downloadUpdate: (downloadUrl: string, fileName?: string) =>

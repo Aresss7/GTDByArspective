@@ -22,7 +22,11 @@ import {
   Minimize2,
   Power,
   FileText,
-  Bell
+  Bell,
+  Database,
+  Upload,
+  FileDown,
+  FileUp
 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
@@ -95,7 +99,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return localStorage.getItem('gtd-weekly-review-time') || '17:00';
   });
 
+  const [appVersion, setAppVersion] = useState<string>('1.6.3');
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   useEffect(() => {
+    if (window.gtdApi?.getAppVersion) {
+      window.gtdApi.getAppVersion().then((v) => {
+        if (v) setAppVersion(v);
+      }).catch(() => {});
+    }
+
     if (window.gtdApi?.getNotificationSettings) {
       window.gtdApi.getNotificationSettings().then((s) => {
         if (s) {
@@ -249,6 +263,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       window.gtdApi.openExternalUrl(targetUrl);
     } else {
       window.open(targetUrl, '_blank');
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!window.gtdApi?.exportData || exporting) return;
+    setExporting(true);
+    try {
+      const res = await window.gtdApi.exportData();
+      if (res.success) {
+        showToast(t.exportSuccess, 'success');
+      } else if (!res.canceled) {
+        showToast(res.error || (isEn ? 'Failed to export database' : 'Не удалось экспортировать данные'), 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || (isEn ? 'Failed to export database' : 'Не удалось экспортировать данные'), 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportData = async () => {
+    if (!window.gtdApi?.importData || importing) return;
+    if (!window.confirm(t.importConfirm)) {
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await window.gtdApi.importData();
+      if (res.success) {
+        showToast(t.importSuccess, 'success');
+      } else if (!res.canceled) {
+        showToast(res.error || t.importError, 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || t.importError, 'error');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -799,6 +850,73 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* Секция: Резервное копирование и перенос данных */}
+      <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center space-x-2">
+            <Database className="w-4 h-4 text-emerald-500" />
+            <span>{t.dataManagementSection}</span>
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {t.dataManagementSubtitle}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          {/* Экспорт */}
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-850/50 border border-zinc-200/80 dark:border-zinc-800 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center space-x-2 text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                <FileDown className="w-4 h-4 text-sky-500" />
+                <span>{t.exportDataBtn}</span>
+              </div>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                {t.exportDataDesc}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportData}
+              disabled={exporting}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>{t.exportDataBtn}</span>
+            </button>
+          </div>
+
+          {/* Импорт */}
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-850/50 border border-zinc-200/80 dark:border-zinc-800 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center space-x-2 text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                <FileUp className="w-4 h-4 text-amber-500" />
+                <span>{t.importDataBtn}</span>
+              </div>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                {t.importDataDesc}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleImportData}
+              disabled={importing}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              {importing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span>{t.importDataBtn}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Секция: Обновления с GitHub */}
       <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
@@ -932,7 +1050,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
         <div className="flex items-center justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
           <span>{t.aboutVersion}</span>
-          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">1.6.0</span>
+          <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{appVersion}</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <span>{t.aboutDeveloper}</span>

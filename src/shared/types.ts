@@ -207,6 +207,8 @@ export interface GtdApi {
   getAppVersion: () => Promise<string>;
   createBackup: () => Promise<string>;
   restoreBackup: (filePath: string) => Promise<boolean>;
+  exportData: () => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+  importData: () => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
   checkUpdate: () => Promise<{
     hasUpdate: boolean;
     currentVersion: string;
