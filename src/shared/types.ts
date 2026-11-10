@@ -243,6 +243,9 @@ export interface NotificationSettings {
   inboxReminderFrequency: InboxReminderFrequency;
   inboxReminderDay?: number; // 1 (Mon) - 7 (Sun)
   inboxReminderTime?: string; // HH:mm (e.g. "18:00")
+  weeklyReviewEnabled?: boolean;
+  weeklyReviewDay?: number; // 1 (Mon) - 7 (Sun)
+  weeklyReviewTime?: string; // HH:mm (e.g. "17:00")
 }
 
 declare global {
