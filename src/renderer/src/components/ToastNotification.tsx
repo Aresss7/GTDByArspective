@@ -1,15 +1,15 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { CheckCircle2, RotateCcw, Info, X } from 'lucide-react';
+import { CheckCircle2, RotateCcw, Info, AlertCircle, X } from 'lucide-react';
 
 export interface ToastMessage {
   id: string;
   text: string;
-  type?: 'success' | 'info' | 'restore';
+  type?: 'success' | 'info' | 'restore' | 'error';
   duration?: number;
 }
 
 interface ToastContextType {
-  showToast: (text: string, type?: 'success' | 'info' | 'restore', duration?: number) => void;
+  showToast: (text: string, type?: 'success' | 'info' | 'restore' | 'error', duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -17,7 +17,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const showToast = useCallback((text: string, type: 'success' | 'info' | 'restore' = 'success', duration = 3000) => {
+  const showToast = useCallback((text: string, type: 'success' | 'info' | 'restore' | 'error' = 'success', duration = 3000) => {
     const id = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     setToasts((prev) => [...prev, { id, text, type, duration }]);
 
@@ -44,6 +44,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               <RotateCcw className="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" />
             ) : toast.type === 'info' ? (
               <Info className="w-4 h-4 text-sky-400 dark:text-sky-600 shrink-0" />
+            ) : toast.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
             ) : (
               <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" />
             )}

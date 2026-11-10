@@ -47,4 +47,21 @@ describe('BackupManager', () => {
     expect(tasks.length).toBe(1);
     expect(tasks[0].title).toBe('Задача перед бэкапом');
   });
+
+  it('should export database directly to a specified file path', () => {
+    const taskRepo = new TaskRepository(initDatabase(dbFile));
+    taskRepo.create({ title: 'Экспортированная задача' });
+
+    const exportPath = path.join(testDir, 'custom_export', 'exported.db');
+    const result = BackupManager.exportToFile(exportPath);
+
+    expect(result).toBe(exportPath);
+    expect(fs.existsSync(exportPath)).toBe(true);
+
+    // Восстанавливаем и проверяем
+    const restored = BackupManager.restoreBackup(exportPath);
+    expect(restored).toBe(true);
+    const repo = new TaskRepository(initDatabase(dbFile));
+    expect(repo.getAll().some(t => t.title === 'Экспортированная задача')).toBe(true);
+  });
 });

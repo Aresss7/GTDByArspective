@@ -4,6 +4,33 @@ import Database from 'better-sqlite3';
 import { getDatabasePath, closeDatabase, initDatabase } from '../database';
 
 export class BackupManager {
+  static exportToFile(targetFilePath: string): string {
+    const dbPath = getDatabasePath();
+    if (!fs.existsSync(dbPath)) {
+      throw new Error(`Database file at ${dbPath} does not exist`);
+    }
+
+    const targetDir = path.dirname(targetFilePath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    // Удаляем файл, если он уже существует перед выполнением снимка
+    if (fs.existsSync(targetFilePath)) {
+      fs.unlinkSync(targetFilePath);
+    }
+
+    // Используем VACUUM INTO для мгновенного и надежного снимка SQLite
+    const db = new Database(dbPath);
+    try {
+      db.prepare('VACUUM INTO ?').run(targetFilePath);
+    } finally {
+      db.close();
+    }
+
+    return targetFilePath;
+  }
+
   static createBackup(targetDirectory?: string): string {
     const dbPath = getDatabasePath();
     if (!fs.existsSync(dbPath)) {
@@ -11,28 +38,11 @@ export class BackupManager {
     }
 
     const backupDir = targetDirectory || path.join(path.dirname(dbPath), 'backups');
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
-
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupFileName = `gtd-backup-${timestamp}.db`;
     const backupFilePath = path.join(backupDir, backupFileName);
 
-    // Удаляем файл, если он уже есть (хотя имя уникально)
-    if (fs.existsSync(backupFilePath)) {
-      fs.unlinkSync(backupFilePath);
-    }
-
-    // Используем VACUUM INTO для мгновенного и надежного снимка SQLite
-    const db = new Database(dbPath);
-    try {
-      db.prepare('VACUUM INTO ?').run(backupFilePath);
-    } finally {
-      db.close();
-    }
-
-    return backupFilePath;
+    return this.exportToFile(backupFilePath);
   }
 
   static restoreBackup(backupFilePath: string): boolean {

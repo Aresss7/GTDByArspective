@@ -1,11 +1,27 @@
-import { ipcMain, app, BrowserWindow, net, shell } from 'electron';
+import { ipcMain, app, BrowserWindow, net, shell, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { BackupManager } from '../../storage/backup/backupManager';
+import { SyncServer } from '../sync/syncServer';
 import { getCloseAction, setCloseAction, WindowCloseAction } from '../tray';
 
 export function registerSystemIpc(): void {
+  // Очистка устаревших файлов обновления из временной папки при запуске
+  try {
+    const tempDir = app.getPath('temp');
+    if (fs.existsSync(tempDir)) {
+      const files = fs.readdirSync(tempDir);
+      for (const f of files) {
+        if ((f.startsWith('Arspective-GTD-Update-') || f.startsWith('gtd-updater-')) && (f.endsWith('.exe') || f.endsWith('.vbs'))) {
+          try {
+            fs.unlinkSync(path.join(tempDir, f));
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+
   ipcMain.handle('system:getAppVersion', () => app.getVersion());
 
   ipcMain.handle('system:createBackup', async () => {
@@ -14,6 +30,72 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('system:restoreBackup', async (_, filePath: string) => {
     return BackupManager.restoreBackup(filePath);
+  });
+
+  // Экспорт всей базы данных через системный диалог сохранения файла
+  ipcMain.handle('system:exportData', async () => {
+    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    const dateStr = new Date().toISOString().split('T')[0];
+    const { filePath, canceled } = await dialog.showSaveDialog(win, {
+      title: 'Экспорт данных Arspective GTD',
+      defaultPath: `Arspective-GTD-Backup-${dateStr}.db`,
+      filters: [
+        { name: 'База данных GTD (*.db)', extensions: ['db'] },
+        { name: 'Все файлы (*.*)', extensions: ['*'] },
+      ],
+    });
+
+    if (canceled || !filePath) {
+      return { success: false, canceled: true };
+    }
+
+    try {
+      BackupManager.exportToFile(filePath);
+      return { success: true, filePath };
+    } catch (err: any) {
+      console.error('[ExportData] Failed to export database:', err);
+      return { success: false, error: err.message || 'Ошибка при экспорте данных' };
+    }
+  });
+
+  // Импорт базы данных через системный диалог выбора файла
+  ipcMain.handle('system:importData', async () => {
+    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    const { filePaths, canceled } = await dialog.showOpenDialog(win, {
+      title: 'Импорт данных Arspective GTD',
+      filters: [
+        { name: 'База данных GTD (*.db)', extensions: ['db'] },
+        { name: 'Все файлы (*.*)', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (canceled || !filePaths || filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+
+    try {
+      const importPath = filePaths[0];
+      BackupManager.restoreBackup(importPath);
+
+      // Оповещаем все окна приложения для мгновенного обновления интерфейса
+      const allWindows = BrowserWindow.getAllWindows();
+      for (const w of allWindows) {
+        try {
+          w.webContents.send('data:changed');
+        } catch {}
+      }
+
+      // Оповещаем подключенные мобильные устройства
+      try {
+        SyncServer.getInstance().broadcastChange();
+      } catch {}
+
+      return { success: true, filePath: importPath };
+    } catch (err: any) {
+      console.error('[ImportData] Failed to import database:', err);
+      return { success: false, error: err.message || 'Ошибка при импорте данных' };
+    }
   });
 
   // Check for updates via GitHub Releases API
@@ -188,7 +270,12 @@ If colProcesses.Count = 0 Then
   WshShell.Run """${cleanAppExe}""", 1, False
 End If
 
-' 5. Clean up runner script silently in background
+' 5. Clean up downloaded installer executable
+If fso.FileExists("${cleanFilePath}") Then
+  fso.DeleteFile "${cleanFilePath}", True
+End If
+
+' 6. Clean up runner script silently in background
 WshShell.Run "cmd /c ping 127.0.0.1 -n 2 >nul & del """ & WScript.ScriptFullName & """", 0, False
 `;
 
