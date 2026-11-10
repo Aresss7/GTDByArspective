@@ -26,6 +26,9 @@ export interface NotificationSettingsData {
   inboxReminderFrequency: 'off' | 'daily' | 'weekly';
   inboxReminderDay?: number; // 1 (Mon) - 7 (Sun)
   inboxReminderTime?: string; // HH:mm
+  weeklyReviewEnabled?: boolean;
+  weeklyReviewDay?: number; // 1 (Mon) - 7 (Sun)
+  weeklyReviewTime?: string; // HH:mm
 }
 
 export function loadNotificationSettings(): NotificationSettingsData {
@@ -40,6 +43,9 @@ export function loadNotificationSettings(): NotificationSettingsData {
     inboxReminderFrequency: 'off',
     inboxReminderDay: 1,
     inboxReminderTime: '18:00',
+    weeklyReviewEnabled: false,
+    weeklyReviewDay: 5,
+    weeklyReviewTime: '17:00',
   };
 }
 
@@ -56,6 +62,7 @@ interface NotificationState {
   lastDate: string;
   dailySummarySent: boolean;
   inboxReviewSent?: boolean;
+  weeklyReviewSent?: boolean;
   notifiedTaskTimes: Record<string, string>; // taskId -> timeString
   notifiedReminders?: Record<string, boolean>; // reminderKey -> boolean
 }
@@ -76,6 +83,7 @@ function loadNotificationState(todayStr: string): NotificationState {
     lastDate: todayStr,
     dailySummarySent: false,
     inboxReviewSent: false,
+    weeklyReviewSent: false,
     notifiedTaskTimes: {},
     notifiedReminders: {},
   };
@@ -261,6 +269,34 @@ export function checkReminders(): void {
       }
     } catch (e) {
       console.warn('[Notifications] Error checking inbox review reminder:', e);
+    }
+
+    // 2.1 Напоминание о еженедельном обзоре (Weekly Review / «Вик ревью»)
+    try {
+      const notifSettings = loadNotificationSettings();
+      if (notifSettings.weeklyReviewEnabled) {
+        const jsDay = now.getDay();
+        const currentDay = jsDay === 0 ? 7 : jsDay;
+        const targetDay = notifSettings.weeklyReviewDay || 5; // По умолчанию пятница
+
+        if (currentDay === targetDay && !state.weeklyReviewSent) {
+          const targetTime = notifSettings.weeklyReviewTime || '17:00';
+          const [wh, wm] = targetTime.split(':').map(Number);
+          if (!isNaN(wh) && !isNaN(wm)) {
+            const targetMinutes = wh * 60 + wm;
+            if (curMinutesTotal >= targetMinutes && curMinutesTotal <= targetMinutes + 15) {
+              showNativeNotification({
+                title: 'Еженедельный обзор (Weekly Review)',
+                body: 'Время провести еженедельный обзор: актуализируйте проекты, следующие действия и списки ГТД!',
+              });
+              state.weeklyReviewSent = true;
+              stateModified = true;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Notifications] Error checking weekly review reminder:', e);
     }
 
     // 3. Выбираем активные задачи на сегодня (календарь, дедлайны или контрольные даты ожидания) без индивидуального reminder_offset

@@ -83,6 +83,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return localStorage.getItem('gtd-inbox-reminder-time') || '18:00';
   });
 
+  // Напоминание о еженедельном обзоре («Вик ревью»)
+  const [weeklyReviewEnabled, setWeeklyReviewEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('gtd-weekly-review-enabled') === 'true';
+  });
+  const [weeklyReviewDay, setWeeklyReviewDay] = useState<number>(() => {
+    const val = localStorage.getItem('gtd-weekly-review-day');
+    return val ? parseInt(val, 10) : 5; // 5 = Пт (пятница)
+  });
+  const [weeklyReviewTime, setWeeklyReviewTime] = useState<string>(() => {
+    return localStorage.getItem('gtd-weekly-review-time') || '17:00';
+  });
+
   useEffect(() => {
     if (window.gtdApi?.getNotificationSettings) {
       window.gtdApi.getNotificationSettings().then((s) => {
@@ -90,6 +102,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           if (s.inboxReminderFrequency) setInboxReminderFreq(s.inboxReminderFrequency);
           if (s.inboxReminderDay) setInboxReminderDay(s.inboxReminderDay);
           if (s.inboxReminderTime) setInboxReminderTime(s.inboxReminderTime);
+          if (s.weeklyReviewEnabled !== undefined) setWeeklyReviewEnabled(s.weeklyReviewEnabled);
+          if (s.weeklyReviewDay) setWeeklyReviewDay(s.weeklyReviewDay);
+          if (s.weeklyReviewTime) setWeeklyReviewTime(s.weeklyReviewTime);
         }
       }).catch(() => {});
     }
@@ -112,6 +127,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         inboxReminderFrequency: freq,
         inboxReminderDay: day,
         inboxReminderTime: time,
+        weeklyReviewEnabled,
+        weeklyReviewDay,
+        weeklyReviewTime,
+      }).catch(() => {});
+    }
+  };
+
+  const handleUpdateWeeklyReviewSettings = (
+    enabled: boolean,
+    day: number,
+    time: string
+  ) => {
+    setWeeklyReviewEnabled(enabled);
+    setWeeklyReviewDay(day);
+    setWeeklyReviewTime(time);
+    localStorage.setItem('gtd-weekly-review-enabled', String(enabled));
+    localStorage.setItem('gtd-weekly-review-day', String(day));
+    localStorage.setItem('gtd-weekly-review-time', time);
+
+    if (window.gtdApi?.updateNotificationSettings) {
+      window.gtdApi.updateNotificationSettings({
+        inboxReminderFrequency: inboxReminderFreq,
+        inboxReminderDay: inboxReminderDay,
+        inboxReminderTime: inboxReminderTime,
+        weeklyReviewEnabled: enabled,
+        weeklyReviewDay: day,
+        weeklyReviewTime: time,
       }).catch(() => {});
     }
   };
@@ -662,6 +704,94 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <CustomTimePicker
                   value={inboxReminderTime}
                   onChange={(newTime) => handleUpdateNotificationSettings(inboxReminderFreq, inboxReminderDay, newTime || '18:00')}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Напоминание о еженедельном обзоре («Вик ревью») */}
+        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-[#252525] border border-zinc-200 dark:border-zinc-700/80 space-y-3.5">
+          <div>
+            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">
+              {t.weeklyReviewReminderTitle}
+            </span>
+            <span className="text-[11px] text-zinc-400">
+              {t.weeklyReviewReminderDesc}
+            </span>
+          </div>
+
+          {/* Варианты: Отключено / Включено */}
+          <div className="grid grid-cols-2 gap-2 max-w-sm">
+            <button
+              type="button"
+              onClick={() => handleUpdateWeeklyReviewSettings(false, weeklyReviewDay, weeklyReviewTime)}
+              className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all text-center cursor-pointer ${
+                !weeklyReviewEnabled
+                  ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-xs'
+                  : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#1e1e1e] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
+              }`}
+            >
+              {t.reminderDisabled}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleUpdateWeeklyReviewSettings(true, weeklyReviewDay, weeklyReviewTime)}
+              className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all text-center cursor-pointer ${
+                weeklyReviewEnabled
+                  ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-xs'
+                  : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#1e1e1e] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
+              }`}
+            >
+              {t.reminderEnabled}
+            </button>
+          </div>
+
+          {/* Параметры при включённом напоминании: день недели и время */}
+          {weeklyReviewEnabled && (
+            <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-700/60 space-y-3 animate-fadeIn">
+              {/* Выбор дня недели */}
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
+                  {t.reminderDayLabel}
+                </label>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {[
+                    { day: 1, label: isEn ? 'Mon' : 'Пн' },
+                    { day: 2, label: isEn ? 'Tue' : 'Вт' },
+                    { day: 3, label: isEn ? 'Wed' : 'Ср' },
+                    { day: 4, label: isEn ? 'Thu' : 'Чт' },
+                    { day: 5, label: isEn ? 'Fri' : 'Пт' },
+                    { day: 6, label: isEn ? 'Sat' : 'Сб' },
+                    { day: 7, label: isEn ? 'Sun' : 'Вс' },
+                  ].map((d) => {
+                    const isSel = weeklyReviewDay === d.day;
+                    return (
+                      <button
+                        key={d.day}
+                        type="button"
+                        onClick={() => handleUpdateWeeklyReviewSettings(true, d.day, weeklyReviewTime)}
+                        className={`py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          isSel
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-xs font-bold'
+                            : 'bg-white dark:bg-[#1e1e1e] border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2a2a2a]'
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Выбор времени */}
+              <div className="max-w-xs">
+                <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
+                  {t.reminderTimeLabel}
+                </label>
+                <CustomTimePicker
+                  value={weeklyReviewTime}
+                  onChange={(newTime) => handleUpdateWeeklyReviewSettings(true, weeklyReviewDay, newTime || '17:00')}
                 />
               </div>
             </div>
