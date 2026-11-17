@@ -23,6 +23,7 @@ import { useToast } from './components/ToastNotification';
 import { Checkbox } from './components/Checkbox';
 import { Task, Project, TaskDestination, WindowCloseAction } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
+import { formatDateDDMMYYYY } from '@shared/dateUtils';
 import { Language, getStoredLanguage, setStoredLanguage, translations } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [universalAddInitialMode, setUniversalAddInitialMode] = useState<'quick' | 'full' | undefined>(undefined);
   const [explicitDestination, setExplicitDestination] = useState<TaskDestination | null>(null);
+  const [addModalInitialDate, setAddModalInitialDate] = useState<string | null>(null);
   const [isProcessingOpen, setIsProcessingOpen] = useState(false);
   const [projectSourceTask, setProjectSourceTask] = useState<Task | null>(null);
 
@@ -179,8 +181,9 @@ export const App: React.FC = () => {
   };
 
   // Открытие подробного модального окна добавления с контекстом текущей вкладки
-  const openAddModal = (customDest?: TaskDestination) => {
+  const openAddModal = (customDest?: TaskDestination, customDate?: string) => {
     setExplicitDestination(customDest || null);
+    setAddModalInitialDate(customDate || null);
     setUniversalAddInitialMode('full');
     setIsAddModalOpen(true);
   };
@@ -600,6 +603,43 @@ export const App: React.FC = () => {
   const allInboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active' && !t.deleted_at);
   const inboxTasks = allInboxTasks.filter((t) => matchesSearch(t, inboxSearch));
 
+  // Сортировка по позиции, закреплению и дате создания
+  const sortedInboxTasks = useMemo(() => {
+    return [...inboxTasks].sort((a, b) => {
+      const aPin = Boolean(a.is_pinned) ? 1 : 0;
+      const bPin = Boolean(b.is_pinned) ? 1 : 0;
+      if (aPin !== bPin) return bPin - aPin;
+      const posA = typeof a.position === 'number' && a.position > 0 ? a.position : null;
+      const posB = typeof b.position === 'number' && b.position > 0 ? b.position : null;
+      if (posA !== null && posB !== null) {
+        if (posA !== posB) return posA - posB;
+      } else if (posA !== null && posB === null) {
+        return 1;
+      } else if (posA === null && posB !== null) {
+        return -1;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [inboxTasks]);
+
+  const sortedNextActionsTasks = useMemo(() => {
+    return [...nextActionsTasks].sort((a, b) => {
+      const aPin = Boolean(a.is_pinned) ? 1 : 0;
+      const bPin = Boolean(b.is_pinned) ? 1 : 0;
+      if (aPin !== bPin) return bPin - aPin;
+      const posA = typeof a.position === 'number' && a.position > 0 ? a.position : null;
+      const posB = typeof b.position === 'number' && b.position > 0 ? b.position : null;
+      if (posA !== null && posB !== null) {
+        if (posA !== posB) return posA - posB;
+      } else if (posA !== null && posB === null) {
+        return 1;
+      } else if (posA === null && posB !== null) {
+        return -1;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [nextActionsTasks]);
+
   const t = translations[language] || translations.ru;
 
   const getTabTitle = () => {
@@ -712,7 +752,7 @@ export const App: React.FC = () => {
               tasks={tasks}
               projects={projects}
               onTaskUpdated={refreshData}
-              onOpenAddTask={() => openAddModal('calendar')}
+              onOpenAddTask={(customDate) => openAddModal('calendar', customDate)}
               onTaskContextMenu={handleTaskContextMenu}
               language={language}
             />
@@ -837,7 +877,7 @@ export const App: React.FC = () => {
                   </p>
                 </div>
 
-                {inboxTasks.length === 0 ? (
+                {sortedInboxTasks.length === 0 ? (
                   <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                     <InboxIcon className="w-8 h-8 text-zinc-400 mb-2" />
                     <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{t.notFoundTitle}</h4>
@@ -847,7 +887,7 @@ export const App: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    {inboxTasks.map((task) => {
+                    {sortedInboxTasks.map((task) => {
                       const parentProject = task.project_id
                         ? projects.find((p) => p.id === task.project_id)
                         : null;
@@ -856,7 +896,7 @@ export const App: React.FC = () => {
                         <div
                           key={task.id}
                           onContextMenu={(e) => handleTaskContextMenu(e, task)}
-                          className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-center justify-between group cursor-context-menu"
+                          className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 shadow-sm transition-all flex items-center justify-between group"
                         >
                           <div className="flex-1 min-w-0 pr-4">
                             <div className="flex items-center space-x-2">
@@ -871,7 +911,7 @@ export const App: React.FC = () => {
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.notes}</p>
                             )}
                             <span className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 block">
-                              {t.inboxAddedAt}: {new Date(task.created_at).toLocaleString(language === 'en' ? 'en-US' : 'ru-RU')}
+                              {t.inboxAddedAt}: {formatDateDDMMYYYY(task.created_at)}
                             </span>
                           </div>
 
@@ -944,7 +984,7 @@ export const App: React.FC = () => {
                     {t.nextActionsEmptyDesc}
                   </p>
                 </div>
-              ) : nextActionsTasks.length === 0 ? (
+              ) : sortedNextActionsTasks.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
                   <CheckSquare className="w-8 h-8 text-zinc-400 mb-2" />
                   <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{t.notFoundTitle}</h4>
@@ -954,7 +994,7 @@ export const App: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {nextActionsTasks.map((task) => {
+                  {sortedNextActionsTasks.map((task) => {
                     const parentProject = task.project_id
                       ? projects.find((p) => p.id === task.project_id)
                       : null;
@@ -963,9 +1003,9 @@ export const App: React.FC = () => {
                       <div
                         key={task.id}
                         onContextMenu={(e) => handleTaskContextMenu(e, task)}
-                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all flex items-start justify-between group cursor-context-menu"
+                        className="p-4 bg-white dark:bg-[#222222] rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 shadow-sm transition-all flex items-start justify-between group"
                       >
-                        <div className="flex items-start space-x-3.5 flex-1 min-w-0 mr-4">
+                        <div className="flex items-start space-x-2.5 flex-1 min-w-0 mr-4">
                           <div className="pt-0.5">
                             <Checkbox
                               checked={task.status === 'completed'}
@@ -1000,13 +1040,13 @@ export const App: React.FC = () => {
                                     ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
                                     : 'bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700'
                                 }`}>
-                                  📅 {task.scheduled_date}{task.scheduled_time ? ` ${task.scheduled_time}` : ''}
+                                  📅 {formatDateDDMMYYYY(task.scheduled_date)}{task.scheduled_time ? ` ${task.scheduled_time}` : ''}
                                 </span>
                               )}
                               {task.delegated_to && (
                                 <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                                   👤 {task.delegated_to}
-                                  {task.delegated_date && ` (${task.delegated_date})`}
+                                  {task.delegated_date && ` (${formatDateDDMMYYYY(task.delegated_date)})`}
                                 </span>
                               )}
                               {task.waiting_for && (
@@ -1063,10 +1103,12 @@ export const App: React.FC = () => {
           setProjectSourceTask(null);
           setUniversalAddInitialMode(undefined);
           setExplicitDestination(null);
+          setAddModalInitialDate(null);
         }}
         currentTab={activeTab}
         defaultCaptureSetting={defaultCaptureTab}
         targetDestination={explicitDestination}
+        initialScheduledDate={addModalInitialDate}
         initialMode={universalAddInitialMode}
         projects={projects}
         onSaveTask={handleSaveTask}

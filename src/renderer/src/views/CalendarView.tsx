@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,16 +12,109 @@ import {
 } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
+import { formatDateDDMMYYYY } from '@shared/dateUtils';
 import { CustomDatePicker } from '../components/CustomDatePicker';
 import { CustomTimePicker } from '../components/CustomTimePicker';
 import { Checkbox } from '../components/Checkbox';
 import { Language, translations } from '../i18n/translations';
 
+interface DayContextMenuProps {
+  date: Date;
+  dateStr: string;
+  position: { x: number; y: number };
+  onClose: () => void;
+  onAddTask: (dateStr: string) => void;
+  onOpenDayView?: () => void;
+  language?: Language;
+}
+
+const DayContextMenu: React.FC<DayContextMenuProps> = ({
+  dateStr,
+  position,
+  onClose,
+  onAddTask,
+  onOpenDayView,
+  language = 'ru',
+}) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isEn = language === 'en';
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    const handleScroll = () => {
+      onClose();
+    };
+
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [onClose]);
+
+  const menuWidth = 240;
+  const menuHeight = 110;
+  const left = Math.min(position.x, window.innerWidth - menuWidth - 10);
+  const top = Math.min(position.y, window.innerHeight - menuHeight - 10);
+
+  return (
+    <div
+      ref={menuRef}
+      style={{ top: `${top}px`, left: `${left}px` }}
+      className="fixed z-50 w-60 bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-1.5 space-y-1 animate-fadeIn select-none"
+    >
+      <div className="px-3 py-1.5 border-b border-zinc-100 dark:border-zinc-800 mb-1 flex items-center space-x-2">
+        <CalendarIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+        <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">
+          {formatDateDDMMYYYY(dateStr)}
+        </span>
+      </div>
+
+      <button
+        onClick={() => {
+          onClose();
+          onAddTask(dateStr);
+        }}
+        className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-[#282828] transition-colors cursor-pointer text-left group"
+      >
+        <Plus className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+        <span>{isEn ? 'Add task for this day' : 'Добавить задачу на этот день'}</span>
+      </button>
+
+      {onOpenDayView && (
+        <button
+          onClick={() => {
+            onClose();
+            onOpenDayView();
+          }}
+          className="w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-xl text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#282828] transition-colors cursor-pointer text-left"
+        >
+          <CalendarIcon className="w-3.5 h-3.5 text-zinc-400" />
+          <span>{isEn ? 'Open day schedule' : 'Открыть расписание дня'}</span>
+        </button>
+      )}
+    </div>
+  );
+};
+
 interface CalendarViewProps {
   tasks: Task[];
   projects: Project[];
   onTaskUpdated: () => Promise<void>;
-  onOpenAddTask: () => void;
+  onOpenAddTask: (customDate?: string) => void;
   onTaskContextMenu?: (e: React.MouseEvent, task: Task) => void;
   language?: Language;
 }
@@ -67,6 +160,34 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   );
   const activeCalendarTasks = allActiveCalendarTasks.filter((t) => matchesSearch(t, searchQuery));
   const selectedDateStr = formatDateKey(selectedDate);
+
+  const [dayContextMenu, setDayContextMenu] = useState<{
+    date: Date;
+    dateStr: string;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // Обработка двойного клика по дню: добавление задачи на эту дату (не раньше сегодняшней)
+  const handleDayDoubleClick = (date: Date) => {
+    const dateKey = formatDateKey(date);
+    if (dateKey < todayStr) return;
+    setSelectedDate(date);
+    onOpenAddTask(dateKey);
+  };
+
+  // Обработка ПКМ по дню: контекстное меню для даты (не раньше сегодняшней)
+  const handleDayContextMenu = (e: React.MouseEvent, date: Date) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dateKey = formatDateKey(date);
+    if (dateKey < todayStr) return;
+    setSelectedDate(date);
+    setDayContextMenu({
+      date,
+      dateStr: dateKey,
+      position: { x: e.clientX, y: e.clientY },
+    });
+  };
 
   // Навигация по датам
   const handlePrev = () => {
@@ -181,6 +302,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <div
                 key={idx}
                 onClick={() => setSelectedDate(date)}
+                onDoubleClick={() => handleDayDoubleClick(date)}
+                onContextMenu={(e) => handleDayContextMenu(e, date)}
+                title={dateStr >= todayStr ? (isEn ? 'Double-click or right-click to add task' : 'Двойной клик или ПКМ — добавить задачу') : undefined}
                 className={`p-2.5 min-h-[95px] cursor-pointer transition-colors flex flex-col justify-between ${
                   isSelected 
                     ? 'bg-zinc-100 dark:bg-[#2a2a2a] ring-2 ring-zinc-900 dark:ring-zinc-400 ring-inset' 
@@ -210,7 +334,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {dayTasks.slice(0, 2).map((t) => (
                     <div
                       key={t.id}
-                      className={`text-[10px] truncate px-2 py-0.5 rounded-lg border font-medium ${
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      onContextMenu={(e) => {
+                        e.stopPropagation();
+                        onTaskContextMenu?.(e, t);
+                      }}
+                      className={`text-[10px] truncate px-2 py-0.5 rounded-lg border font-medium cursor-context-menu ${
                         t.status === 'completed'
                           ? 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border-transparent'
                           : 'bg-indigo-50 dark:bg-purple-950/50 text-indigo-900 dark:text-purple-200 border-indigo-200/50 dark:border-purple-800/50'
@@ -263,6 +393,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <div
               key={idx}
               onClick={() => setSelectedDate(d)}
+              onDoubleClick={() => handleDayDoubleClick(d)}
+              onContextMenu={(e) => handleDayContextMenu(e, d)}
+              title={dateStr >= todayStr ? (isEn ? 'Double-click or right-click to add task' : 'Двойной клик или ПКМ — добавить задачу') : undefined}
               className={`p-3.5 bg-white dark:bg-zinc-900 rounded-2xl border transition-all flex flex-col min-h-[320px] cursor-pointer ${
                 isSelected
                   ? 'border-indigo-500 dark:border-purple-400 ring-2 ring-indigo-500/20 dark:ring-purple-400/20 shadow-md'
@@ -290,7 +423,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <div
                     key={t.id}
                     onClick={(e) => e.stopPropagation()}
-                    onContextMenu={(e) => onTaskContextMenu?.(e, t)}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onContextMenu={(e) => {
+                      e.stopPropagation();
+                      onTaskContextMenu?.(e, t);
+                    }}
                     className={`p-2.5 rounded-xl border text-xs transition-all flex items-start space-x-2 cursor-context-menu ${
                       t.status === 'completed'
                         ? 'bg-zinc-50 dark:bg-zinc-900/80 border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500'
@@ -327,7 +464,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Генерация вида "День"
   const renderDayView = () => {
     return (
-      <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-4 max-w-2xl">
+      <div 
+        onDoubleClick={() => handleDayDoubleClick(selectedDate)}
+        onContextMenu={(e) => handleDayContextMenu(e, selectedDate)}
+        className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-4 max-w-2xl"
+      >
         <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
@@ -342,9 +483,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               })}
             </h3>
           </div>
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-            {isEn ? `Tasks: ${tasksForSelectedDay.length}` : `Дел: ${tasksForSelectedDay.length}`}
-          </span>
+          <div className="flex items-center space-x-2">
+            {selectedDateStr >= todayStr && (
+              <button
+                onClick={() => onOpenAddTask(selectedDateStr)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900 text-xs font-bold transition-colors cursor-pointer"
+                title={isEn ? 'Add task for this day' : 'Добавить задачу на этот день'}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Add task' : 'Добавить'}</span>
+              </button>
+            )}
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 dark:bg-[#282828] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+              {isEn ? `Tasks: ${tasksForSelectedDay.length}` : `Дел: ${tasksForSelectedDay.length}`}
+            </span>
+          </div>
         </div>
 
         {tasksForSelectedDay.length === 0 ? (
@@ -356,7 +509,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             {tasksForSelectedDay.map((task) => (
               <div
                 key={task.id}
-                className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between group hover:shadow-sm transition-all"
+                onDoubleClick={(e) => e.stopPropagation()}
+                onContextMenu={(e) => {
+                  e.stopPropagation();
+                  onTaskContextMenu?.(e, task);
+                }}
+                className="p-4 bg-zinc-50 dark:bg-[#191919] rounded-2xl border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between group hover:shadow-sm transition-all cursor-context-menu"
               >
                 <div className="flex items-center space-x-3.5">
                   <Checkbox
@@ -758,14 +916,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           {/* Панель задач на выбранную дату (для режима Месяц) */}
           {mode === 'month' && (
-            <div className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+            <div
+              onDoubleClick={() => handleDayDoubleClick(selectedDate)}
+              onContextMenu={(e) => handleDayContextMenu(e, selectedDate)}
+              className="bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm"
+            >
               <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 mb-4">
                 <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-                  Задачи на {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {isEn
+                    ? `Tasks for ${selectedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                    : `Задачи на ${selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}`}
                 </h4>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                  {tasksForSelectedDay.length}
-                </span>
+                <div className="flex items-center space-x-2">
+                  {selectedDateStr >= todayStr && (
+                    <button
+                      onClick={() => onOpenAddTask(selectedDateStr)}
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900 text-xs font-bold transition-colors cursor-pointer"
+                      title={isEn ? 'Add task for this day' : 'Добавить задачу на этот день'}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isEn ? 'Add task' : 'Добавить'}</span>
+                    </button>
+                  )}
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    {tasksForSelectedDay.length}
+                  </span>
+                </div>
               </div>
 
               {tasksForSelectedDay.length === 0 ? (
@@ -775,7 +951,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {tasksForSelectedDay.map((task) => (
                     <div
                       key={task.id}
-                      onContextMenu={(e) => onTaskContextMenu?.(e, task)}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      onContextMenu={(e) => {
+                        e.stopPropagation();
+                        onTaskContextMenu?.(e, task);
+                      }}
                       className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-xs transition-colors cursor-context-menu hover:border-zinc-400 dark:hover:border-zinc-600"
                     >
                       <div className="flex items-center space-x-3.5">
@@ -884,6 +1064,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Контекстное меню дня календаря */}
+      {dayContextMenu && (
+        <DayContextMenu
+          date={dayContextMenu.date}
+          dateStr={dayContextMenu.dateStr}
+          position={dayContextMenu.position}
+          onClose={() => setDayContextMenu(null)}
+          onAddTask={(dStr) => {
+            setDayContextMenu(null);
+            onOpenAddTask(dStr);
+          }}
+          onOpenDayView={mode !== 'day' ? () => setMode('day') : undefined}
+          language={language}
+        />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { Extension } from '@tiptap/core';
+import { Extension, Mark, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
@@ -106,6 +106,104 @@ export const CustomHardBreak = HardBreak.extend({
   },
 });
 
+export const TextColor = Mark.create({
+  name: 'textColor',
+  addOptions() {
+    return {
+      HTMLAttributes: {},
+    };
+  },
+  addAttributes() {
+    return {
+      color: {
+        default: null,
+        parseHTML: (element) => element.style.color || element.getAttribute('data-color'),
+        renderHTML: (attributes) => {
+          if (!attributes.color || attributes.color === 'inherit') {
+            return {};
+          }
+          return {
+            style: `color: ${attributes.color} !important;`,
+            'data-color': attributes.color,
+          };
+        },
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      { tag: 'span[style*=color]' },
+      { tag: 'span[data-color]' },
+      { tag: 'font[color]', getAttrs: (value) => ({ color: value }) },
+    ];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+  },
+  addStorage() {
+    return {
+      markdown: {
+        serialize: {
+          open(_state: any, mark: any) {
+            return `<span style="color: ${mark.attrs.color}">`;
+          },
+          close: '</span>',
+        },
+        parse: {},
+      },
+    };
+  },
+});
+
+export const TextHighlight = Mark.create({
+  name: 'textHighlight',
+  addOptions() {
+    return {
+      HTMLAttributes: {},
+    };
+  },
+  addAttributes() {
+    return {
+      backgroundColor: {
+        default: null,
+        parseHTML: (element) => element.style.backgroundColor || element.getAttribute('data-bg-color'),
+        renderHTML: (attributes) => {
+          if (!attributes.backgroundColor || attributes.backgroundColor === 'transparent') {
+            return {};
+          }
+          return {
+            style: `background-color: ${attributes.backgroundColor}; border-radius: 4px; padding: 1px 4px;`,
+            'data-bg-color': attributes.backgroundColor,
+          };
+        },
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      { tag: 'mark' },
+      { tag: 'span[style*=background-color]' },
+      { tag: 'span[data-bg-color]' },
+    ];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['mark', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+  },
+  addStorage() {
+    return {
+      markdown: {
+        serialize: {
+          open(_state: any, mark: any) {
+            return `<mark style="background-color: ${mark.attrs.backgroundColor}">`;
+          },
+          close: '</mark>',
+        },
+        parse: {},
+      },
+    };
+  },
+});
+
 export interface VisualEditorRef {
   getMarkdown: () => string;
   setMarkdown: (md: string) => void;
@@ -119,6 +217,7 @@ interface VisualEditorProps {
   placeholder?: string;
   searchTerm?: string;
   activeMatchIndex?: number;
+  isFullscreen?: boolean;
 }
 
 export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
@@ -128,6 +227,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
   placeholder = 'Начните вводить текст заметки... Для форматирования нажмите правую кнопку мыши.',
   searchTerm,
   activeMatchIndex,
+  isFullscreen = false,
 }, ref) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
     x: 0,
@@ -180,6 +280,8 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
       }),
       CustomHardBreak,
       Underline,
+      TextColor,
+      TextHighlight,
       TaskList.configure({
         HTMLAttributes: {
           class: 'task-list',
@@ -208,15 +310,57 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
     content: initialMarkdown,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[460px] p-5 text-sm md:text-base leading-relaxed text-zinc-900 dark:text-zinc-100',
+        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[460px] p-5 pr-14 text-sm md:text-base leading-relaxed text-zinc-900 dark:text-zinc-100',
       },
       handleKeyDown: (view, event) => {
-        if ((event.ctrlKey || event.metaKey) && (event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter')) {
+        // Ctrl+S / Cmd+S or Ctrl+Enter / Cmd+Enter: сохранение заметки
+        if ((event.ctrlKey || event.metaKey) && (
+          event.key === 's' || event.key === 'S' || event.key === 'ы' || event.key === 'Ы' ||
+          event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter'
+        )) {
           event.preventDefault();
+          event.stopPropagation();
           onSave?.();
           return true;
         }
+
+        // Ctrl+Shift+H: применить последний использованный цвет
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'h' || event.key === 'H' || event.key === 'р' || event.key === 'Р')) {
+          event.preventDefault();
+          try {
+            const raw = localStorage.getItem('gtd-note-last-color');
+            if (raw) {
+              const lastUsed = JSON.parse(raw);
+              if (lastUsed.type === 'text') {
+                if (lastUsed.option.color === 'inherit') {
+                  editor?.chain().focus().unsetMark('textColor').run();
+                } else {
+                  editor?.chain().focus().setMark('textColor', { color: lastUsed.option.color }).run();
+                }
+              } else {
+                if (lastUsed.option.bgColor === 'transparent') {
+                  editor?.chain().focus().unsetMark('textHighlight').run();
+                } else {
+                  editor?.chain().focus().setMark('textHighlight', { backgroundColor: lastUsed.option.bgColor }).run();
+                }
+              }
+            }
+          } catch {}
+          return true;
+        }
+
         return false;
+      },
+      handleDOMEvents: {
+        contextmenu: (view, event) => {
+          event.preventDefault();
+          setContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            isOpen: true,
+          });
+          return true;
+        },
       },
       handleClick: (view, pos, event) => {
         // Ctrl+Click opens link in default external browser
@@ -346,12 +490,14 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className={`relative w-full ${isFullscreen ? 'h-full flex-1 flex flex-col min-h-0' : ''}`}>
       <div 
         onContextMenu={handleContextMenu}
-        className="w-full flex-1 rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 transition-colors focus-within:border-zinc-400 dark:focus-within:border-zinc-600"
+        className={`w-full rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 transition-colors focus-within:border-zinc-400 dark:focus-within:border-zinc-600 ${
+          isFullscreen ? 'flex-1 h-full min-h-0 overflow-y-auto' : ''
+        }`}
       >
-        <EditorContent editor={editor} />
+        <EditorContent editor={editor} className={isFullscreen ? 'min-h-full' : ''} />
       </div>
 
       {/* Embedded Link Previews for discovered links */}
@@ -417,6 +563,24 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         }}
         onUndo={() => editor.chain().focus().undo().run()}
         onRedo={() => editor.chain().focus().redo().run()}
+        onSelectTextColor={(color) => {
+          if (!editor) return;
+          if (!color || color === 'inherit') {
+            editor.chain().focus().unsetMark('textColor').run();
+          } else {
+            editor.chain().focus().setMark('textColor', { color }).run();
+          }
+        }}
+        onSelectBgColor={(bgColor) => {
+          if (!editor) return;
+          if (!bgColor || bgColor === 'transparent') {
+            editor.chain().focus().unsetMark('textHighlight').run();
+          } else {
+            editor.chain().focus().setMark('textHighlight', { backgroundColor: bgColor }).run();
+          }
+        }}
+        activeTextColor={editor ? (editor.getAttributes('textColor')?.color || null) : null}
+        activeBgColor={editor ? (editor.getAttributes('textHighlight')?.backgroundColor || null) : null}
       />
 
       {/* Link Modal */}

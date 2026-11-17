@@ -162,6 +162,13 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
     if (!isOpen || !currentTask || isSelectProjectModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Прерывание разбора при нажатии Escape
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handlePause();
+        return;
+      }
+
       const activeEl = document.activeElement;
       const isInput = activeEl && (
         activeEl.tagName === 'INPUT' ||
@@ -437,34 +444,42 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
         {/* Минималистичная верхняя навигационная панель мастера (скрыта, когда разбор завершён) */}
         {currentTask && (
           <>
-            <header className="px-6 py-3 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-900/90 border-b border-zinc-200/50 dark:border-zinc-800/50">
-              {/* Кнопка Назад */}
-              <button
-                onClick={handleStepBack}
-                disabled={historyStack.length === 0}
-                className={`p-2 rounded-full transition-colors cursor-pointer ${
-                  historyStack.length > 0
-                    ? 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800'
-                    : 'invisible pointer-events-none'
-                }`}
-                title="Назад к предыдущему вопросу"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
+            <header className="px-6 py-3 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-900/90 border-b border-zinc-200/50 dark:border-zinc-800/50 relative">
+              {/* Левая часть: кнопка Назад (если доступна) */}
+              <div className="flex items-center min-w-[36px]">
+                {historyStack.length > 0 && (
+                  <button
+                    onClick={handleStepBack}
+                    className="p-1.5 rounded-full text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    title="Назад к предыдущему вопросу (Backspace)"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
 
-              {/* Центральная капсула с номером шага */}
-              <div className="px-4 py-1.5 rounded-2xl bg-purple-100 dark:bg-[#2b173f] border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-[#c084fc] font-bold text-sm tracking-wide shadow-sm flex items-center justify-center">
+              {/* Капсула с номером шага x/n строго по центру панели */}
+              <div className="absolute left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-2xl bg-purple-100 dark:bg-[#2b173f] border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-[#c084fc] font-bold text-sm tracking-wide shadow-xs flex items-center justify-center pointer-events-none">
                 {progress.step}/{progress.total}
               </div>
 
-              {/* Кнопка Закрыть / Приостановить */}
-              <button
-                onClick={handlePause}
-                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                title="Приостановить и закрыть"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {/* Правая часть: кнопка Пропустить (->) и кнопка Закрыть (X) */}
+              <div className="flex items-center space-x-1.5">
+                <button
+                  onClick={handleSkipCurrentTask}
+                  className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="Пропустить задачу (разобрать позже)"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handlePause}
+                  className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="Приостановить и закрыть разбор (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </header>
 
             {/* Тонкий фиолетовый индикатор прогресса под панелью */}
@@ -811,6 +826,7 @@ export const ProcessingWizardModal: React.FC<ProcessingWizardModalProps> = ({
                           onChange={setCheckDate}
                           minDate={todayStr}
                           placeholder="Выберите дату"
+                          align="right"
                         />
                       </div>
                     </div>

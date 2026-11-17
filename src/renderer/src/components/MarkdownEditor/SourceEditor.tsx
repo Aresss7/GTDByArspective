@@ -18,6 +18,7 @@ interface SourceEditorProps {
   placeholder?: string;
   searchTerm?: string;
   activeMatchIndex?: number;
+  isFullscreen?: boolean;
 }
 
 export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
@@ -27,6 +28,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
   placeholder = 'Введите текст в формате Markdown...',
   searchTerm,
   activeMatchIndex,
+  isFullscreen = false,
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
@@ -119,7 +121,11 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
 
     const targetChunk = currentVal.substring(lineStart, lineEnd);
     const lines = targetChunk.split('\n');
-    const modified = lines.map((line) => `${prefix} ${line.replace(/^(\s*([-*+]|\d+\.|#+|>)\s*)/, '')}`).join('\n');
+    const cleanPrefix = prefix.trim();
+    const modified = lines.map((line) => {
+      const stripped = line.replace(/^(\s*([-*+]\s+\[[ xX]\]|[-*+]|\d+\.|#+|>)\s*)/, '');
+      return cleanPrefix ? `${cleanPrefix} ${stripped}` : stripped;
+    }).join('\n');
 
     const nextVal = currentVal.substring(0, lineStart) + modified + currentVal.substring(lineEnd);
     onChange(nextVal);
@@ -135,9 +141,13 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
     const el = textareaRef.current;
     if (!el) return;
 
-    // Ctrl+Enter to save
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+    // Ctrl+S / Ctrl+Enter to save
+    if ((e.ctrlKey || e.metaKey) && (
+      e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы' ||
+      e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter'
+    )) {
       e.preventDefault();
+      e.stopPropagation();
       onSave?.();
       return;
     }
@@ -162,6 +172,26 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
       const val = el.value;
       const currentLineStart = val.lastIndexOf('\n', start - 1) + 1;
       const currentLine = val.substring(currentLineStart, start);
+
+      const taskMatch = currentLine.match(/^(\s*)([-*+])\s+\[([ xX])\]\s*(.*)$/);
+      if (taskMatch) {
+        e.preventDefault();
+        const indent = taskMatch[1];
+        const content = taskMatch[4];
+
+        if (content.trim() === '') {
+          // Пустой пункт чекбокса -> выход из списка
+          const nextVal = val.substring(0, currentLineStart) + val.substring(start);
+          onChange(nextVal);
+          setTimeout(() => el.setSelectionRange(currentLineStart, currentLineStart), 0);
+        } else {
+          const insertText = `\n${indent}- [ ] `;
+          const nextVal = val.substring(0, start) + insertText + val.substring(start);
+          onChange(nextVal);
+          setTimeout(() => el.setSelectionRange(start + insertText.length, start + insertText.length), 0);
+        }
+        return;
+      }
 
       const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
       const orderedMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
@@ -280,7 +310,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
   const discoveredUrls = useMemo(() => extractLinkUrls(value), [value]);
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className={`relative w-full ${isFullscreen ? 'h-full flex-1 flex flex-col min-h-0' : ''}`}>
       <textarea
         ref={textareaRef}
         value={value}
@@ -288,7 +318,9 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
         placeholder={placeholder}
-        className="w-full flex-1 p-5 rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 text-sm font-mono leading-relaxed text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors resize-y min-h-[460px] whitespace-pre-wrap selection:bg-emerald-500/20"
+        className={`w-full flex-1 p-5 pr-14 rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 text-sm font-mono leading-relaxed text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors ${
+          isFullscreen ? 'h-full min-h-0 resize-none' : 'resize-y min-h-[460px]'
+        } whitespace-pre-wrap selection:bg-emerald-500/20`}
         spellCheck={false}
       />
 
@@ -325,6 +357,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         onSetParagraph={() => prefixLines('')}
         onToggleBlockquote={() => prefixLines('>')}
         onToggleCodeBlock={() => wrapSelection('```\n', '\n```', 'код')}
+        onToggleTaskList={() => prefixLines('- [ ]')}
         onToggleBulletList={() => prefixLines('-')}
         onToggleOrderedList={() => prefixLines('1.')}
         onInsertHorizontalRule={() => wrapSelection('\n---\n', '')}
@@ -332,6 +365,8 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         onInsertFootnote={handleInsertFootnote}
         onUndo={() => document.execCommand('undo')}
         onRedo={() => document.execCommand('redo')}
+        onSelectTextColor={(color) => wrapSelection(`<span style="color: ${color}">`, '</span>', 'текст')}
+        onSelectBgColor={(bgColor) => wrapSelection(`<mark style="background-color: ${bgColor}">`, '</mark>', 'текст')}
       />
 
       <LinkModal

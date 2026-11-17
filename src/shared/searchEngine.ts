@@ -159,6 +159,36 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
   };
 }
 
+const MONTH_NAMES_RU = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+];
+const MONTH_NAMES_RU_GEN = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+];
+
+function addDateVariants(dateStr: string | null | undefined, parts: string[]): void {
+  if (!dateStr) return;
+  const clean = dateStr.split('T')[0].trim();
+  parts.push(clean); // YYYY-MM-DD
+  const m = clean.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const y = m[1];
+    const mo = parseInt(m[2], 10);
+    const d = m[3];
+    const ddmm = `${d}.${m[2]}`;
+    const ddmmyyyy = `${d}.${m[2]}.${y}`;
+    parts.push(ddmm);
+    parts.push(ddmmyyyy);
+    if (mo >= 1 && mo <= 12) {
+      parts.push(MONTH_NAMES_RU[mo - 1]);
+      parts.push(MONTH_NAMES_RU_GEN[mo - 1]);
+      parts.push(`${parseInt(d, 10)} ${MONTH_NAMES_RU_GEN[mo - 1]}`);
+    }
+  }
+}
+
 /**
  * Extracts all searchable text from an item.
  */
@@ -171,6 +201,12 @@ export function getSearchableText(item: SearchableItem): string {
   if (item.completion_criteria) parts.push(item.completion_criteria);
   if (item.delegated_to) parts.push(item.delegated_to);
   if (item.waiting_for) parts.push(item.waiting_for);
+  if (item.scheduled_time) parts.push(item.scheduled_time);
+  if (item.due_time) parts.push(item.due_time);
+  addDateVariants(item.scheduled_date, parts);
+  addDateVariants(item.due_date, parts);
+  addDateVariants(item.check_date, parts);
+  addDateVariants(item.delegated_date, parts);
   if (item.tags && Array.isArray(item.tags)) parts.push(item.tags.join(' '));
   return parts.join(' ');
 }

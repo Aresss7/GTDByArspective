@@ -20,8 +20,12 @@ import {
   ExternalLink,
   SquareCode,
   Search,
-  CheckSquare
+  CheckSquare,
+  Palette,
+  Highlighter,
+  ChevronRight
 } from 'lucide-react';
+import { ColorPickerMenu } from './ColorPickerMenu';
 
 export interface NoteContextMenuProps {
   x: number;
@@ -67,6 +71,10 @@ export interface NoteContextMenuProps {
   onInsertFootnote?: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onSelectTextColor?: (color: string) => void;
+  onSelectBgColor?: (bgColor: string) => void;
+  activeTextColor?: string | null;
+  activeBgColor?: string | null;
 }
 
 export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
@@ -96,13 +104,19 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
   onInsertFootnote,
   onUndo,
   onRedo,
+  onSelectTextColor,
+  onSelectBgColor,
+  activeTextColor,
+  activeBgColor,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeColorSubmenu, setActiveColorSubmenu] = useState<'text' | 'bg' | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('');
+      setActiveColorSubmenu(null);
     }
   }, [isOpen]);
 
@@ -149,6 +163,10 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
     : Math.min(y, window.innerHeight - menuHeight - 12);
   const left = Math.min(Math.max(12, x), window.innerWidth - menuWidth - 16);
 
+  // Если контекстное меню близко к правому краю, открываем подменю цветов СЛЕВА
+  const openOnLeft = left + menuWidth + 215 > window.innerWidth;
+  const showSubmenuAbove = top + 340 > window.innerHeight;
+
   const q = searchQuery.toLowerCase().trim();
 
   const Item = ({ 
@@ -171,6 +189,11 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
     return (
       <button
         type="button"
+        onMouseDown={(e) => {
+          // Защита от сброса выделения в редакторе при клике на кнопки форматирования
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onClick={() => {
           onClick();
           onClose();
@@ -195,25 +218,28 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       onWheel={(e) => e.stopPropagation()}
       style={{ left: `${left}px`, top: `${top}px` }}
-      className="fixed z-50 w-54 bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-1.5 space-y-1 animate-fadeIn select-none flex flex-col"
+      className="fixed z-50 flex items-start space-x-1.5 animate-fadeIn select-none"
     >
-      {/* Поиск действия */}
-      <div className="px-1 pt-0.5 pb-1 border-b border-zinc-100 dark:border-zinc-800">
-        <div className="relative flex items-center">
-          <Search className="w-3 h-3 absolute left-2 text-zinc-400" />
-          <input
-            type="text"
-            autoFocus
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск..."
-            className="w-full pl-6 pr-2 py-1 text-[11px] rounded-lg bg-zinc-100 dark:bg-[#252528] border border-transparent focus:border-zinc-300 dark:focus:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none"
-          />
+      <div className="w-56 bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-1.5 space-y-1 flex flex-col">
+        {/* Поиск действия */}
+        <div className="px-1 pt-0.5 pb-1 border-b border-zinc-100 dark:border-zinc-800">
+          <div className="relative flex items-center">
+            <Search className="w-3 h-3 absolute left-2 text-zinc-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск..."
+              className="w-full pl-6 pr-2 py-1 text-[11px] rounded-lg bg-zinc-100 dark:bg-[#252528] border border-transparent focus:border-zinc-300 dark:focus:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none"
+            />
+          </div>
         </div>
-      </div>
 
       {/* Компактный прокручиваемый слайдер с элементами */}
       <div 
@@ -253,6 +279,79 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
           <Item icon={Strikethrough} label="Зачёркнутый" shortcut="Ctrl+Shift+X" active={activeFormats.strike} onClick={onToggleStrike} />
           <Item icon={Code} label="Встроенный код" active={activeFormats.code} onClick={onToggleCode} />
         </div>
+
+        {/* Colors (отдельно цвет текста и цвет фона) */}
+        {(onSelectTextColor || onSelectBgColor) && (
+          <>
+            <div className="space-y-0.5 pt-0.5">
+              {onSelectTextColor && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={() => setActiveColorSubmenu(activeColorSubmenu === 'text' ? null : 'text')}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] transition-colors cursor-pointer text-left font-medium ${
+                    activeColorSubmenu === 'text'
+                      ? 'bg-zinc-100 dark:bg-[#2c2c2c] text-zinc-900 dark:text-zinc-100'
+                      : 'text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-[#252525]'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Palette 
+                      className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+                        activeTextColor && activeTextColor !== 'inherit' && activeTextColor !== 'default'
+                          ? ''
+                          : 'text-zinc-400 dark:text-zinc-500'
+                      }`}
+                      style={{
+                        color: activeTextColor && activeTextColor !== 'inherit' && activeTextColor !== 'default'
+                          ? activeTextColor
+                          : undefined
+                      }}
+                    />
+                    <span>Цвет текста</span>
+                  </div>
+                  <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${activeColorSubmenu === 'text' ? (openOnLeft ? '-rotate-180' : 'rotate-90') : ''}`} />
+                </button>
+              )}
+              {onSelectBgColor && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={() => setActiveColorSubmenu(activeColorSubmenu === 'bg' ? null : 'bg')}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] transition-colors cursor-pointer text-left font-medium ${
+                    activeColorSubmenu === 'bg'
+                      ? 'bg-zinc-100 dark:bg-[#2c2c2c] text-zinc-900 dark:text-zinc-100'
+                      : 'text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-[#252525]'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Highlighter 
+                      className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+                        activeBgColor && activeBgColor !== 'transparent' && activeBgColor !== 'default'
+                          ? ''
+                          : 'text-zinc-400 dark:text-zinc-500'
+                      }`}
+                      style={{
+                        color: activeBgColor && activeBgColor !== 'transparent' && activeBgColor !== 'default'
+                          ? activeBgColor
+                          : undefined
+                      }}
+                    />
+                    <span>Цвет фона текста</span>
+                  </div>
+                  <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${activeColorSubmenu === 'bg' ? (openOnLeft ? '-rotate-180' : 'rotate-90') : ''}`} />
+                </button>
+              )}
+            </div>
+            {!q && <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />}
+          </>
+        )}
 
         {!q && <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />}
 
@@ -303,6 +402,31 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
           )}
         </div>
       </div>
+      </div>
+
+      {/* Подменю выбора цвета (открывается слева или справа в зависимости от свободного места) */}
+      {activeColorSubmenu && (
+        <div
+          style={{
+            position: 'absolute',
+            ...(openOnLeft ? { right: '100%', marginRight: '6px' } : { left: '100%', marginLeft: '6px' }),
+            ...(showSubmenuAbove ? { bottom: 0 } : { top: 0 }),
+          }}
+        >
+          <ColorPickerMenu
+            mode={activeColorSubmenu}
+            onSelectColor={(color) => {
+              if (activeColorSubmenu === 'text') {
+                onSelectTextColor?.(color);
+              } else {
+                onSelectBgColor?.(color);
+              }
+              onClose();
+            }}
+            onClose={onClose}
+          />
+        </div>
+      )}
     </div>
   );
 };

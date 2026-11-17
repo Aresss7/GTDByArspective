@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { formatDateDDMMYYYY } from '@shared/dateUtils';
 
 interface CustomDatePickerProps {
   value: string; // 'YYYY-MM-DD'
@@ -8,6 +9,7 @@ interface CustomDatePickerProps {
   placeholder?: string;
   className?: string;
   required?: boolean;
+  align?: 'left' | 'right' | 'auto';
 }
 
 const MONTH_NAMES = [
@@ -24,9 +26,27 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   placeholder = 'Выберите дату',
   className = '',
   required = false,
+  align = 'auto',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [dropdownAlignRight, setDropdownAlignRight] = useState(align === 'right');
+
+  // Вычисление нужной стороны открытия (влево или вправо от инпута) с учётом границ модалок и окна
+  const computeAlignRight = (): boolean => {
+    if (align === 'right') return true;
+    if (align === 'left') return false;
+    if (!containerRef.current) return false;
+    const rect = containerRef.current.getBoundingClientRect();
+    // Ищем родительский контейнер модального окна или скролла
+    const modal = containerRef.current.closest<HTMLElement>(
+      '[role="dialog"], .rounded-3xl, .max-w-3xl, .max-w-xl, .max-w-md, .fixed, .overflow-y-auto, .overflow-hidden'
+    );
+    const boundaryRight = modal
+      ? Math.min(window.innerWidth - 10, modal.getBoundingClientRect().right - 12)
+      : window.innerWidth - 10;
+    return rect.left + 288 > boundaryRight;
+  };
 
   // Парсинг текущего значения или установка на сегодня
   const parseDate = (str: string): Date => {
@@ -38,12 +58,22 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const selectedDate = value ? parseDate(value) : null;
   const [viewDate, setViewDate] = useState<Date>(selectedDate || new Date());
 
-  // Обновляем viewDate при открытии
+  // Обновляем viewDate и проверяем переполнение экрана при открытии
   useEffect(() => {
-    if (isOpen && value) {
-      setViewDate(parseDate(value));
+    if (isOpen) {
+      if (value) {
+        setViewDate(parseDate(value));
+      }
+      setDropdownAlignRight(computeAlignRight());
     }
-  }, [isOpen, value]);
+  }, [isOpen, value, align]);
+
+  const handleToggleOpen = () => {
+    if (!isOpen) {
+      setDropdownAlignRight(computeAlignRight());
+    }
+    setIsOpen((prev) => !prev);
+  };
 
   // Закрытие при клике снаружи
   useEffect(() => {
@@ -171,20 +201,14 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     });
   }
 
-  // Форматирование выбранного значения для отображения
-  const displayValue = value
-    ? new Date(value + 'T00:00:00').toLocaleDateString('ru-RU', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
-    : '';
+  // Форматирование выбранного значения для отображения строго в формате ДД.ММ.ГГГГ
+  const displayValue = value ? formatDateDDMMYYYY(value) : '';
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
       {/* Кнопка-инпут выбора даты */}
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleOpen}
         className="w-full flex items-center justify-between px-3.5 py-2 rounded-2xl bg-zinc-100 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-500 transition-all select-none"
       >
         <div className="flex items-center space-x-2 truncate">
@@ -208,7 +232,9 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
       {/* Всплывающий календарь в стиле Material 3 */}
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 p-3.5 bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-700 rounded-3xl shadow-xl w-72 select-none animate-fadeIn">
+        <div className={`absolute z-50 mt-1.5 p-3.5 bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-700 rounded-3xl shadow-2xl w-72 select-none animate-fadeIn ${
+          dropdownAlignRight ? 'right-0' : 'left-0'
+        }`}>
           {/* Шапка календаря: Месяц/Год и стрелки */}
           <div className="flex items-center justify-between mb-3 px-1">
             <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">

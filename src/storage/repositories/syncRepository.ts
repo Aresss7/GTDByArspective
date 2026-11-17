@@ -283,6 +283,8 @@ export class SyncRepository {
           const pPlan = p.approximate_plan || p.approximatePlan || null;
           const pCriteria = p.completion_criteria || p.completionCriteria || null;
           const pStatus = p.status || 'active';
+          const pIsPinned = p.is_pinned !== undefined ? (p.is_pinned ? 1 : 0) : (p.isPinned !== undefined ? (p.isPinned ? 1 : 0) : 0);
+          const pPosition = p.position !== undefined ? Number(p.position) : (p.order !== undefined ? Number(p.order) : (p.sort_order !== undefined ? Number(p.sort_order) : 0));
           const pCreatedAt = p.created_at || p.createdAt || new Date().toISOString();
           const pUpdatedAt = p.updated_at || p.updatedAt || new Date().toISOString();
           const pCompletedAt = p.completed_at || p.completedAt || null;
@@ -304,8 +306,8 @@ export class SyncRepository {
             this.db.prepare(`
               INSERT INTO projects (
                 id, title, description, first_step_task_id, approximate_plan,
-                completion_criteria, status, created_at, updated_at, completed_at, deleted_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                completion_criteria, status, is_pinned, position, created_at, updated_at, completed_at, deleted_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
               projectId,
               pTitle,
@@ -314,6 +316,8 @@ export class SyncRepository {
               pPlan,
               pCriteria,
               pStatus,
+              pIsPinned,
+              pPosition,
               pCreatedAt,
               pUpdatedAt,
               pCompletedAt,
@@ -336,6 +340,8 @@ export class SyncRepository {
                   approximate_plan = @approximate_plan,
                   completion_criteria = @completion_criteria,
                   status = @status,
+                  is_pinned = @is_pinned,
+                  position = @position,
                   updated_at = @updated_at,
                   completed_at = @completed_at,
                   deleted_at = @deleted_at
@@ -348,6 +354,8 @@ export class SyncRepository {
                 approximate_plan: pPlan,
                 completion_criteria: pCriteria,
                 status: pStatus,
+                is_pinned: pIsPinned,
+                position: pPosition !== undefined ? pPosition : (local.position ?? 0),
                 updated_at: clientProjTs >= localProjTs ? pUpdatedAt : new Date().toISOString(),
                 completed_at: pCompletedAt,
                 deleted_at: mergedDeletedAt,
@@ -378,6 +386,7 @@ export class SyncRepository {
           const tWaitingFor = t.waiting_for !== undefined ? t.waiting_for : (t.waitingFor !== undefined ? t.waitingFor : null);
           const tCheckDate = t.check_date !== undefined ? t.check_date : (t.checkDate !== undefined ? t.checkDate : null);
           const tIsPinned = t.is_pinned !== undefined ? (t.is_pinned ? 1 : 0) : (t.isPinned !== undefined ? (t.isPinned ? 1 : 0) : 0);
+          const tPosition = t.position !== undefined ? Number(t.position) : (t.order !== undefined ? Number(t.order) : (t.sort_order !== undefined ? Number(t.sort_order) : undefined));
           const tPreviousDestination = t.previous_destination || t.previousDestination || null;
           
           // Гибкое и отказоустойчивое распознавание reminder_offset в различных форматах клиента (Android/Web)
@@ -438,6 +447,7 @@ export class SyncRepository {
               waiting_for: tWaitingFor || undefined,
               check_date: tCheckDate || undefined,
               is_pinned: tIsPinned,
+              position: tPosition !== undefined ? tPosition : 0,
               previous_destination: tPreviousDestination || undefined,
               reminder_offset: tReminderOffset !== undefined ? tReminderOffset : null,
             });
@@ -518,6 +528,7 @@ export class SyncRepository {
                   waiting_for = @waiting_for,
                   check_date = @check_date,
                   is_pinned = @is_pinned,
+                  position = @position,
                   previous_destination = @previous_destination,
                   reminder_offset = @reminder_offset,
                   updated_at = @updated_at,
@@ -541,6 +552,7 @@ export class SyncRepository {
                 waiting_for: tWaitingFor !== undefined ? tWaitingFor : local.waiting_for,
                 check_date: tCheckDate !== undefined ? tCheckDate : local.check_date,
                 is_pinned: (t.is_pinned !== undefined || t.isPinned !== undefined) ? tIsPinned : (local.is_pinned ? 1 : 0),
+                position: tPosition !== undefined ? tPosition : (local.position ?? 0),
                 previous_destination: tPreviousDestination || local.previous_destination || null,
                 reminder_offset: finalReminderOffset,
                 updated_at: finalUpdatedAt,

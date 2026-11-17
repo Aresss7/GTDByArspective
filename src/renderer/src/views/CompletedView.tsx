@@ -6,6 +6,7 @@ import { useToast } from '../components/ToastNotification';
 import { Language, translations } from '../i18n/translations';
 import { ProjectDetailModal } from './ProjectDetailModal';
 import { CustomDatePicker } from '../components/CustomDatePicker';
+import { formatDateDDMMYYYY } from '@shared/dateUtils';
 
 type DateFilterType = 'all' | 'today' | 'yesterday' | 'last7days' | 'custom';
 
@@ -372,7 +373,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                         </div>
                       )}
                       <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono shrink-0 ml-auto">
-                        {isEn ? 'Done:' : 'Завершён:'} {p.completed_at ? new Date(p.completed_at).toLocaleDateString(isEn ? 'en-US' : 'ru-RU') : (isEn ? 'Earlier' : 'Ранее')}
+                        {isEn ? 'Done:' : 'Завершён:'} {p.completed_at ? formatDateDDMMYYYY(p.completed_at) : (isEn ? 'Earlier' : 'Ранее')}
                       </span>
                     </div>
                   </div>
@@ -416,7 +417,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
                       </h4>
                       {task.completed_at && (
                         <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
-                          {new Date(task.completed_at).toLocaleString(isEn ? 'en-US' : 'ru-RU')}
+                          {formatDateDDMMYYYY(task.completed_at)}
                         </span>
                       )}
                     </div>

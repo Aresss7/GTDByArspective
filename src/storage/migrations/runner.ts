@@ -195,6 +195,30 @@ export const migrations: Migration[] = [
       }
     },
   },
+  {
+    id: 7,
+    name: '007_project_pinning_and_task_position',
+    up: (db: Database.Database) => {
+      const projCols = db.pragma('table_info(projects)') as Array<{ name: string }>;
+      if (!projCols.some((col) => col.name === 'is_pinned')) {
+        db.exec('ALTER TABLE projects ADD COLUMN is_pinned INTEGER DEFAULT 0;');
+      }
+      const taskCols = db.pragma('table_info(tasks)') as Array<{ name: string }>;
+      if (!taskCols.some((col) => col.name === 'position')) {
+        db.exec('ALTER TABLE tasks ADD COLUMN position REAL DEFAULT 0;');
+      }
+    },
+  },
+  {
+    id: 8,
+    name: '008_project_position',
+    up: (db: Database.Database) => {
+      const projCols = db.pragma('table_info(projects)') as Array<{ name: string }>;
+      if (!projCols.some((col) => col.name === 'position')) {
+        db.exec('ALTER TABLE projects ADD COLUMN position REAL DEFAULT 0;');
+      }
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

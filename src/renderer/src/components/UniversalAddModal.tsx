@@ -28,6 +28,7 @@ interface UniversalAddModalProps {
   currentTab: string;
   defaultCaptureSetting?: DefaultCaptureTabSetting;
   targetDestination?: TaskDestination | null;
+  initialScheduledDate?: string | null;
   initialMode?: 'quick' | 'full';
   projects: Project[];
   onSaveTask: (taskData: Partial<Task> & { title: string }) => Promise<void>;
@@ -44,6 +45,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
   currentTab,
   defaultCaptureSetting = 'inbox',
   targetDestination,
+  initialScheduledDate,
   initialMode,
   projects,
   onSaveTask,
@@ -216,7 +218,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
       setTaskTitle(sourceTask ? sourceTask.title : '');
       setTaskNotes(sourceTask?.notes || '');
       setProjectId('');
-      setScheduledDate(dest === 'calendar' ? todayStr : '');
+      setScheduledDate(initialScheduledDate || (dest === 'calendar' ? todayStr : ''));
       setScheduledTime('');
       setDueDate('');
       setDelegatedTo('');
@@ -238,7 +240,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
         }
       }, 50);
     }
-  }, [isOpen, currentTab, defaultCaptureSetting, initialMode, targetDestination]);
+  }, [isOpen, currentTab, defaultCaptureSetting, initialMode, targetDestination, initialScheduledDate]);
 
   // Фокусировка при переключении вкладки
   useEffect(() => {
@@ -829,6 +831,7 @@ export const UniversalAddModal: React.FC<UniversalAddModalProps> = ({
                         onChange={setCheckDate}
                         minDate={todayStr}
                         placeholder={isEn ? 'Check date' : 'Дата проверки'}
+                        align="right"
                       />
                     </div>
                   </div>

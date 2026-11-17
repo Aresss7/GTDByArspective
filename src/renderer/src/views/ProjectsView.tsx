@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FolderKanban, Search } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { FolderKanban, Search, Pin, GripVertical } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
 import { ProjectDetailModal } from './ProjectDetailModal';
@@ -47,11 +47,75 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
   const filteredProjects = activeProjects.filter((p) => matchesSearch(p, effectiveSearch));
 
+  // Закрепленные проекты идут первыми, затем по ручной позиции (position > 0), затем по дате создания
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      const aPin = Boolean(a.is_pinned) ? 1 : 0;
+      const bPin = Boolean(b.is_pinned) ? 1 : 0;
+      if (aPin !== bPin) return bPin - aPin;
+      const posA = typeof a.position === 'number' && a.position > 0 ? a.position : null;
+      const posB = typeof b.position === 'number' && b.position > 0 ? b.position : null;
+      if (posA !== null && posB !== null) {
+        if (posA !== posB) return posA - posB;
+      } else if (posA !== null && posB === null) {
+        return -1;
+      } else if (posA === null && posB !== null) {
+        return 1;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [filteredProjects]);
+
+  const draggedProjectIdRef = useRef<string | null>(null);
+  const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
+  const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
+
+  const handleReorderProjects = async (sourceId: string, targetId: string) => {
+    if (sourceId === targetId || !window.gtdApi) return;
+    const fromIndex = sortedProjects.findIndex((p) => p.id === sourceId);
+    const toIndex = sortedProjects.findIndex((p) => p.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const reordered = [...sortedProjects];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    try {
+      await Promise.all(
+        reordered.map((p, i) => {
+          const newPos = (i + 1) * 1000;
+          return window.gtdApi.updateProject(p.id, { position: newPos });
+        })
+      );
+      await onRefreshData();
+    } catch (e) {
+      console.error('Failed to reorder projects:', e);
+    }
+  };
+
   const handleContextMenu = (e: React.MouseEvent, project: Project) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenuProject(project);
     setContextMenuPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleTogglePin = async (project: Project, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.gtdApi) return;
+    try {
+      const isPinned = Boolean(project.is_pinned);
+      await window.gtdApi.updateProject(project.id, { is_pinned: isPinned ? 0 : 1 });
+      await onRefreshData();
+      showToast(
+        isPinned
+          ? (isEn ? 'Project unpinned' : 'Проект откреплён')
+          : (isEn ? 'Project pinned' : 'Проект закреплён'),
+        'info'
+      );
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleToggleStatus = async (project: Project) => {
@@ -108,7 +172,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       </div>
 
       {/* Сетка проектов */}
-      {filteredProjects.length === 0 ? (
+      {sortedProjects.length === 0 ? (
         <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white/60 dark:bg-[#222222]">
           <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-[#282828] flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
             <FolderKanban className="w-7 h-7" />
@@ -122,7 +186,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredProjects.map((project) => {
+          {sortedProjects.map((project, idx) => {
+            const isPinned = Boolean(project.is_pinned);
             const projectSteps = tasks.filter(
               (t) => t.project_id === project.id && !t.deleted_at && t.destination !== 'trash'
             );
@@ -134,24 +199,90 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             return (
               <div
                 key={project.id}
+                draggable
+                onDragStart={(e) => {
+                  draggedProjectIdRef.current = project.id;
+                  e.dataTransfer.setData('text/plain', project.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDraggingProjectId(project.id);
+                }}
+                onDragEnd={() => {
+                  draggedProjectIdRef.current = null;
+                  setDraggingProjectId(null);
+                  setDragOverProjectId(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverProjectId !== project.id) {
+                    setDragOverProjectId(project.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (dragOverProjectId === project.id) {
+                    setDragOverProjectId(null);
+                  }
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  const sourceId = draggedProjectIdRef.current || e.dataTransfer.getData('text/plain') || draggingProjectId;
+                  draggedProjectIdRef.current = null;
+                  setDraggingProjectId(null);
+                  setDragOverProjectId(null);
+                  if (sourceId && sourceId !== project.id) {
+                    await handleReorderProjects(sourceId, project.id);
+                  }
+                }}
                 onClick={() => setSelectedProjectId(project.id)}
                 onContextMenu={(e) => handleContextMenu(e, project)}
-                className="p-6 bg-white dark:bg-[#222222] rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer flex flex-col justify-between group"
+                className={`p-6 bg-white dark:bg-[#222222] rounded-3xl border shadow-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer flex flex-col justify-between group ${
+                  draggingProjectId === project.id ? 'opacity-40 scale-[0.99]' : ''
+                } ${
+                  dragOverProjectId === project.id
+                    ? 'border-zinc-900 dark:border-white ring-2 ring-zinc-400 dark:ring-zinc-600'
+                    : isPinned
+                      ? 'border-amber-400/80 dark:border-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10'
+                      : 'border-zinc-200 dark:border-zinc-800'
+                }`}
               >
                 <div>
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 transition-colors">
-                      {project.title}
-                    </h4>
-                    <span
-                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                        project.status === 'completed'
-                          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-                          : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                      }`}
-                    >
-                      {project.status === 'completed' ? (isEn ? 'Completed' : 'Завершён') : (isEn ? 'Active' : 'В работе')}
-                    </span>
+                    <div className="flex items-center space-x-2 min-w-0 mr-2 flex-1">
+                      <div className="text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title={isEn ? 'Drag to reorder' : 'Перетащите для изменения порядка'}>
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
+                      {isPinned && (
+                        <span className="shrink-0 text-amber-500">
+                          <Pin className="w-4 h-4 fill-amber-500" />
+                        </span>
+                      )}
+                      <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 transition-colors truncate">
+                        {project.title}
+                      </h4>
+                    </div>
+                    <div className="flex items-center space-x-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => handleTogglePin(project, e)}
+                        className={`p-1.5 rounded-full transition-all shrink-0 cursor-pointer ${
+                          isPinned
+                            ? 'text-amber-500 bg-amber-100/70 dark:bg-amber-950/60'
+                            : 'text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                        }`}
+                        title={isPinned ? (isEn ? 'Unpin project' : 'Открепить проект') : (isEn ? 'Pin project' : 'Закрепить проект')}
+                      >
+                        <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-amber-500' : ''}`} />
+                      </button>
+                      <span
+                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          project.status === 'completed'
+                            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                            : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                        }`}
+                      >
+                        {project.status === 'completed' ? (isEn ? 'Completed' : 'Завершён') : (isEn ? 'Active' : 'В работе')}
+                      </span>
+                    </div>
                   </div>
 
                   {project.description && (
@@ -219,6 +350,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         onEdit={(proj) => setSelectedProjectId(proj.id)}
         onDelete={(proj) => setProjectToDelete(proj)}
         onToggleStatus={handleToggleStatus}
+        onTogglePin={handleTogglePin}
       />
 
       {/* Модальное окно подтверждения удаления проекта */}

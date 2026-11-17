@@ -4,7 +4,8 @@ import {
   Trash2, 
   CheckCircle2, 
   RotateCcw,
-  FolderKanban
+  FolderKanban,
+  Pin
 } from 'lucide-react';
 import { Project } from '@shared/types';
 
@@ -15,6 +16,7 @@ interface ProjectContextMenuProps {
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
   onToggleStatus: (project: Project) => void;
+  onTogglePin?: (project: Project) => void;
 }
 
 export const ProjectContextMenu: React.FC<ProjectContextMenuProps> = ({
@@ -24,6 +26,7 @@ export const ProjectContextMenu: React.FC<ProjectContextMenuProps> = ({
   onEdit,
   onDelete,
   onToggleStatus,
+  onTogglePin,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -100,6 +103,19 @@ export const ProjectContextMenu: React.FC<ProjectContextMenuProps> = ({
           </>
         )}
       </button>
+
+      {onTogglePin && (
+        <button
+          onClick={() => {
+            onTogglePin(project);
+            onClose();
+          }}
+          className="w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282828] transition-colors cursor-pointer text-left"
+        >
+          <Pin className={`w-3.5 h-3.5 ${Boolean(project.is_pinned) ? 'fill-amber-500 text-amber-500' : 'text-zinc-400'}`} />
+          <span>{Boolean(project.is_pinned) ? 'Открепить проект' : 'Закрепить проект'}</span>
+        </button>
+      )}
 
       <button
         onClick={() => {

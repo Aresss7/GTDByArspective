@@ -142,6 +142,8 @@ export const TaskContextMenu: React.FC<TaskContextMenuProps> = ({
           )}
         </button>
 
+
+
         {/* Полное перемещение во все разделы ГТД */}
         {onMoveToDestination && (
           <div className="border-t border-b border-zinc-100 dark:border-zinc-800 my-1 py-1">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Eye, Code2, Copy, Check, Save } from 'lucide-react';
+import { Eye, Code2, Copy, Check, Save, Maximize2, Minimize2 } from 'lucide-react';
 import { VisualEditor, VisualEditorRef } from './VisualEditor';
 import { SourceEditor, SourceEditorRef } from './SourceEditor';
 
@@ -10,6 +10,8 @@ interface MarkdownNoteEditorProps {
   placeholder?: string;
   searchTerm?: string;
   activeMatchIndex?: number;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
@@ -19,6 +21,8 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
   placeholder,
   searchTerm,
   activeMatchIndex,
+  isFullscreen = false,
+  onToggleFullscreen,
 }) => {
   // Always start in visual mode when opening a note
   const [mode, setMode] = useState<'visual' | 'source'>('visual');
@@ -58,66 +62,84 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
   };
 
   return (
-    <div className="space-y-3">
-      {/* Mode Switcher & Stats Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-1 p-1 bg-zinc-100 dark:bg-[#222222] rounded-xl border border-zinc-200 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('visual')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              mode === 'visual'
-                ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs'
-                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-            }`}
-            title="Обычный визуальный режим (WYSIWYG)"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Визуальный</span>
-          </button>
+    <div className={`space-y-3 ${isFullscreen ? 'h-full flex-1 flex flex-col min-h-0' : ''}`}>
+      {/* Mode Switcher & Stats Header (скрывается в полноэкранном режиме) */}
+      {!isFullscreen && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-1 p-1 bg-zinc-100 dark:bg-[#222222] rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('visual')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                mode === 'visual'
+                  ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+              }`}
+              title="Обычный визуальный режим (WYSIWYG)"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Визуальный</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('source')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              mode === 'source'
-                ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs'
-                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-            }`}
-            title="Markdown режим (исходный код)"
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            <span>Markdown</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('source')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                mode === 'source'
+                  ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+              }`}
+              title="Markdown режим (исходный код)"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Markdown</span>
+            </button>
+          </div>
 
-        <div className="text-[11px] text-zinc-400">
-          <span>{content.length} симв. • {content.split('\n').filter(Boolean).length} строк</span>
+          <div className="flex items-center space-x-3">
+            <span className="text-[11px] text-zinc-400">
+              {content.length} симв. • {content.split('\n').filter(Boolean).length} строк
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Editor Body */}
-      {mode === 'visual' ? (
-        <VisualEditor
-          ref={visualEditorRef}
-          initialMarkdown={content}
-          onChange={handleContentChange}
-          onSave={onSave}
-          placeholder={placeholder}
-          searchTerm={searchTerm}
-          activeMatchIndex={activeMatchIndex}
-        />
-      ) : (
-        <SourceEditor
-          ref={sourceEditorRef}
-          value={content}
-          onChange={handleContentChange}
-          onSave={onSave}
-          placeholder={placeholder}
-          searchTerm={searchTerm}
-          activeMatchIndex={activeMatchIndex}
-        />
-      )}
+      <div className={`relative ${isFullscreen ? 'flex-1 flex flex-col h-full min-h-0 overflow-hidden' : ''}`}>
+        {onToggleFullscreen && (
+          <button
+            type="button"
+            onClick={onToggleFullscreen}
+            className="absolute top-3 right-3 z-30 w-8 h-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/90 dark:bg-[#282828]/90 hover:bg-zinc-200 dark:hover:bg-[#333333] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 backdrop-blur-xs"
+            title={isFullscreen ? 'Свернуть полноэкранный режим (Esc)' : 'Развернуть область содержимого (Esc)'}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+        )}
+        {mode === 'visual' ? (
+          <VisualEditor
+            ref={visualEditorRef}
+            initialMarkdown={content}
+            onChange={handleContentChange}
+            onSave={onSave}
+            placeholder={placeholder}
+            searchTerm={searchTerm}
+            activeMatchIndex={activeMatchIndex}
+            isFullscreen={isFullscreen}
+          />
+        ) : (
+          <SourceEditor
+            ref={sourceEditorRef}
+            value={content}
+            onChange={handleContentChange}
+            onSave={onSave}
+            placeholder={placeholder}
+            searchTerm={searchTerm}
+            activeMatchIndex={activeMatchIndex}
+            isFullscreen={isFullscreen}
+          />
+        )}
+      </div>
     </div>
   );
 };
