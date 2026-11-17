@@ -316,6 +316,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                     onChange={setCheckDate}
                     minDate={todayStr}
                     placeholder="Дата проверки"
+                    align="right"
                   />
                 </div>
               </div>

@@ -175,6 +175,7 @@ export const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
                 value={checkDate}
                 onChange={setCheckDate}
                 placeholder={isEn ? 'Check date' : 'Дата контроля'}
+                align="right"
               />
             </div>
           </div>

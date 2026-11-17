@@ -28,6 +28,7 @@ export interface Task {
   waiting_for?: string | null;
   check_date?: string | null;     // YYYY-MM-DD
   is_pinned?: boolean | number;
+  position?: number;
   previous_destination?: TaskDestination | null;
   reminder_offset?: number | null; // minutes before event: 0, 10, 15, 30, 60, 120, 1440 or null (disabled)
   created_at: string;
@@ -46,6 +47,8 @@ export interface Project {
   approximate_plan?: string;
   completion_criteria?: string;
   status: ProjectStatus;
+  is_pinned?: boolean | number;
+  position?: number;
   created_at: string;
   updated_at: string;
   completed_at?: string | null;

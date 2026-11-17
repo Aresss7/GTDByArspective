@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserCheck, Calendar, CheckCircle2, ArrowRight, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import { Task, Project } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
+import { formatDateDDMMYYYY } from '@shared/dateUtils';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { Language, translations } from '../i18n/translations';
 
@@ -143,7 +144,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                       <div className="flex items-center space-x-1.5">
                         <Calendar className="w-3.5 h-3.5 text-zinc-400" />
                         <span>
-                          {isEn ? 'Delegated:' : 'Поручено:'} {task.delegated_date}
+                          {isEn ? 'Delegated:' : 'Поручено:'} {formatDateDDMMYYYY(task.delegated_date)}
                         </span>
                       </div>
                     )}
@@ -151,7 +152,7 @@ export const WaitingForView: React.FC<WaitingForViewProps> = ({
                       <div className="flex items-center space-x-1.5">
                         <Calendar className="w-3.5 h-3.5 text-zinc-400" />
                         <span className={isCheckDue ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}>
-                          {t.waitingForCheckDate}: {task.check_date} {isCheckDue && `⚠️ ${t.waitingForCheckDueAlert}`}
+                          {t.waitingForCheckDate}: {formatDateDDMMYYYY(task.check_date)} {isCheckDue && `⚠️ ${t.waitingForCheckDueAlert}`}
                         </span>
                       </div>
                     )}

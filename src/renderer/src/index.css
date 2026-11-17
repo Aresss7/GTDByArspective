@@ -119,6 +119,17 @@
   border-top: 1px solid rgba(120, 120, 120, 0.25) !important;
 }
 
+/* Поддержка одновременного цвета текста и фона в редакторе заметок */
+.ProseMirror mark,
+.prose mark,
+mark {
+  color: inherit;
+}
+
+span[style*="color"] mark {
+  color: inherit;
+}
+
 /* Чекбоксы в заметках — круглые, выровненные, #191919 в светлой теме и белые в тёмной */
 .ProseMirror ul[data-type="taskList"] {
   list-style: none !important;

@@ -13,7 +13,8 @@ import {
   Edit2,
   Check,
   Inbox,
-  Play
+  Play,
+  Pin
 } from 'lucide-react';
 import { Project, Task } from '@shared/types';
 import { TaskContextMenu } from '../components/TaskContextMenu';
@@ -214,6 +215,18 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     }
   };
 
+  const handleTogglePin = async () => {
+    if (!project || !window.gtdApi) return;
+    try {
+      const isPinned = Boolean(project.is_pinned);
+      await window.gtdApi.updateProject(project.id, { is_pinned: isPinned ? 0 : 1 });
+      await loadProjectData();
+      await onProjectUpdated();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Удаление проекта
   const handleDeleteProject = () => {
     setIsDeleteProjectOpen(true);
@@ -312,6 +325,18 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{project.status === 'completed' ? 'Вернуть в работу' : 'Завершить проект'}</span>
+              </button>
+
+              <button
+                onClick={handleTogglePin}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                  Boolean(project.is_pinned)
+                    ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100'
+                    : 'text-zinc-400 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+                title={Boolean(project.is_pinned) ? 'Открепить проект' : 'Закрепить проект'}
+              >
+                <Pin className={`w-4 h-4 ${Boolean(project.is_pinned) ? 'fill-amber-500' : ''}`} />
               </button>
 
               <button

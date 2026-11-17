@@ -38,7 +38,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   language = 'ru',
 }) => {
   const t = translations[language];
-  const [appVersion, setAppVersion] = useState('1.6.0');
+  const [appVersion, setAppVersion] = useState('1.6.7');
 
   useEffect(() => {
     if (window.gtdApi?.getAppVersion) {

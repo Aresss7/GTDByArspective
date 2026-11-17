@@ -15,14 +15,19 @@ import {
   ChevronUp,
   ChevronDown,
   LayoutGrid,
-  List
+  List,
+  Maximize2,
+  Minimize2,
+  GripVertical
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
+import { formatDateDDMMYYYY } from '@shared/dateUtils';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { PinLimitModal } from '../components/PinLimitModal';
 import { MarkdownNoteEditor, MarkdownPreview } from '../components/MarkdownEditor';
 import { Language, translations } from '../i18n/translations';
+import { useToast } from '../components/ToastNotification';
 
 interface NotesViewProps {
   tasks: Task[];
@@ -39,6 +44,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   language = 'ru',
   autoSaveNotesOnExit = true,
 }) => {
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNote, setSelectedNote] = useState<Task | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Task | null>(null);
@@ -52,6 +58,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Закреплённые заметки (до 4 заметок одновременно)
   const [isPinLimitOpen, setIsPinLimitOpen] = useState(false);
@@ -189,13 +196,53 @@ export const NotesView: React.FC<NotesViewProps> = ({
     setActiveMatchIndex((prev) => (prev - 1 + inNoteMatchesCount) % inNoteMatchesCount);
   };
 
-  // Закреплённые активные заметки идут первыми в списке
-  const sortedNotes = [...filteredNotes].sort((a, b) => {
-    const aPin = Boolean(a.is_pinned) ? 1 : 0;
-    const bPin = Boolean(b.is_pinned) ? 1 : 0;
-    if (aPin !== bPin) return bPin - aPin;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  // Закреплённые активные заметки идут первыми в списке, затем упорядоченные вручную (position > 0), затем недавно обновлённые/отредактированные
+  const sortedNotes = useMemo(() => {
+    return [...filteredNotes].sort((a, b) => {
+      const aPin = Boolean(a.is_pinned) ? 1 : 0;
+      const bPin = Boolean(b.is_pinned) ? 1 : 0;
+      if (aPin !== bPin) return bPin - aPin;
+      const posA = typeof a.position === 'number' && a.position > 0 ? a.position : null;
+      const posB = typeof b.position === 'number' && b.position > 0 ? b.position : null;
+      if (posA !== null && posB !== null) {
+        if (posA !== posB) return posA - posB;
+      } else if (posA !== null && posB === null) {
+        return -1;
+      } else if (posA === null && posB !== null) {
+        return 1;
+      }
+      const aTime = new Date(a.updated_at || a.created_at).getTime();
+      const bTime = new Date(b.updated_at || b.created_at).getTime();
+      return bTime - aTime;
+    });
+  }, [filteredNotes]);
+
+  const draggedNoteIdRef = useRef<string | null>(null);
+  const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
+  const [dragOverNoteId, setDragOverNoteId] = useState<string | null>(null);
+
+  const handleReorderNotes = async (sourceId: string, targetId: string) => {
+    if (sourceId === targetId || !window.gtdApi) return;
+    const fromIndex = sortedNotes.findIndex((n) => n.id === sourceId);
+    const toIndex = sortedNotes.findIndex((n) => n.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const reordered = [...sortedNotes];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    try {
+      await Promise.all(
+        reordered.map((n, i) => {
+          const newPos = (i + 1) * 1000;
+          return window.gtdApi.updateTask(n.id, { position: newPos });
+        })
+      );
+      await onTaskUpdated();
+    } catch (e) {
+      console.error('Failed to reorder notes:', e);
+    }
+  };
 
   // Синхронизация при открытии заметки
   const handleOpenNote = (note: Task) => {
@@ -207,6 +254,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
   // Закрытие страницы заметки с автосохранением
   const handleCloseNote = async () => {
+    setIsFullscreen(false);
     if (selectedNote && (draftTitle !== selectedNote.title || draftContent !== (selectedNote.notes || ''))) {
       if (autoSaveNotesOnExit && draftTitle.trim()) {
         await handleSaveNote();
@@ -217,15 +265,24 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
   // Выход без сохранения изменений
   const handleExitWithoutSaving = () => {
+    setIsFullscreen(false);
     draftTitleRef.current = '';
     draftContentRef.current = '';
     selectedNoteRef.current = null;
     setSelectedNote(null);
   };
 
+  const lastSavedAtRef = useRef<number>(0);
+  const isSavingRef = useRef<boolean>(false);
+
   // Сохранение изменений в заметке
   const handleSaveNote = async () => {
-    if (!window.gtdApi || !selectedNote || !draftTitle.trim()) return;
+    const now = Date.now();
+    if (!window.gtdApi || !selectedNote || !draftTitle.trim() || isSavingRef.current || now - lastSavedAtRef.current < 800) {
+      return;
+    }
+    isSavingRef.current = true;
+    lastSavedAtRef.current = now;
     setIsSaving(true);
     try {
       await window.gtdApi.updateTask(selectedNote.id, {
@@ -233,12 +290,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
         notes: draftContent.trim() || undefined,
       });
       setSaveSuccess(true);
+      showToast(isEn ? 'Note saved' : 'Заметка сохранена', 'success');
       await onTaskUpdated();
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (e) {
       console.error('Failed to save note:', e);
     } finally {
       setIsSaving(false);
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 500);
     }
   };
 
@@ -267,7 +328,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
     }
   };
 
-  // Горячая клавиша Escape для закрытия поиска в заметке или возврата к списку
+  // Горячая клавиша Escape для закрытия поиска в заметке, выхода из полноэкранного режима или возврата к списку
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -277,6 +338,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
           setInNoteQuery('');
           return;
         }
+        if (isFullscreen) {
+          e.preventDefault();
+          setIsFullscreen(false);
+          return;
+        }
         if (selectedNote && !noteToDelete) {
           handleCloseNote();
         }
@@ -284,7 +350,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [inNoteSearchOpen, selectedNote, draftTitle, draftContent, noteToDelete]);
+  }, [inNoteSearchOpen, isFullscreen, selectedNote, draftTitle, draftContent, noteToDelete]);
 
   // Горячая клавиша Ctrl+F / Cmd+F:
   // Если открыта заметка — открывает поиск внутри этой заметки.
@@ -311,11 +377,15 @@ export const NotesView: React.FC<NotesViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNote]);
 
-  // Горячая клавиша Ctrl+Enter / Cmd+Enter: сохранение заметки при редактировании
+  // Горячая клавиша Ctrl+S / Cmd+S / Ctrl+Enter: сохранение заметки при редактировании
   useEffect(() => {
     if (!selectedNote) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+      const isSaveKey = 
+        (e.ctrlKey || e.metaKey) && 
+        (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы' || e.code === 'KeyS' || 
+         e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter');
+      if (isSaveKey) {
         e.preventDefault();
         handleSaveNote();
       }
@@ -327,9 +397,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
   // ЕСЛИ ОТКРЫТА СТРАНИЦА ЗАМЕТКИ
   if (selectedNote) {
     return (
-      <div className="w-full max-w-6xl mx-auto space-y-5 animate-fadeIn">
-        {/* Верхняя навигационная панель страницы заметки */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
+      <div className={`w-full max-w-6xl mx-auto space-y-5 animate-fadeIn ${isFullscreen ? 'h-full flex flex-col' : ''}`}>
+        {/* Верхняя навигационная панель страницы заметки (скрыта в полноэкранном режиме) */}
+        {!isFullscreen && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center space-x-3">
             <button
               onClick={handleCloseNote}
@@ -342,7 +413,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <span className="text-xs text-zinc-400">|</span>
             <span className="text-xs text-zinc-400 flex items-center space-x-1">
               <Calendar className="w-3.5 h-3.5" />
-              <span>{t.notesCreated}: {new Date(selectedNote.created_at).toLocaleDateString(isEn ? 'en-US' : 'ru-RU')}</span>
+              <span>{t.notesCreated}: {formatDateDDMMYYYY(selectedNote.updated_at || selectedNote.created_at)}</span>
             </span>
           </div>
 
@@ -407,6 +478,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
             </button>
           </div>
         </div>
+        )}
 
         {/* Панель поиска внутри заметки (Ctrl+F) — плавающая поверх контента, не уходит при листании */}
         {inNoteSearchOpen && (
@@ -481,29 +553,37 @@ export const NotesView: React.FC<NotesViewProps> = ({
         )}
 
         {/* Рабочая область заметки */}
-        <div className="bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-4">
+        <div
+          className={`transition-all duration-300 ease-in-out ${
+            isFullscreen
+              ? 'fixed top-14 bottom-0 left-64 right-0 z-45 bg-white dark:bg-[#191919] p-6 md:p-8 flex flex-col overflow-hidden animate-fadeIn'
+              : 'bg-white dark:bg-[#1f1f1f] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-4'
+          }`}
+        >
           {/* Редактируемый заголовок заметки */}
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-              {t.notesTitleLabel}
-            </label>
-            <input
-              type="text"
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
-                  e.preventDefault();
-                  handleSaveNote();
-                }
-              }}
-              placeholder={t.notesTitlePlaceholder}
-              className="w-full text-xl md:text-2xl font-black bg-transparent border-b border-zinc-200 dark:border-zinc-800 pb-2 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors placeholder:text-zinc-400"
-            />
-          </div>
+          {!isFullscreen && (
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                {t.notesTitleLabel}
+              </label>
+              <input
+                type="text"
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
+                    e.preventDefault();
+                    handleSaveNote();
+                  }
+                }}
+                placeholder={t.notesTitlePlaceholder}
+                className="w-full text-xl md:text-2xl font-black bg-transparent border-b border-zinc-200 dark:border-zinc-800 pb-2 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors placeholder:text-zinc-400"
+              />
+            </div>
+          )}
 
           {/* Редактируемый текст заметки */}
-          <div className="space-y-1.5 pt-1">
+          <div className={isFullscreen ? 'flex-1 flex flex-col min-h-0' : 'space-y-1.5 pt-1'}>
             <MarkdownNoteEditor
               value={draftContent}
               onChange={(val) => setDraftContent(val)}
@@ -511,6 +591,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
               placeholder={t.notesContentPlaceholder}
               searchTerm={inNoteSearchOpen ? inNoteQuery : ''}
               activeMatchIndex={activeMatchIndex}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
             />
           </div>
         </div>
@@ -601,21 +683,62 @@ export const NotesView: React.FC<NotesViewProps> = ({
       ) : notesViewMode === 'grid' ? (
         /* Режим сетки (Grid) */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sortedNotes.map((note) => {
+          {sortedNotes.map((note, idx) => {
             const isPinned = Boolean(note.is_pinned);
             return (
               <div
                 key={note.id}
+                draggable
+                onDragStart={(e) => {
+                  draggedNoteIdRef.current = note.id;
+                  e.dataTransfer.setData('text/plain', note.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDraggingNoteId(note.id);
+                }}
+                onDragEnd={() => {
+                  draggedNoteIdRef.current = null;
+                  setDraggingNoteId(null);
+                  setDragOverNoteId(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverNoteId !== note.id) {
+                    setDragOverNoteId(note.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (dragOverNoteId === note.id) {
+                    setDragOverNoteId(null);
+                  }
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  const sourceId = draggedNoteIdRef.current || e.dataTransfer.getData('text/plain') || draggingNoteId;
+                  draggedNoteIdRef.current = null;
+                  setDraggingNoteId(null);
+                  setDragOverNoteId(null);
+                  if (sourceId && sourceId !== note.id) {
+                    await handleReorderNotes(sourceId, note.id);
+                  }
+                }}
                 onClick={() => handleOpenNote(note)}
                 className={`p-5 bg-white dark:bg-[#222222] rounded-3xl border shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer ${
-                  isPinned
-                    ? 'border-amber-400/80 dark:border-amber-500/50 bg-amber-50/15 dark:bg-amber-950/10'
-                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                  draggingNoteId === note.id ? 'opacity-40 scale-[0.99]' : ''
+                } ${
+                  dragOverNoteId === note.id
+                    ? 'border-zinc-900 dark:border-white ring-2 ring-zinc-400 dark:ring-zinc-600'
+                    : isPinned
+                      ? 'border-amber-400/80 dark:border-amber-500/50 bg-amber-50/15 dark:bg-amber-950/10'
+                      : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center space-x-1.5 min-w-0">
+                      <div className="text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title={isEn ? 'Drag to reorder' : 'Перетащите для изменения порядка'}>
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
                       {isPinned && (
                         <span className="shrink-0 text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center">
                           <Pin className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
@@ -651,7 +774,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
                 <div className="pt-3 mt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
                   <div className="flex items-center space-x-2">
-                    <span>{new Date(note.created_at).toLocaleDateString(isEn ? 'en-US' : 'ru-RU')}</span>
+                    <span>{formatDateDDMMYYYY(note.updated_at || note.created_at)}</span>
                     {isPinned && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
                         {isEn ? 'Pinned' : 'Закреплено'}
@@ -681,7 +804,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       ) : (
         /* Режим списка (List) */
         <div className="space-y-2">
-          {sortedNotes.map((note) => {
+          {sortedNotes.map((note, idx) => {
             const isPinned = Boolean(note.is_pinned);
             const previewText = note.notes
               ? note.notes.replace(/[#*`~_>\-[\]()]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -690,14 +813,55 @@ export const NotesView: React.FC<NotesViewProps> = ({
             return (
               <div
                 key={note.id}
+                draggable
+                onDragStart={(e) => {
+                  draggedNoteIdRef.current = note.id;
+                  e.dataTransfer.setData('text/plain', note.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDraggingNoteId(note.id);
+                }}
+                onDragEnd={() => {
+                  draggedNoteIdRef.current = null;
+                  setDraggingNoteId(null);
+                  setDragOverNoteId(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverNoteId !== note.id) {
+                    setDragOverNoteId(note.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (dragOverNoteId === note.id) {
+                    setDragOverNoteId(null);
+                  }
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  const sourceId = draggedNoteIdRef.current || e.dataTransfer.getData('text/plain') || draggingNoteId;
+                  draggedNoteIdRef.current = null;
+                  setDraggingNoteId(null);
+                  setDragOverNoteId(null);
+                  if (sourceId && sourceId !== note.id) {
+                    await handleReorderNotes(sourceId, note.id);
+                  }
+                }}
                 onClick={() => handleOpenNote(note)}
                 className={`px-4 py-3 bg-white dark:bg-[#222222] rounded-2xl border shadow-xs hover:shadow-md transition-all flex items-center justify-between group cursor-pointer ${
-                  isPinned
-                    ? 'border-amber-400/80 dark:border-amber-500/50 bg-amber-50/15 dark:bg-amber-950/10'
-                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                  draggingNoteId === note.id ? 'opacity-40 scale-[0.99]' : ''
+                } ${
+                  dragOverNoteId === note.id
+                    ? 'border-zinc-900 dark:border-white ring-2 ring-zinc-400 dark:ring-zinc-600'
+                    : isPinned
+                      ? 'border-amber-400/80 dark:border-amber-500/50 bg-amber-50/15 dark:bg-amber-950/10'
+                      : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
                 }`}
               >
                 <div className="flex items-center space-x-3 flex-1 min-w-0 mr-4">
+                  <div className="text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title={isEn ? 'Drag to reorder' : 'Перетащите для изменения порядка'}>
+                    <GripVertical className="w-3.5 h-3.5" />
+                  </div>
                   {isPinned && (
                     <span className="shrink-0 text-amber-500">
                       <Pin className="w-3.5 h-3.5 fill-amber-500" />
@@ -717,7 +881,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
                 <div className="flex items-center space-x-3 shrink-0">
                   <span className="text-[11px] text-zinc-400 dark:text-zinc-500 hidden md:inline">
-                    {new Date(note.created_at).toLocaleDateString(isEn ? 'en-US' : 'ru-RU')}
+                    {formatDateDDMMYYYY(note.updated_at || note.created_at)}
                   </span>
                   {isPinned && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hidden sm:inline">

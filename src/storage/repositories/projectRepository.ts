@@ -11,10 +11,10 @@ export class ProjectRepository {
 
   getAll(status?: ProjectStatus): Project[] {
     if (status) {
-      const stmt = this.db.prepare('SELECT * FROM projects WHERE status = ? AND deleted_at IS NULL ORDER BY created_at DESC');
+      const stmt = this.db.prepare('SELECT * FROM projects WHERE status = ? AND deleted_at IS NULL ORDER BY is_pinned DESC, position ASC, created_at DESC');
       return stmt.all(status) as Project[];
     }
-    const stmt = this.db.prepare('SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC');
+    const stmt = this.db.prepare('SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY is_pinned DESC, position ASC, created_at DESC');
     return stmt.all() as Project[];
   }
 
@@ -65,8 +65,8 @@ export class ProjectRepository {
           const insertProjectStmt = this.db.prepare(`
             INSERT INTO projects (
               id, title, description, first_step_task_id, approximate_plan,
-              completion_criteria, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              completion_criteria, status, is_pinned, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `);
 
           insertProjectStmt.run(
@@ -77,6 +77,7 @@ export class ProjectRepository {
             data.approximatePlan || null,
             data.completionCriteria || 'Выполнение всех шагов',
             'active',
+            0,
             now,
             now
           );
@@ -100,8 +101,8 @@ export class ProjectRepository {
       const insertProjectStmt = this.db.prepare(`
         INSERT INTO projects (
           id, title, description, first_step_task_id, approximate_plan,
-          completion_criteria, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          completion_criteria, status, is_pinned, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       insertProjectStmt.run(
         projectId,
@@ -111,6 +112,7 @@ export class ProjectRepository {
         data.approximatePlan || null,
         data.completionCriteria || 'Выполнение всех шагов',
         'active',
+        0,
         now,
         now
       );
@@ -126,8 +128,8 @@ export class ProjectRepository {
       const insertProjectStmt = this.db.prepare(`
         INSERT INTO projects (
           id, title, description, first_step_task_id, approximate_plan,
-          completion_criteria, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          completion_criteria, status, is_pinned, position, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       insertProjectStmt.run(
@@ -138,6 +140,8 @@ export class ProjectRepository {
         data.approximatePlan || null,
         data.completionCriteria || null,
         'active',
+        0,
+        0,
         now,
         now
       );
@@ -200,6 +204,8 @@ export class ProjectRepository {
     const updated: Project = {
       ...existing,
       ...updates,
+      is_pinned: updates.is_pinned !== undefined ? (updates.is_pinned ? 1 : 0) : (existing.is_pinned ? 1 : 0),
+      position: updates.position !== undefined ? updates.position : (existing.position ?? 0),
       updated_at: now,
       completed_at: completedAt,
     };
@@ -212,6 +218,8 @@ export class ProjectRepository {
         approximate_plan = @approximate_plan,
         completion_criteria = @completion_criteria,
         status = @status,
+        is_pinned = @is_pinned,
+        position = @position,
         updated_at = @updated_at,
         completed_at = @completed_at
       WHERE id = @id
@@ -225,6 +233,8 @@ export class ProjectRepository {
       approximate_plan: updated.approximate_plan || null,
       completion_criteria: updated.completion_criteria || null,
       status: updated.status,
+      is_pinned: updated.is_pinned ? 1 : 0,
+      position: updated.position ?? 0,
       updated_at: updated.updated_at,
       completed_at: updated.completed_at || null,
     });

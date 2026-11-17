@@ -7,7 +7,7 @@ export class TaskRepository {
   constructor(private db: Database.Database) {}
 
   getAll(): Task[] {
-    const stmt = this.db.prepare('SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY created_at DESC');
+    const stmt = this.db.prepare('SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY is_pinned DESC, position ASC, created_at DESC');
     return stmt.all() as Task[];
   }
 
@@ -20,7 +20,7 @@ export class TaskRepository {
 
   getByDestination(destination: TaskDestination): Task[] {
     const stmt = this.db.prepare(
-      'SELECT * FROM tasks WHERE destination = ? AND deleted_at IS NULL ORDER BY created_at DESC'
+      'SELECT * FROM tasks WHERE destination = ? AND deleted_at IS NULL ORDER BY is_pinned DESC, position ASC, created_at DESC'
     );
     return stmt.all(destination) as Task[];
   }
@@ -59,6 +59,7 @@ export class TaskRepository {
       waiting_for: data.waiting_for || undefined,
       check_date: data.check_date || undefined,
       is_pinned: data.is_pinned ? 1 : 0,
+      position: data.position !== undefined ? data.position : 0,
       previous_destination: data.previous_destination || undefined,
       reminder_offset: data.reminder_offset !== undefined ? data.reminder_offset : undefined,
       created_at: now,
@@ -71,13 +72,13 @@ export class TaskRepository {
       INSERT INTO tasks (
         id, title, notes, destination, status, project_id, project_order,
         due_date, due_time, scheduled_date, scheduled_time, delegated_to,
-        delegated_date, waiting_for, check_date, is_pinned, previous_destination,
+        delegated_date, waiting_for, check_date, is_pinned, position, previous_destination,
         reminder_offset,
         created_at, updated_at, completed_at, deleted_at
       ) VALUES (
         @id, @title, @notes, @destination, @status, @project_id, @project_order,
         @due_date, @due_time, @scheduled_date, @scheduled_time, @delegated_to,
-        @delegated_date, @waiting_for, @check_date, @is_pinned, @previous_destination,
+        @delegated_date, @waiting_for, @check_date, @is_pinned, @position, @previous_destination,
         @reminder_offset,
         @created_at, @updated_at, @completed_at, @deleted_at
       )
@@ -100,6 +101,7 @@ export class TaskRepository {
       waiting_for: task.waiting_for || null,
       check_date: task.check_date || null,
       is_pinned: task.is_pinned ? 1 : 0,
+      position: task.position ?? 0,
       previous_destination: task.previous_destination || null,
       reminder_offset: task.reminder_offset !== undefined ? task.reminder_offset : null,
       created_at: task.created_at,
@@ -152,6 +154,7 @@ export class TaskRepository {
       ...existing,
       ...updates,
       is_pinned: updates.is_pinned !== undefined ? (updates.is_pinned ? 1 : 0) : existing.is_pinned,
+      position: updates.position !== undefined ? updates.position : existing.position,
       reminder_offset: updates.reminder_offset !== undefined ? updates.reminder_offset : existing.reminder_offset,
       updated_at: now,
       completed_at: completedAt,
@@ -176,6 +179,7 @@ export class TaskRepository {
         waiting_for = @waiting_for,
         check_date = @check_date,
         is_pinned = @is_pinned,
+        position = @position,
         previous_destination = @previous_destination,
         reminder_offset = @reminder_offset,
         updated_at = @updated_at,
@@ -201,6 +205,7 @@ export class TaskRepository {
       waiting_for: updatedTask.waiting_for || null,
       check_date: updatedTask.check_date || null,
       is_pinned: updatedTask.is_pinned ? 1 : 0,
+      position: updatedTask.position ?? 0,
       previous_destination: updatedTask.previous_destination || null,
       reminder_offset: updatedTask.reminder_offset !== undefined ? updatedTask.reminder_offset : null,
       updated_at: updatedTask.updated_at,
