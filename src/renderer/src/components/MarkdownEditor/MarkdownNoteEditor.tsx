@@ -1,7 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Eye, Code2, Copy, Check, Save, Maximize2, Minimize2 } from 'lucide-react';
 import { VisualEditor, VisualEditorRef } from './VisualEditor';
 import { SourceEditor, SourceEditorRef } from './SourceEditor';
+
+export interface MarkdownNoteEditorRef {
+  undo: () => void;
+  redo: () => void;
+  getMarkdown: () => string;
+  focus: () => void;
+}
 
 interface MarkdownNoteEditorProps {
   value: string;
@@ -14,7 +21,7 @@ interface MarkdownNoteEditorProps {
   onToggleFullscreen?: () => void;
 }
 
-export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
+export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNoteEditorProps>(({
   value,
   onChange,
   onSave,
@@ -23,13 +30,43 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
   activeMatchIndex,
   isFullscreen = false,
   onToggleFullscreen,
-}) => {
+}, ref) => {
   // Always start in visual mode when opening a note
   const [mode, setMode] = useState<'visual' | 'source'>('visual');
   const [content, setContent] = useState(value);
 
   const visualEditorRef = useRef<VisualEditorRef>(null);
   const sourceEditorRef = useRef<SourceEditorRef>(null);
+
+  useImperativeHandle(ref, () => ({
+    undo: () => {
+      if (mode === 'visual') {
+        visualEditorRef.current?.undo();
+      } else {
+        sourceEditorRef.current?.undo();
+      }
+    },
+    redo: () => {
+      if (mode === 'visual') {
+        visualEditorRef.current?.redo();
+      } else {
+        sourceEditorRef.current?.redo();
+      }
+    },
+    getMarkdown: () => {
+      if (mode === 'visual') {
+        return visualEditorRef.current?.getMarkdown() ?? content;
+      }
+      return sourceEditorRef.current?.getValue() ?? content;
+    },
+    focus: () => {
+      if (mode === 'visual') {
+        visualEditorRef.current?.focus();
+      } else {
+        sourceEditorRef.current?.focus();
+      }
+    },
+  }));
 
   // Sync external value when opened
   useEffect(() => {
@@ -142,4 +179,6 @@ export const MarkdownNoteEditor: React.FC<MarkdownNoteEditorProps> = ({
       </div>
     </div>
   );
-};
+});
+
+MarkdownNoteEditor.displayName = 'MarkdownNoteEditor';

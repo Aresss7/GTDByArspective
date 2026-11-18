@@ -265,7 +265,11 @@ export const App: React.FC = () => {
             version: update.latestVersion || '',
             releaseName: update.releaseName,
           });
-          showToast(`Доступно обновление: ${update.releaseName || update.latestVersion}!`, 'info', 6000);
+          const updateKey = `gtd-update-notified-${update.latestVersion}`;
+          if (!sessionStorage.getItem(updateKey)) {
+            sessionStorage.setItem(updateKey, 'true');
+            showToast(`Доступно обновление: ${update.releaseName || update.latestVersion}!`, 'info', 6000);
+          }
         }
       } catch (e) {
         console.warn('Auto-update check on startup error:', e);

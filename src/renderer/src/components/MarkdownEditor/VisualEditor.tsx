@@ -208,6 +208,8 @@ export interface VisualEditorRef {
   getMarkdown: () => string;
   setMarkdown: (md: string) => void;
   focus: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 interface VisualEditorProps {
@@ -447,6 +449,12 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
     },
     focus: () => {
       editor?.commands.focus();
+    },
+    undo: () => {
+      editor?.chain().focus().undo().run();
+    },
+    redo: () => {
+      editor?.chain().focus().redo().run();
     },
   }));
 

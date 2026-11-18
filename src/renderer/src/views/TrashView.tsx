@@ -5,6 +5,7 @@ import { matchesSearch } from '@shared/searchEngine';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useToast } from '../components/ToastNotification';
 import { Language, translations } from '../i18n/translations';
+import { MarkdownPreview } from '../components/MarkdownEditor';
 
 interface TrashViewProps {
   tasks: Task[];
@@ -286,7 +287,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                           )}
                         </div>
                         {task.notes && (
-                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{task.notes}</p>
+                          <MarkdownPreview content={task.notes} maxLines={1} className="mt-0.5" />
                         )}
                       </div>
                     </div>
@@ -420,7 +421,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                           {note.title}
                         </h4>
                         {note.notes && (
-                          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{note.notes}</p>
+                          <MarkdownPreview content={note.notes} maxLines={2} className="mt-1" />
                         )}
                       </div>
                     </div>

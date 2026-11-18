@@ -9,6 +9,8 @@ export interface SourceEditorRef {
   setValue: (val: string) => void;
   focus: () => void;
   getSelection: () => { start: number; end: number };
+  undo: () => void;
+  redo: () => void;
 }
 
 interface SourceEditorProps {
@@ -54,6 +56,14 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
       start: textareaRef.current?.selectionStart || 0,
       end: textareaRef.current?.selectionEnd || 0,
     }),
+    undo: () => {
+      textareaRef.current?.focus();
+      document.execCommand('undo');
+    },
+    redo: () => {
+      textareaRef.current?.focus();
+      document.execCommand('redo');
+    },
   }));
 
   // Переход и подсветка совпадения в textarea

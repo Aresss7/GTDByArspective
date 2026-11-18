@@ -18,14 +18,17 @@ import {
   List,
   Maximize2,
   Minimize2,
-  GripVertical
+  GripVertical,
+  Undo2,
+  Redo2
 } from 'lucide-react';
 import { Task } from '@shared/types';
 import { matchesSearch } from '@shared/searchEngine';
 import { formatDateDDMMYYYY } from '@shared/dateUtils';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { PinLimitModal } from '../components/PinLimitModal';
-import { MarkdownNoteEditor, MarkdownPreview } from '../components/MarkdownEditor';
+import { NoteCardContextMenu } from '../components/NoteCardContextMenu';
+import { MarkdownNoteEditor, MarkdownPreview, MarkdownNoteEditorRef } from '../components/MarkdownEditor';
 import { Language, translations } from '../i18n/translations';
 import { useToast } from '../components/ToastNotification';
 
@@ -63,6 +66,26 @@ export const NotesView: React.FC<NotesViewProps> = ({
   // Закреплённые заметки (до 4 заметок одновременно)
   const [isPinLimitOpen, setIsPinLimitOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<MarkdownNoteEditorRef>(null);
+
+  // Контекстное меню ПКМ для карточки заметки
+  const [contextMenuNote, setContextMenuNote] = useState<Task | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  const handleNoteContextMenu = (e: React.MouseEvent, note: Task) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuNote(note);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleCopyNoteFromList = async (note: Task) => {
+    const textToCopy = `${note.title}\n\n${note.notes || ''}`.trim();
+    if (navigator.clipboard && textToCopy) {
+      await navigator.clipboard.writeText(textToCopy);
+      showToast(isEn ? 'Note copied to clipboard' : 'Текст заметки скопирован', 'success');
+    }
+  };
 
   // Поиск внутри открытой заметки (Ctrl+F)
   const [inNoteSearchOpen, setInNoteSearchOpen] = useState(false);
@@ -137,6 +160,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
           window.gtdApi.updateTask(curNote.id, {
             title: curTitle.trim(),
             notes: curContent.trim() || undefined,
+            position: 0,
           }).catch(console.error);
         }
       }
@@ -196,7 +220,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
     setActiveMatchIndex((prev) => (prev - 1 + inNoteMatchesCount) % inNoteMatchesCount);
   };
 
-  // Закреплённые активные заметки идут первыми в списке, затем упорядоченные вручную (position > 0), затем недавно обновлённые/отредактированные
+  // Закреплённые активные заметки идут первыми в списке, новые/недавно отредактированные заметки идут сверху (после закреплённых), затем упорядоченные вручную
   const sortedNotes = useMemo(() => {
     return [...filteredNotes].sort((a, b) => {
       const aPin = Boolean(a.is_pinned) ? 1 : 0;
@@ -205,12 +229,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
       const posA = typeof a.position === 'number' && a.position > 0 ? a.position : null;
       const posB = typeof b.position === 'number' && b.position > 0 ? b.position : null;
       if (posA !== null && posB !== null) {
-        if (posA !== posB) return posA - posB;
-      } else if (posA !== null && posB === null) {
-        return -1;
-      } else if (posA === null && posB !== null) {
-        return 1;
+        return posA - posB;
       }
+      if (posA === null && posB !== null) return -1;
+      if (posA !== null && posB === null) return 1;
       const aTime = new Date(a.updated_at || a.created_at).getTime();
       const bTime = new Date(b.updated_at || b.created_at).getTime();
       return bTime - aTime;
@@ -288,6 +310,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       await window.gtdApi.updateTask(selectedNote.id, {
         title: draftTitle.trim(),
         notes: draftContent.trim() || undefined,
+        position: 0,
       });
       setSaveSuccess(true);
       showToast(isEn ? 'Note saved' : 'Заметка сохранена', 'success');
@@ -418,63 +441,71 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Кнопка закрепления */}
-            <button
-              type="button"
-              onClick={() => handleTogglePin(selectedNote)}
-              className={`flex items-center space-x-1.5 px-3 py-2 rounded-2xl border transition-all cursor-pointer shadow-xs active:scale-95 text-xs font-semibold ${
-                Boolean(selectedNote.is_pinned)
-                  ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#282828] text-zinc-700 dark:text-zinc-300'
-              }`}
-              title={
-                Boolean(selectedNote.is_pinned)
-                  ? (isEn ? 'Unpin note' : 'Открепить заметку')
-                  : (isEn ? 'Pin note (up to 4)' : 'Закрепить заметку (до 4)')
-              }
-            >
-              <Pin className={`w-3.5 h-3.5 ${Boolean(selectedNote.is_pinned) ? 'fill-amber-500 text-amber-500' : ''}`} />
-              <span>{Boolean(selectedNote.is_pinned) ? (isEn ? 'Pinned' : 'Закреплено') : (isEn ? 'Pin' : 'Закрепить')}</span>
-            </button>
+            {/* Группа действий редактирования (Отмена, Повтор, Копировать, Сохранить) */}
+            <div className="flex items-center bg-zinc-100 dark:bg-[#222222] p-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-x-1 shadow-2xs">
+              {/* Отмена */}
+              <button
+                type="button"
+                onClick={() => editorRef.current?.undo()}
+                className="p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all cursor-pointer shadow-2xs active:scale-90"
+                title={isEn ? 'Undo (Ctrl+Z)' : 'Отменить (Ctrl+Z)'}
+              >
+                <Undo2 className="w-4 h-4" />
+              </button>
 
-            {/* Кнопка копирования */}
-            <button
-              onClick={handleCopyNote}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-[#282828] text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-              title={isEn ? 'Copy note text' : 'Скопировать текст заметки'}
-            >
-              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{isCopied ? t.notesCopied : t.notesCopy}</span>
-            </button>
+              {/* Повтор */}
+              <button
+                type="button"
+                onClick={() => editorRef.current?.redo()}
+                className="p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all cursor-pointer shadow-2xs active:scale-90"
+                title={isEn ? 'Redo (Ctrl+Y / Ctrl+Shift+Z)' : 'Повторить (Ctrl+Y / Ctrl+Shift+Z)'}
+              >
+                <Redo2 className="w-4 h-4" />
+              </button>
 
-            {/* Кнопка сохранения */}
-            <button
-              onClick={handleSaveNote}
-              disabled={isSaving || !draftTitle.trim()}
-              className="flex items-center space-x-1.5 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
-            >
-              {saveSuccess ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-              <span>{saveSuccess ? t.notesSaved : isSaving ? t.notesSaving : t.notesSave}</span>
-            </button>
+              <div className="w-[1px] h-4 bg-zinc-200 dark:bg-zinc-700/80 mx-0.5" />
+
+              {/* Копировать */}
+              <button
+                type="button"
+                onClick={handleCopyNote}
+                className="p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2c] transition-all cursor-pointer shadow-2xs active:scale-90"
+                title={isCopied ? (isEn ? 'Copied!' : 'Скопировано!') : (isEn ? 'Copy text' : 'Скопировать текст')}
+              >
+                {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              </button>
+
+              {/* Сохранить */}
+              <button
+                type="button"
+                onClick={handleSaveNote}
+                disabled={isSaving || !draftTitle.trim()}
+                className={`p-2 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-90 ${
+                  saveSuccess
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 disabled:opacity-40'
+                }`}
+                title={
+                  saveSuccess
+                    ? (isEn ? 'Saved!' : 'Сохранено!')
+                    : isSaving
+                    ? (isEn ? 'Saving...' : 'Сохранение...')
+                    : (isEn ? 'Save note (Ctrl+S)' : 'Сохранить заметку (Ctrl+S)')
+                }
+              >
+                {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              </button>
+            </div>
 
             {/* Кнопка выйти без сохранения */}
             <button
               type="button"
               onClick={handleExitWithoutSaving}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 hover:border-rose-300 dark:hover:bg-rose-950/40 dark:hover:border-rose-900 text-xs font-semibold text-zinc-600 hover:text-rose-600 dark:text-zinc-300 dark:hover:text-rose-400 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 hover:border-rose-300 dark:hover:bg-rose-950/40 dark:hover:border-rose-900 text-xs font-semibold text-zinc-600 hover:text-rose-600 dark:text-zinc-300 dark:hover:text-rose-400 transition-all cursor-pointer shadow-xs active:scale-95"
               title={isEn ? 'Discard changes and exit' : 'Выйти без сохранения изменений'}
             >
               <X className="w-3.5 h-3.5" />
               <span>{isEn ? 'Discard' : 'Выйти без сохранения'}</span>
-            </button>
-
-            {/* Кнопка удаления в корзину */}
-            <button
-              onClick={() => setNoteToDelete(selectedNote)}
-              className="p-2 rounded-2xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-              title={t.notesDeleteTrash}
-            >
-              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -585,6 +616,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
           {/* Редактируемый текст заметки */}
           <div className={isFullscreen ? 'flex-1 flex flex-col min-h-0' : 'space-y-1.5 pt-1'}>
             <MarkdownNoteEditor
+              ref={editorRef}
               value={draftContent}
               onChange={(val) => setDraftContent(val)}
               onSave={handleSaveNote}
@@ -723,6 +755,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   }
                 }}
                 onClick={() => handleOpenNote(note)}
+                onContextMenu={(e) => handleNoteContextMenu(e, note)}
                 className={`p-5 bg-white dark:bg-[#222222] rounded-3xl border shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer ${
                   draggingNoteId === note.id ? 'opacity-40 scale-[0.99]' : ''
                 } ${
@@ -806,9 +839,6 @@ export const NotesView: React.FC<NotesViewProps> = ({
         <div className="space-y-2">
           {sortedNotes.map((note, idx) => {
             const isPinned = Boolean(note.is_pinned);
-            const previewText = note.notes
-              ? note.notes.replace(/[#*`~_>\-[\]()]/g, ' ').replace(/\s+/g, ' ').trim()
-              : '';
 
             return (
               <div
@@ -848,6 +878,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   }
                 }}
                 onClick={() => handleOpenNote(note)}
+                onContextMenu={(e) => handleNoteContextMenu(e, note)}
                 className={`px-4 py-3 bg-white dark:bg-[#222222] rounded-2xl border shadow-xs hover:shadow-md transition-all flex items-center justify-between group cursor-pointer ${
                   draggingNoteId === note.id ? 'opacity-40 scale-[0.99]' : ''
                 } ${
@@ -871,10 +902,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors truncate shrink-0 max-w-[280px] sm:max-w-[360px]">
                       {note.title}
                     </h4>
-                    {previewText && (
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate hidden sm:inline">
-                        {previewText}
-                      </span>
+                    {note.notes && (
+                      <MarkdownPreview
+                        content={note.notes}
+                        maxLines={1}
+                        className="hidden sm:inline-block truncate max-w-[320px] md:max-w-[420px] !space-y-0 text-xs text-zinc-400 dark:text-zinc-500"
+                      />
                     )}
                   </div>
                 </div>
@@ -934,6 +967,21 @@ export const NotesView: React.FC<NotesViewProps> = ({
       <PinLimitModal
         isOpen={isPinLimitOpen}
         onClose={() => setIsPinLimitOpen(false)}
+        language={language}
+      />
+
+      {/* Контекстное меню ПКМ для карточки заметки */}
+      <NoteCardContextMenu
+        note={contextMenuNote}
+        position={contextMenuPos}
+        onClose={() => {
+          setContextMenuPos(null);
+          setContextMenuNote(null);
+        }}
+        onOpen={handleOpenNote}
+        onTogglePin={handleTogglePin}
+        onCopy={handleCopyNoteFromList}
+        onDelete={(note) => setNoteToDelete(note)}
         language={language}
       />
     </div>

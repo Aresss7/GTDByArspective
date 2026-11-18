@@ -99,7 +99,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return localStorage.getItem('gtd-weekly-review-time') || '17:00';
   });
 
-  const [appVersion, setAppVersion] = useState<string>('1.6.7');
+  const [appVersion, setAppVersion] = useState<string>('1.6.8');
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -193,10 +193,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }, []);
 
   useEffect(() => {
-    handleCheckUpdate();
+    handleCheckUpdate(false);
   }, []);
 
-  const handleCheckUpdate = async () => {
+  const handleCheckUpdate = async (isManual = true) => {
     if (!window.gtdApi?.checkUpdate) return;
     setCheckingUpdate(true);
     setDownloadedFilePath(null);
@@ -214,14 +214,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         fileName: res.fileName,
       });
 
-      if (res.hasUpdate) {
-        showToast(`Доступна новая версия: ${res.releaseName || res.latestVersion}!`, 'info');
-      } else {
-        showToast('У вас установлена актуальная версия', 'success');
+      if (isManual) {
+        if (res.hasUpdate) {
+          showToast(`Доступна новая версия: ${res.releaseName || res.latestVersion}!`, 'info');
+        } else {
+          showToast('У вас установлена актуальная версия', 'success');
+        }
       }
     } catch (e) {
       console.error(e);
-      showToast('Не удалось проверить обновления', 'info');
+      if (isManual) {
+        showToast('Не удалось проверить обновления', 'info');
+      }
     } finally {
       setCheckingUpdate(false);
     }
@@ -932,7 +936,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             type="button"
-            onClick={handleCheckUpdate}
+            onClick={() => handleCheckUpdate(true)}
             disabled={checkingUpdate || downloading}
             className="flex items-center space-x-2 px-4 py-2 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
