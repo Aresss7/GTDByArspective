@@ -5,3 +5,9 @@ release/
 *.log
 .DS_Store
 *.local
+
+# Android sync specifications (private)
+ANDROID_COMPATIBILITY_SPEC.md
+ANDROID_SYNC_EXAMPLES.md
+SYNC_SPECIFICATION.md
+
