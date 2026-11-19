@@ -53,6 +53,9 @@ export const App: React.FC = () => {
   const [availableUpdate, setAvailableUpdate] = useState<{
     version: string;
     releaseName?: string;
+    downloadUrl?: string;
+    fileName?: string;
+    releaseUrl?: string;
   } | null>(null);
 
   // Тема оформления: 'system' (по умолчанию), 'light' или 'dark'
@@ -264,6 +267,9 @@ export const App: React.FC = () => {
           setAvailableUpdate({
             version: update.latestVersion || '',
             releaseName: update.releaseName,
+            downloadUrl: update.downloadUrl,
+            fileName: update.fileName,
+            releaseUrl: update.releaseUrl,
           });
           const updateKey = `gtd-update-notified-${update.latestVersion}`;
           if (!sessionStorage.getItem(updateKey)) {
@@ -584,28 +590,88 @@ export const App: React.FC = () => {
   const sevenDaysLater = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 23, 59, 59, 999);
   const sevenDaysLaterStr = `${sevenDaysLater.getFullYear()}-${String(sevenDaysLater.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysLater.getDate()).padStart(2, '0')}`;
 
-  const allNextActions = tasks.filter((t) => {
-    if (t.status !== 'active' || t.deleted_at) return false;
-    // Прямые текущие действия
-    if (t.destination === 'next_actions') return true;
+  const projectsMap = useMemo(() => {
+    return new Map(projects.map((p) => [p.id, p]));
+  }, [projects]);
 
-    // Задачи из календаря, до которых осталась неделя или меньше (включая сегодня и просроченные)
-    if (t.destination === 'calendar' || Boolean(t.scheduled_date)) {
-      const rawDate = t.scheduled_date || t.due_date;
-      if (!rawDate) {
-        return t.destination === 'calendar';
+  const allNextActions = useMemo(() => {
+    return tasks.filter((t) => {
+      if (t.status !== 'active' || t.deleted_at || t.destination === 'trash') return false;
+      // Прямые текущие действия
+      if (t.destination === 'next_actions') return true;
+
+      // Задачи из календаря, до которых осталась неделя или меньше (включая сегодня и просроченные)
+      if (t.destination === 'calendar' || Boolean(t.scheduled_date)) {
+        const rawDate = t.scheduled_date || t.due_date;
+        if (!rawDate) {
+          return t.destination === 'calendar';
+        }
+        const taskDateOnly = rawDate.split('T')[0].split(' ')[0];
+        if (taskDateOnly <= sevenDaysLaterStr) {
+          return true;
+        }
       }
-      const taskDateOnly = rawDate.split('T')[0].split(' ')[0];
-      if (taskDateOnly <= sevenDaysLaterStr) {
+      return false;
+    });
+  }, [tasks, sevenDaysLaterStr]);
+
+  const nextActionsTasks = useMemo(() => {
+    const query = nextActionsSearch.trim();
+    if (!query) {
+      return allNextActions;
+    }
+
+    // Проекты, название или описание которых совпадает с поисковым запросом
+    const matchingProjectIds = new Set(
+      projects.filter((p) => matchesSearch(p, query)).map((p) => p.id)
+    );
+
+    // Пул кандидатов при поиске в Следующих действиях:
+    // 1. Все обычные задачи Следующих действий
+    // 2. Все активные задачи, привязанные к проектам (project_id)
+    const candidateTasks = tasks.filter((t) => {
+      if (t.status !== 'active' || t.deleted_at || t.destination === 'trash') return false;
+      return t.destination === 'next_actions' || Boolean(t.project_id) || (
+        (t.destination === 'calendar' || Boolean(t.scheduled_date)) && (
+          !(t.scheduled_date || t.due_date) || (t.scheduled_date || t.due_date)!.split('T')[0].split(' ')[0] <= sevenDaysLaterStr
+        )
+      );
+    });
+
+    return candidateTasks.filter((t) => {
+      // Если задача из проекта, название которого совпало с запросом (например, поиск "Х")
+      if (t.project_id && matchingProjectIds.has(t.project_id)) {
         return true;
       }
-    }
-    return false;
-  });
-  const nextActionsTasks = allNextActions.filter((t) => matchesSearch(t, nextActionsSearch));
+
+      const parentProject = t.project_id ? projectsMap.get(t.project_id) : null;
+      return matchesSearch(
+        {
+          ...t,
+          project_title: parentProject?.title,
+          project_name: parentProject?.title,
+        },
+        query
+      );
+    });
+  }, [allNextActions, tasks, projects, projectsMap, nextActionsSearch, sevenDaysLaterStr]);
 
   const allInboxTasks = tasks.filter((t) => t.destination === 'inbox' && t.status === 'active' && !t.deleted_at);
-  const inboxTasks = allInboxTasks.filter((t) => matchesSearch(t, inboxSearch));
+  const inboxTasks = useMemo(() => {
+    const query = inboxSearch.trim();
+    if (!query) return allInboxTasks;
+    return allInboxTasks.filter((t) => {
+      const parentProject = t.project_id ? projectsMap.get(t.project_id) : null;
+      return matchesSearch(
+        {
+          ...t,
+          project_title: parentProject?.title,
+          project_name: parentProject?.title,
+        },
+        query
+      );
+    });
+  }, [allInboxTasks, inboxSearch, projectsMap]);
 
   // Сортировка по позиции, закреплению и дате создания
   const sortedInboxTasks = useMemo(() => {
@@ -631,6 +697,14 @@ export const App: React.FC = () => {
       const aPin = Boolean(a.is_pinned) ? 1 : 0;
       const bPin = Boolean(b.is_pinned) ? 1 : 0;
       if (aPin !== bPin) return bPin - aPin;
+
+      // Если обе задачи принадлежат одному проекту, упорядочиваем по порядку шагов в проекте
+      if (a.project_id && b.project_id && a.project_id === b.project_id) {
+        const orderA = typeof a.project_order === 'number' ? a.project_order : 999999;
+        const orderB = typeof b.project_order === 'number' ? b.project_order : 999999;
+        if (orderA !== orderB) return orderA - orderB;
+      }
+
       const posA = typeof a.position === 'number' && a.position > 0 ? a.position : null;
       const posB = typeof b.position === 'number' && b.position > 0 ? b.position : null;
       if (posA !== null && posB !== null) {
@@ -709,11 +783,11 @@ export const App: React.FC = () => {
           <UpdateBanner
             version={availableUpdate.version}
             releaseName={availableUpdate.releaseName}
-            onGoToSettings={() => {
-              setActiveTab('settings');
-              setAvailableUpdate(null);
-            }}
+            downloadUrl={availableUpdate.downloadUrl}
+            fileName={availableUpdate.fileName}
+            releaseUrl={availableUpdate.releaseUrl}
             onDismiss={() => setAvailableUpdate(null)}
+            language={language}
           />
         )}
 

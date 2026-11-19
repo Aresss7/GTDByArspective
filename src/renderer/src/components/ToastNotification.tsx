@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, RotateCcw, Info, AlertCircle, X } from 'lucide-react';
 
 export interface ToastMessage {
@@ -15,27 +15,38 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const showToast = useCallback((text: string, type: 'success' | 'info' | 'restore' | 'error' = 'success', duration = 3000) => {
-    const id = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    setToasts((prev) => [...prev, { id, text, type, duration }]);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
 
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
+    const id = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    setToast({ id, text, type, duration });
+
+    timeoutRef.current = setTimeout(() => {
+      setToast(null);
+      timeoutRef.current = null;
     }, duration);
   }, []);
 
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const removeToast = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setToast(null);
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {/* Toast container */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-2 pointer-events-none">
-        {toasts.map((toast) => (
+      {/* Toast container (всегда 1 уведомление одновременно, новое плавно замещает предыдущее) */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none">
           <div
             key={toast.id}
             className="pointer-events-auto flex items-center space-x-2.5 px-4 py-2.5 rounded-2xl bg-zinc-900/95 dark:bg-white/95 text-white dark:text-zinc-900 text-xs font-semibold shadow-2xl backdrop-blur-md border border-zinc-700/50 dark:border-zinc-300/50 animate-fadeIn"
@@ -51,14 +62,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             )}
             <span>{toast.text}</span>
             <button
-              onClick={() => removeToast(toast.id)}
+              onClick={removeToast}
               className="p-1 rounded-full hover:bg-white/10 dark:hover:bg-zinc-800/10 transition-colors ml-1 cursor-pointer"
             >
               <X className="w-3 h-3 text-zinc-400" />
             </button>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </ToastContext.Provider>
   );
 };

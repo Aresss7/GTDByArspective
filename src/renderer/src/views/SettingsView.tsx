@@ -99,7 +99,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return localStorage.getItem('gtd-weekly-review-time') || '17:00';
   });
 
-  const [appVersion, setAppVersion] = useState<string>('1.6.8');
+  const [appVersion, setAppVersion] = useState<string>('1.7.0');
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
 

@@ -3,6 +3,7 @@ import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { extractLinkUrls } from './urlExtractor';
+import { Language } from '../../i18n/translations';
 
 export interface SourceEditorRef {
   getValue: () => string;
@@ -21,17 +22,21 @@ interface SourceEditorProps {
   searchTerm?: string;
   activeMatchIndex?: number;
   isFullscreen?: boolean;
+  language?: Language;
 }
 
 export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
   value,
   onChange,
   onSave,
-  placeholder = 'Введите текст в формате Markdown...',
+  placeholder,
   searchTerm,
   activeMatchIndex,
   isFullscreen = false,
+  language = 'ru',
 }, ref) => {
+  const isEn = language === 'en';
+  const defaultPlaceholder = isEn ? 'Enter text in Markdown format...' : 'Введите текст в формате Markdown...';
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
     x: 0,
@@ -327,7 +332,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
-        placeholder={placeholder}
+        placeholder={placeholder || defaultPlaceholder}
         className={`w-full flex-1 p-5 pr-14 rounded-2xl bg-zinc-50 dark:bg-[#191919] border border-zinc-200 dark:border-zinc-800 text-sm font-mono leading-relaxed text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors ${
           isFullscreen ? 'h-full min-h-0 resize-none' : 'resize-y min-h-[460px]'
         } whitespace-pre-wrap selection:bg-emerald-500/20`}
@@ -338,7 +343,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
       {discoveredUrls.length > 0 && (
         <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
           <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-            Предпросмотр ссылок ({discoveredUrls.length})
+            {isEn ? `Link Previews (${discoveredUrls.length})` : `Предпросмотр ссылок (${discoveredUrls.length})`}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {discoveredUrls.map((url) => (
@@ -358,15 +363,15 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
         isVisualMode={false}
         hasSelection={Boolean(textareaRef.current && textareaRef.current.selectionStart !== textareaRef.current.selectionEnd)}
-        onToggleBold={() => wrapSelection('**', '**', 'жирный текст')}
-        onToggleItalic={() => wrapSelection('*', '*', 'курсив')}
-        onToggleStrike={() => wrapSelection('~~', '~~', 'зачёркнутый текст')}
-        onToggleUnderline={() => wrapSelection('<u>', '</u>', 'подчёркнутый текст')}
-        onToggleCode={() => wrapSelection('`', '`', 'код')}
+        onToggleBold={() => wrapSelection('**', '**', isEn ? 'bold text' : 'жирный текст')}
+        onToggleItalic={() => wrapSelection('*', '*', isEn ? 'italic' : 'курсив')}
+        onToggleStrike={() => wrapSelection('~~', '~~', isEn ? 'strikethrough text' : 'зачёркнутый текст')}
+        onToggleUnderline={() => wrapSelection('<u>', '</u>', isEn ? 'underlined text' : 'подчёркнутый текст')}
+        onToggleCode={() => wrapSelection('`', '`', isEn ? 'code' : 'код')}
         onSetHeading={(lvl) => prefixLines('#'.repeat(lvl))}
         onSetParagraph={() => prefixLines('')}
         onToggleBlockquote={() => prefixLines('>')}
-        onToggleCodeBlock={() => wrapSelection('```\n', '\n```', 'код')}
+        onToggleCodeBlock={() => wrapSelection('```\n', '\n```', isEn ? 'code' : 'код')}
         onToggleTaskList={() => prefixLines('- [ ]')}
         onToggleBulletList={() => prefixLines('-')}
         onToggleOrderedList={() => prefixLines('1.')}
@@ -375,8 +380,9 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         onInsertFootnote={handleInsertFootnote}
         onUndo={() => document.execCommand('undo')}
         onRedo={() => document.execCommand('redo')}
-        onSelectTextColor={(color) => wrapSelection(`<span style="color: ${color}">`, '</span>', 'текст')}
-        onSelectBgColor={(bgColor) => wrapSelection(`<mark style="background-color: ${bgColor}">`, '</mark>', 'текст')}
+        onSelectTextColor={(color) => wrapSelection(`<span style="color: ${color}">`, '</span>', isEn ? 'text' : 'текст')}
+        onSelectBgColor={(bgColor) => wrapSelection(`<mark style="background-color: ${bgColor}">`, '</mark>', isEn ? 'text' : 'текст')}
+        language={language}
       />
 
       <LinkModal
@@ -385,6 +391,7 @@ export const SourceEditor = forwardRef<SourceEditorRef, SourceEditorProps>(({
         initialText={linkModal.initialText}
         onClose={() => setLinkModal((prev) => ({ ...prev, isOpen: false }))}
         onSave={handleSaveLink}
+        language={language}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Link2, X } from 'lucide-react';
+import { Language } from '../../i18n/translations';
 
 interface LinkModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface LinkModalProps {
   onClose: () => void;
   onSave: (url: string, text: string) => void;
   onRemove?: () => void;
+  language?: Language;
 }
 
 export const LinkModal: React.FC<LinkModalProps> = ({
@@ -17,7 +19,9 @@ export const LinkModal: React.FC<LinkModalProps> = ({
   onClose,
   onSave,
   onRemove,
+  language = 'ru',
 }) => {
+  const isEn = language === 'en';
   const [url, setUrl] = useState(initialUrl);
   const [text, setText] = useState(initialText);
 
@@ -51,7 +55,9 @@ export const LinkModal: React.FC<LinkModalProps> = ({
           <div className="flex items-center space-x-2 text-zinc-900 dark:text-zinc-100">
             <Link2 className="w-5 h-5 text-emerald-500" />
             <h3 className="text-base font-bold">
-              {initialUrl ? 'Редактировать ссылку' : 'Вставить ссылку'}
+              {initialUrl 
+                ? (isEn ? 'Edit Link' : 'Редактировать ссылку') 
+                : (isEn ? 'Insert Link' : 'Вставить ссылку')}
             </h3>
           </div>
           <button
@@ -66,7 +72,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
-              URL-адрес
+              {isEn ? 'URL Address' : 'URL-адрес'}
             </label>
             <input
               type="text"
@@ -80,13 +86,13 @@ export const LinkModal: React.FC<LinkModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">
-              Отображаемый текст (необязательно)
+              {isEn ? 'Display text (optional)' : 'Отображаемый текст (необязательно)'}
             </label>
             <input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Название ссылки"
+              placeholder={isEn ? 'Link title' : 'Название ссылки'}
               className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#222222] border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
             />
           </div>
@@ -101,7 +107,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
                 }}
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
               >
-                Удалить ссылку
+                {isEn ? 'Remove link' : 'Удалить ссылку'}
               </button>
             ) : <div />}
 
@@ -111,14 +117,14 @@ export const LinkModal: React.FC<LinkModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               >
-                Отмена
+                {isEn ? 'Cancel' : 'Отмена'}
               </button>
               <button
                 type="submit"
                 disabled={!url.trim()}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 transition-all cursor-pointer shadow-sm active:scale-95"
               >
-                Сохранить
+                {isEn ? 'Save' : 'Сохранить'}
               </button>
             </div>
           </div>

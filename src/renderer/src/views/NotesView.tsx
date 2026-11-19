@@ -625,6 +625,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               activeMatchIndex={activeMatchIndex}
               isFullscreen={isFullscreen}
               onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+              language={language}
             />
           </div>
         </div>

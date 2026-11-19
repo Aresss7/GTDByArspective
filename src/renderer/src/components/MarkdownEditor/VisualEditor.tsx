@@ -14,6 +14,7 @@ import { NoteContextMenu } from './NoteContextMenu';
 import { LinkModal } from './LinkModal';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { extractLinkUrls } from './urlExtractor';
+import { Language } from '../../i18n/translations';
 
 export const SearchHighlightKey = new PluginKey('searchHighlight');
 
@@ -220,17 +221,23 @@ interface VisualEditorProps {
   searchTerm?: string;
   activeMatchIndex?: number;
   isFullscreen?: boolean;
+  language?: Language;
 }
 
 export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
   initialMarkdown,
   onChange,
   onSave,
-  placeholder = 'Начните вводить текст заметки... Для форматирования нажмите правую кнопку мыши.',
+  placeholder,
   searchTerm,
   activeMatchIndex,
   isFullscreen = false,
+  language = 'ru',
 }, ref) => {
+  const isEn = language === 'en';
+  const defaultPlaceholder = isEn 
+    ? 'Start typing note content... Right-click for formatting.' 
+    : 'Начните вводить текст заметки... Для форматирования нажмите правую кнопку мыши.';
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({
     x: 0,
     y: 0,
@@ -589,6 +596,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         }}
         activeTextColor={editor ? (editor.getAttributes('textColor')?.color || null) : null}
         activeBgColor={editor ? (editor.getAttributes('textHighlight')?.backgroundColor || null) : null}
+        language={language}
       />
 
       {/* Link Modal */}
@@ -599,6 +607,7 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>(({
         onClose={() => setLinkModal((prev) => ({ ...prev, isOpen: false }))}
         onSave={handleSaveLink}
         onRemove={editor.isActive('link') ? handleRemoveLink : undefined}
+        language={language}
       />
     </div>
   );

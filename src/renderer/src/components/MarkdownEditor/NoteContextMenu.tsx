@@ -17,7 +17,6 @@ import {
   Link2, 
   RotateCcw, 
   RotateCw,
-  ExternalLink,
   SquareCode,
   Search,
   CheckSquare,
@@ -26,6 +25,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { ColorPickerMenu } from './ColorPickerMenu';
+import { Language } from '../../i18n/translations';
 
 export interface NoteContextMenuProps {
   x: number;
@@ -75,6 +75,7 @@ export interface NoteContextMenuProps {
   onSelectBgColor?: (bgColor: string) => void;
   activeTextColor?: string | null;
   activeBgColor?: string | null;
+  language?: Language;
 }
 
 export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
@@ -108,15 +109,18 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
   onSelectBgColor,
   activeTextColor,
   activeBgColor,
+  language = 'ru',
 }) => {
+  const isEn = language === 'en';
   const menuRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeColorSubmenu, setActiveColorSubmenu] = useState<'text' | 'bg' | null>(null);
 
+  // Сброс подменю при каждом закрытии
   useEffect(() => {
-    if (isOpen) {
-      setSearchQuery('');
+    if (!isOpen) {
       setActiveColorSubmenu(null);
+      setSearchQuery('');
     }
   }, [isOpen]);
 
@@ -235,7 +239,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск..."
+              placeholder={isEn ? 'Search action...' : 'Поиск...'}
               className="w-full pl-6 pr-2 py-1 text-[11px] rounded-lg bg-zinc-100 dark:bg-[#252528] border border-transparent focus:border-zinc-300 dark:focus:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none"
             />
           </div>
@@ -248,36 +252,36 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
         onWheel={(e) => e.stopPropagation()}
       >
         {/* Undo / Redo */}
-        {(!q || 'отменить'.includes(q) || 'повторить'.includes(q)) && (
+        {(!q || 'undo'.includes(q) || 'redo'.includes(q) || 'отменить'.includes(q) || 'повторить'.includes(q)) && (
           <div className="flex items-center space-x-1 pb-1 border-b border-zinc-100 dark:border-zinc-800">
             <button
               type="button"
               onClick={() => { onUndo(); onClose(); }}
               className="flex-1 flex items-center justify-center space-x-1 py-1 rounded-md text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#252525] transition-colors cursor-pointer"
-              title="Отменить"
+              title={isEn ? 'Undo' : 'Отменить'}
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Отмена</span>
+              <span>{isEn ? 'Undo' : 'Отмена'}</span>
             </button>
             <button
               type="button"
               onClick={() => { onRedo(); onClose(); }}
               className="flex-1 flex items-center justify-center space-x-1 py-1 rounded-md text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#252525] transition-colors cursor-pointer"
-              title="Повторить"
+              title={isEn ? 'Redo' : 'Повторить'}
             >
               <RotateCw className="w-3 h-3" />
-              <span>Повтор</span>
+              <span>{isEn ? 'Redo' : 'Повтор'}</span>
             </button>
           </div>
         )}
 
         {/* Formatting */}
         <div className="space-y-0.5 pt-0.5">
-          <Item icon={Bold} label="Жирный" shortcut="Ctrl+B" active={activeFormats.bold} onClick={onToggleBold} />
-          <Item icon={Italic} label="Курсив" shortcut="Ctrl+I" active={activeFormats.italic} onClick={onToggleItalic} />
-          <Item icon={UnderlineIcon} label="Подчёркнутый" shortcut="Ctrl+U" active={activeFormats.underline} onClick={onToggleUnderline} />
-          <Item icon={Strikethrough} label="Зачёркнутый" shortcut="Ctrl+Shift+X" active={activeFormats.strike} onClick={onToggleStrike} />
-          <Item icon={Code} label="Встроенный код" active={activeFormats.code} onClick={onToggleCode} />
+          <Item icon={Bold} label={isEn ? 'Bold' : 'Жирный'} shortcut="Ctrl+B" active={activeFormats.bold} onClick={onToggleBold} />
+          <Item icon={Italic} label={isEn ? 'Italic' : 'Курсив'} shortcut="Ctrl+I" active={activeFormats.italic} onClick={onToggleItalic} />
+          <Item icon={UnderlineIcon} label={isEn ? 'Underline' : 'Подчёркнутый'} shortcut="Ctrl+U" active={activeFormats.underline} onClick={onToggleUnderline} />
+          <Item icon={Strikethrough} label={isEn ? 'Strikethrough' : 'Зачёркнутый'} shortcut="Ctrl+Shift+X" active={activeFormats.strike} onClick={onToggleStrike} />
+          <Item icon={Code} label={isEn ? 'Inline code' : 'Встроенный код'} active={activeFormats.code} onClick={onToggleCode} />
         </div>
 
         {/* Colors (отдельно цвет текста и цвет фона) */}
@@ -311,7 +315,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
                           : undefined
                       }}
                     />
-                    <span>Цвет текста</span>
+                    <span>{isEn ? 'Text color' : 'Цвет текста'}</span>
                   </div>
                   <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${activeColorSubmenu === 'text' ? (openOnLeft ? '-rotate-180' : 'rotate-90') : ''}`} />
                 </button>
@@ -343,7 +347,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
                           : undefined
                       }}
                     />
-                    <span>Цвет фона текста</span>
+                    <span>{isEn ? 'Highlight color' : 'Цвет фона текста'}</span>
                   </div>
                   <ChevronRight className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${activeColorSubmenu === 'bg' ? (openOnLeft ? '-rotate-180' : 'rotate-90') : ''}`} />
                 </button>
@@ -357,10 +361,10 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
 
         {/* Headings */}
         <div className="space-y-0.5">
-          <Item icon={Heading1} label="Заголовок 1 (H1)" active={activeFormats.h1} onClick={() => onSetHeading(1)} />
-          <Item icon={Heading2} label="Заголовок 2 (H2)" active={activeFormats.h2} onClick={() => onSetHeading(2)} />
-          <Item icon={Heading3} label="Заголовок 3 (H3)" active={activeFormats.h3} onClick={() => onSetHeading(3)} />
-          <Item icon={Pilcrow} label="Обычный текст" active={activeFormats.paragraph} onClick={onSetParagraph} />
+          <Item icon={Heading1} label={isEn ? 'Heading 1 (H1)' : 'Заголовок 1 (H1)'} active={activeFormats.h1} onClick={() => onSetHeading(1)} />
+          <Item icon={Heading2} label={isEn ? 'Heading 2 (H2)' : 'Заголовок 2 (H2)'} active={activeFormats.h2} onClick={() => onSetHeading(2)} />
+          <Item icon={Heading3} label={isEn ? 'Heading 3 (H3)' : 'Заголовок 3 (H3)'} active={activeFormats.h3} onClick={() => onSetHeading(3)} />
+          <Item icon={Pilcrow} label={isEn ? 'Normal text' : 'Обычный текст'} active={activeFormats.paragraph} onClick={onSetParagraph} />
         </div>
 
         {!q && <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />}
@@ -368,13 +372,13 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
         {/* Blocks */}
         <div className="space-y-0.5">
           {onToggleTaskList && (
-            <Item icon={CheckSquare} label="Список с чекбоксами" active={activeFormats.taskList} onClick={onToggleTaskList} />
+            <Item icon={CheckSquare} label={isEn ? 'Task list' : 'Список с чекбоксами'} active={activeFormats.taskList} onClick={onToggleTaskList} />
           )}
-          <Item icon={List} label="Маркированный список" active={activeFormats.bulletList} onClick={onToggleBulletList} />
-          <Item icon={ListOrdered} label="Нумерованный список" active={activeFormats.orderedList} onClick={onToggleOrderedList} />
-          <Item icon={Quote} label="Цитата" active={activeFormats.blockquote} onClick={onToggleBlockquote} />
-          <Item icon={FileCode} label="Блок кода" active={activeFormats.codeBlock} onClick={onToggleCodeBlock} />
-          <Item icon={Minus} label="Разделитель" onClick={onInsertHorizontalRule} />
+          <Item icon={List} label={isEn ? 'Bullet list' : 'Маркированный список'} active={activeFormats.bulletList} onClick={onToggleBulletList} />
+          <Item icon={ListOrdered} label={isEn ? 'Numbered list' : 'Нумерованный список'} active={activeFormats.orderedList} onClick={onToggleOrderedList} />
+          <Item icon={Quote} label={isEn ? 'Quote' : 'Цитата'} active={activeFormats.blockquote} onClick={onToggleBlockquote} />
+          <Item icon={FileCode} label={isEn ? 'Code block' : 'Блок кода'} active={activeFormats.codeBlock} onClick={onToggleCodeBlock} />
+          <Item icon={Minus} label={isEn ? 'Divider' : 'Разделитель'} onClick={onInsertHorizontalRule} />
         </div>
 
         {!q && <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />}
@@ -383,7 +387,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
         <div className="space-y-0.5">
           <Item 
             icon={Link2} 
-            label={isLinkSelected ? "Изменить ссылку" : "Вставить ссылку"} 
+            label={isLinkSelected ? (isEn ? 'Edit link' : 'Изменить ссылку') : (isEn ? 'Insert link' : 'Вставить ссылку')} 
             shortcut="Ctrl+K" 
             onClick={onInsertOrEditLink} 
           />
@@ -394,11 +398,11 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
               className="w-full flex items-center space-x-2 px-2.5 py-1 rounded-lg text-[11px] text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-left"
             >
               <Minus className="w-3 h-3" />
-              <span>Удалить ссылку</span>
+              <span>{isEn ? 'Remove link' : 'Удалить ссылку'}</span>
             </button>
           )}
           {onInsertFootnote && (
-            <Item icon={SquareCode} label="Сноска [^1]" onClick={onInsertFootnote} />
+            <Item icon={SquareCode} label={isEn ? 'Footnote [^1]' : 'Сноска [^1]'} onClick={onInsertFootnote} />
           )}
         </div>
       </div>
@@ -415,6 +419,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
         >
           <ColorPickerMenu
             mode={activeColorSubmenu}
+            isEn={isEn}
             onSelectColor={(color) => {
               if (activeColorSubmenu === 'text') {
                 onSelectTextColor?.(color);

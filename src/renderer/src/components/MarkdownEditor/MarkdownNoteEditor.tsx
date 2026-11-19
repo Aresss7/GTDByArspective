@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } f
 import { Eye, Code2, Copy, Check, Save, Maximize2, Minimize2 } from 'lucide-react';
 import { VisualEditor, VisualEditorRef } from './VisualEditor';
 import { SourceEditor, SourceEditorRef } from './SourceEditor';
+import { Language } from '../../i18n/translations';
 
 export interface MarkdownNoteEditorRef {
   undo: () => void;
@@ -19,6 +20,7 @@ interface MarkdownNoteEditorProps {
   activeMatchIndex?: number;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  language?: Language;
 }
 
 export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNoteEditorProps>(({
@@ -30,7 +32,9 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
   activeMatchIndex,
   isFullscreen = false,
   onToggleFullscreen,
+  language = 'ru',
 }, ref) => {
+  const isEn = language === 'en';
   // Always start in visual mode when opening a note
   const [mode, setMode] = useState<'visual' | 'source'>('visual');
   const [content, setContent] = useState(value);
@@ -112,10 +116,10 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
                   ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs'
                   : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
               }`}
-              title="Обычный визуальный режим (WYSIWYG)"
+              title={isEn ? 'Visual mode (WYSIWYG)' : 'Обычный визуальный режим (WYSIWYG)'}
             >
               <Eye className="w-3.5 h-3.5" />
-              <span>Визуальный</span>
+              <span>{isEn ? 'Visual' : 'Визуальный'}</span>
             </button>
 
             <button
@@ -126,7 +130,7 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
                   ? 'bg-white dark:bg-[#191919] text-zinc-900 dark:text-zinc-100 shadow-xs'
                   : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
               }`}
-              title="Markdown режим (исходный код)"
+              title={isEn ? 'Markdown mode (source code)' : 'Markdown режим (исходный код)'}
             >
               <Code2 className="w-3.5 h-3.5" />
               <span>Markdown</span>
@@ -135,7 +139,9 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
 
           <div className="flex items-center space-x-3">
             <span className="text-[11px] text-zinc-400">
-              {content.length} симв. • {content.split('\n').filter(Boolean).length} строк
+              {isEn 
+                ? `${content.length} chars • ${content.split('\n').filter(Boolean).length} lines`
+                : `${content.length} симв. • ${content.split('\n').filter(Boolean).length} строк`}
             </span>
           </div>
         </div>
@@ -147,8 +153,10 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
           <button
             type="button"
             onClick={onToggleFullscreen}
-            className="absolute top-3 right-3 z-30 w-8 h-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/90 dark:bg-[#282828]/90 hover:bg-zinc-200 dark:hover:bg-[#333333] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 backdrop-blur-xs"
-            title={isFullscreen ? 'Свернуть полноэкранный режим (Esc)' : 'Развернуть область содержимого (Esc)'}
+            className="absolute top-3 right-3 z-30 w-8 h-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/90 dark:bg-[#282828]/90 hover:bg-zinc-200 dark:hover:bg-[#333333] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 backdrop-blur-xs"
+            title={isFullscreen 
+              ? (isEn ? 'Exit fullscreen (Esc)' : 'Свернуть полноэкранный режим (Esc)') 
+              : (isEn ? 'Enter fullscreen (Esc)' : 'Развернуть область содержимого (Esc)')}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -163,6 +171,7 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
             searchTerm={searchTerm}
             activeMatchIndex={activeMatchIndex}
             isFullscreen={isFullscreen}
+            language={language}
           />
         ) : (
           <SourceEditor
@@ -174,6 +183,7 @@ export const MarkdownNoteEditor = forwardRef<MarkdownNoteEditorRef, MarkdownNote
             searchTerm={searchTerm}
             activeMatchIndex={activeMatchIndex}
             isFullscreen={isFullscreen}
+            language={language}
           />
         )}
       </div>

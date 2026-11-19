@@ -28,6 +28,8 @@ export interface SearchableItem {
   title?: string;
   notes?: string;
   description?: string;
+  project_title?: string;
+  project_name?: string;
   approximate_plan?: string;
   completion_criteria?: string;
   tags?: string[];
@@ -197,6 +199,8 @@ export function getSearchableText(item: SearchableItem): string {
   if (item.title) parts.push(item.title);
   if (item.notes) parts.push(item.notes);
   if (item.description) parts.push(item.description);
+  if (item.project_title) parts.push(item.project_title);
+  if (item.project_name) parts.push(item.project_name);
   if (item.approximate_plan) parts.push(item.approximate_plan);
   if (item.completion_criteria) parts.push(item.completion_criteria);
   if (item.delegated_to) parts.push(item.delegated_to);
